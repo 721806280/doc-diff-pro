@@ -1,54 +1,53 @@
 # 📄 DocDiff Pro
 
-面向审阅和校对场景的 `.docx` 文档比对工具。你可以在浏览器中上传基准文档与修订文档，快速查看新增、删除和修改位置。
+A browser-based `.docx` comparison tool for review and proofreading. Upload an original document and a revised document, then instantly see what was added, deleted, and modified.
 
-项目基于 Vue 3、Vite、mammoth 和 diff-match-patch 构建，文档解析、文本归一化、差异计算和双栏高亮均在本地浏览器内完成。
+Built with Vue 3, Vite, mammoth, and diff-match-patch. Document parsing, text normalization, diffing, and side-by-side highlighting all run locally in your browser — your files never leave your machine.
 
-## ✨ 主要能力
+## ✨ Features
 
-- 📥 双栏上传基准文档与修订文档，直接进行对照审阅。
-- 🔍 支持语义级、词组级、字符级三种比对粒度，兼顾快速审阅与精细校对。
-- 📊 展示基于归一化文本编辑距离计算的相似度指标，便于快速判断整体变化幅度。
-- 🧭 支持差异导航，可在上一处、下一处差异之间快速跳转。
-- 🔗 支持双视图同步滚动，长文档对照时更容易保持上下文。
-- 🧹 支持忽略空白、统一全半角、忽略大小写，减少格式差异带来的干扰。
-- 🧩 保留原文档结构展示，并将归一化后的差异映射回原始 DOM 文本位置。
+- 📥 Side-by-side upload of the original (A) and revised (B) documents for direct comparison.
+- 🔍 Three diff granularities — semantic, word, and character — covering quick review through fine-grained proofreading.
+- 📊 A similarity score derived from the edit distance of the normalized text, for a quick read on the overall change magnitude.
+- 🧭 Difference navigation to jump between the previous and next change.
+- 🔗 Synchronized scrolling across both panes to keep context aligned in long documents.
+- 🧹 Ignore whitespace, normalize full-/half-width characters, and ignore case to cut formatting noise.
+- 🧩 Preserves the original document structure and maps normalized diffs back to their original DOM text positions.
+- 🌐 Bilingual interface (English / 中文) that auto-detects your browser language and remembers your choice.
 
-## 🧹 文本归一化
+## 🧹 Text Normalization
 
-### 忽略空白
+### Ignore whitespace
 
-用于忽略常见版式差异，减少排版、转换或文档结构变化带来的干扰。
+Reduces noise from layout, conversion, or structural changes. Cases currently handled include:
 
-当前会处理的典型情况包括：
+- Extra line breaks or whitespace from merged paragraphs or list items.
+- Layout spacing after clause or list numbering, e.g. `1.3.1. Access`.
+- Whitespace in mixed CJK / Latin / numeric text, e.g. `2025 年`, `A 座`, `8 号`.
+- Whitespace inside numbers, e.g. phone numbers, dates, or IDs like `010 59618935`.
+- Local whitespace inside emails, domains, and URLs, e.g. `Yuki. Sun@example. com`.
+- Field-punctuation whitespace in CJK context, e.g. `邮箱： name@example.com` and `邮箱:name@example.com`.
 
-- 段落或列表项合并造成的多余换行或空白。
-- 条款、列表编号后的版式空白，例如 `1.3.1. 访问`。
-- 中文、英文、数字混排中的空白，例如 `2025 年`、`A 座`、`8 号`。
-- 数字内部空白，例如电话、日期、编号中的 `010 59618935`。
-- 邮箱、域名、URL 中的局部空白，例如 `Yuki. Sun@example. com`。
-- 中文上下文里的字段标点空白，例如 `邮箱： name@example.com` 和 `邮箱:name@example.com`。
+Ordinary spaces between English words are **not** ignored by default (e.g. `Wolters Kluwer`), so that real differences in English prose are not mistaken for formatting differences.
 
-普通英文词间空格不会默认忽略，例如 `Wolters Kluwer`，以避免将英文正文中的真实差异误判为格式差异。
+### Normalize full-/half-width
 
-### 统一全半角
+Treats full-width ASCII and half-width ASCII as equivalent, including full-width letters, digits, and common symbols.
 
-用于统一全角 ASCII 与半角 ASCII 的差异，包括全角字母、数字和常见符号。
+## ⚙️ Usage Tips
 
-## ⚙️ 使用建议
+- 📝 General version comparison: enable `Ignore spaces` / `Normalize width` as needed.
+- 🎯 Strict character-by-character proofreading: choose the character granularity and turn off any normalization toggles you don't need.
+- 🔎 Comparing converted documents: enable `Ignore spaces` to reduce whitespace differences introduced by the conversion.
 
-- 📝 普通文档版本比对：按需开启 `忽略空白`、`统一全半角`。
-- 🎯 严格逐字符校对：选择字符级颗粒度，并关闭不需要的归一化开关。
-- 🔎 转换后文档比对：建议开启 `忽略空白`，减少格式转换带来的空白差异。
-
-## 🛠️ 开发命令
+## 🛠️ Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-常用检查：
+Common checks:
 
 ```bash
 npm test
@@ -56,10 +55,12 @@ npm run typecheck
 npm run build
 ```
 
-## 🔧 技术说明
+## 🔧 How It Works
 
-- 📦 `.docx` 解析由 mammoth 完成。
-- 🧮 文本比对由 diff-match-patch 完成。
-- 📈 相似度按当前归一化文本的编辑距离计算：`1 - 编辑距离 / max(基准文本长度, 修订文本长度)`。
-- 🧱 文本映射、空白折叠和归一化规则集中在 `src/utils/documentText.ts`。
-- 🎯 差异标记通过原始文本节点映射回 DOM，避免归一化逻辑散落到渲染层。
+- 📦 `.docx` parsing is handled by mammoth, and the resulting HTML is sanitized with DOMPurify.
+- 🧮 Text diffing is handled by diff-match-patch, run in a web worker with a synchronous fallback.
+- 📈 Similarity is computed from the edit distance of the current normalized text: `1 - editDistance / max(originalLength, revisedLength)`.
+- 🧱 Text mapping, whitespace collapsing, and normalization rules are centralized in `src/utils/documentText.ts`.
+- 🎯 Diff markers are mapped back to the DOM through the original text nodes, so normalization logic never leaks into the rendering layer.
+- 🌐 Interface strings live in a typed message catalog under `src/i18n/`.
+- 📐 Only `.docx` files are supported, up to 25 MB per file.
