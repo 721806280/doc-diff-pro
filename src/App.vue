@@ -31,6 +31,9 @@
         title="基准文档 (A)"
         :file-name="documents.A.name"
         :file-size="documents.A.size"
+        :text-length="documents.A.textLength"
+        :image-count="documents.A.imageCount"
+        :warnings="documents.A.warnings"
         empty-label="未上传基准文档"
         reupload-title="重新选择基准文档"
         upload-title="上传基准文档 (A)"
@@ -53,6 +56,9 @@
         title="修订文档 (B)"
         :file-name="documents.B.name"
         :file-size="documents.B.size"
+        :text-length="documents.B.textLength"
+        :image-count="documents.B.imageCount"
+        :warnings="documents.B.warnings"
         empty-label="未上传修订文档"
         reupload-title="重新选择修订文档"
         upload-title="上传修订文档 (B)"
@@ -79,8 +85,16 @@ import CompareToast from './components/CompareToast.vue';
 import DiffNavigator from './components/DiffNavigator.vue';
 import DocumentPane from './components/DocumentPane.vue';
 import type { DiffGranularity, DiffSummary } from './types/diff';
+import {
+  buildDiffElementIndex,
+  DIFF_ELEMENT_SELECTOR,
+  type DiffElementGroup,
+  type DiffElementIndex
+} from './utils/diffElementIndex';
 import { compareDocuments } from './utils/diffEngine';
-import { parseDocx } from './utils/docxParser';
+import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
+import { parseDocx, type ParsedDocx } from './utils/docxParser';
+import { diffId, parseDiffId } from './utils/textDiffCore';
 
 type PaneKey = 'A' | 'B';
 
@@ -100,6 +114,9 @@ type DocumentState = {
   size: number;
   originalHtml: string;
   highlightedHtml: string;
+  textLength: number;
+  imageCount: number;
+  warnings: string[];
   status: DocumentStatus;
   error: string;
 };
@@ -113,8 +130,8 @@ const EMPTY_DIFF_SUMMARY: DiffSummary = {
 const MAX_DOCX_SIZE = 25 * 1024 * 1024;
 
 const documents = reactive<Record<PaneKey, DocumentState>>({
-  A: { name: '', size: 0, originalHtml: '', highlightedHtml: '', status: 'idle', error: '' },
-  B: { name: '', size: 0, originalHtml: '', highlightedHtml: '', status: 'idle', error: '' }
+  A: createEmptyDocumentState(),
+  B: createEmptyDocumentState()
 });
 const comparing = ref(false);
 const compareNotice = ref('');
@@ -134,12 +151,29 @@ const paneB = ref<DocumentPaneExpose | null>(null);
 
 let activeDriver: PaneKey | null = null;
 let alignmentAnchors: AlignmentAnchor[] = [];
+let diffElementIndex: DiffElementIndex = new Map();
+let focusedDiffElements: HTMLElement[] = [];
 let compareNoticeTimer: number | null = null;
+let resizeTimer: number | null = null;
 let compareRunId = 0;
 const fileLoadIds: Record<PaneKey, number> = { A: 0, B: 0 };
 
 const ready = computed(() => documents.A.status === 'ready' && documents.B.status === 'ready');
 const totalDiffs = computed(() => diffSummary.value.total);
+
+function createEmptyDocumentState(): DocumentState {
+  return {
+    name: '',
+    size: 0,
+    originalHtml: '',
+    highlightedHtml: '',
+    textLength: 0,
+    imageCount: 0,
+    warnings: [],
+    status: 'idle',
+    error: ''
+  };
+}
 
 async function handleFile(key: PaneKey, file: File): Promise<void> {
   const validationError = validateDocxFile(file);
@@ -152,21 +186,19 @@ async function handleFile(key: PaneKey, file: File): Promise<void> {
   const documentState = documents[key];
   const loadId = ++fileLoadIds[key];
 
-  documentState.name = file.name;
-  documentState.size = file.size;
-  documentState.status = 'parsing';
-  documentState.error = '';
-  documentState.originalHtml = '';
-  documentState.highlightedHtml = '';
+  markDocumentParsing(documentState, file);
   clearCompareResult();
 
   try {
-    const html = await parseDocx(file);
+    const parsed = await parseDocx(file);
     // Ignore stale parse results when the user replaces a file before parsing finishes.
     if (loadId !== fileLoadIds[key]) return;
 
-    documentState.originalHtml = html;
-    documentState.status = 'ready';
+    applyParsedDocument(documentState, parsed);
+
+    if (parsed.warnings.length > 0) {
+      showCompareNotice(`${file.name} 解析完成，存在 ${parsed.warnings.length} 条转换提示`);
+    }
 
     if (ready.value) void compare();
   } catch (error) {
@@ -203,9 +235,33 @@ function setDocumentError(key: PaneKey, file: File, message: string): void {
   documentState.size = file.size;
   documentState.status = 'error';
   documentState.error = message;
+  resetDocumentContent(documentState);
+  showCompareNotice(message);
+}
+
+function markDocumentParsing(documentState: DocumentState, file: File): void {
+  documentState.name = file.name;
+  documentState.size = file.size;
+  documentState.status = 'parsing';
+  documentState.error = '';
+  resetDocumentContent(documentState);
+}
+
+function applyParsedDocument(documentState: DocumentState, parsed: ParsedDocx): void {
+  documentState.originalHtml = parsed.html;
+  documentState.highlightedHtml = '';
+  documentState.textLength = parsed.textLength;
+  documentState.imageCount = parsed.imageCount;
+  documentState.warnings = parsed.warnings;
+  documentState.status = 'ready';
+}
+
+function resetDocumentContent(documentState: DocumentState): void {
   documentState.originalHtml = '';
   documentState.highlightedHtml = '';
-  showCompareNotice(message);
+  documentState.textLength = 0;
+  documentState.imageCount = 0;
+  documentState.warnings = [];
 }
 
 watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, ignoreCase], () => {
@@ -227,18 +283,26 @@ function showCompareNotice(message: string): void {
 
 function clearCompareResult(): void {
   compareRunId++;
+  cancelPendingTextDiffs();
   comparing.value = false;
+  resetCompareState();
+}
+
+function resetCompareState(): void {
   compareError.value = '';
   hasResult.value = false;
   diffSummary.value = { ...EMPTY_DIFF_SUMMARY };
   currentDiffIndex.value = 0;
   alignmentAnchors = [];
+  clearFocusedDiffElements();
+  diffElementIndex.clear();
 }
 
 async function compare(showDoneNotice = false): Promise<void> {
   if (!ready.value) return;
 
   const runId = ++compareRunId;
+  cancelPendingTextDiffs();
   comparing.value = true;
   compareError.value = '';
 
@@ -246,7 +310,7 @@ async function compare(showDoneNotice = false): Promise<void> {
     await nextTick();
     if (runId !== compareRunId || !ready.value) return;
 
-    const result = compareDocuments(documents.A.originalHtml, documents.B.originalHtml, {
+    const result = await compareDocuments(documents.A.originalHtml, documents.B.originalHtml, {
       granularity: diffGranularity.value,
       ignoreSpaces: ignoreSpaces.value,
       ignoreFullHalfWidth: ignoreFullHalfWidth.value,
@@ -264,6 +328,7 @@ async function compare(showDoneNotice = false): Promise<void> {
     await nextTick();
     if (runId !== compareRunId) return;
 
+    rebuildDiffElementIndex();
     buildViewportLockMatrix();
     if (totalDiffs.value > 0) focusOnDiff(1, 'auto');
   } catch (error) {
@@ -302,23 +367,24 @@ function nextDiff(): void {
 }
 
 function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
-  document.querySelectorAll('.focus-diff').forEach((element) => element.classList.remove('focus-diff'));
+  clearFocusedDiffElements();
+  const group = diffElementIndex.get(diffId(index));
+  if (!group) return;
 
-  const diffId = `diff-${index}`;
-  const targets = document.querySelectorAll(`[data-diff-id="${diffId}"]`);
-  if (targets.length === 0) return;
-
-  targets.forEach((element) => element.classList.add('focus-diff'));
+  focusedDiffElements = [...group.A, ...group.B];
+  focusedDiffElements.forEach((element) => element.classList.add('focus-diff'));
   const containerA = getPaneViewport('A');
   const containerB = getPaneViewport('B');
-  const targetA = containerA?.querySelector(`[data-diff-id="${diffId}"]`);
-  const targetB = containerB?.querySelector(`[data-diff-id="${diffId}"]`);
+  const targetA = firstDiffElement(group, 'A');
+  const targetB = firstDiffElement(group, 'B');
 
   activeDriver = null;
 
   const alignedTopA = containerA && targetA ? smoothViewportAlign(containerA, targetA, behavior) : null;
   const alignedTopB = containerB && targetB ? smoothViewportAlign(containerB, targetB, behavior) : null;
 
+  // Both panes already scrolled to their own occurrence; only mirror-sync when one
+  // side has no diff element of its own to align against.
   if (targetA && targetB) return;
 
   if (syncScroll.value && alignedTopA !== null) {
@@ -326,6 +392,15 @@ function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
   } else if (syncScroll.value && alignedTopB !== null) {
     executeViewportSync('B', alignedTopB);
   }
+}
+
+function clearFocusedDiffElements(): void {
+  focusedDiffElements.forEach((element) => element.classList.remove('focus-diff'));
+  focusedDiffElements = [];
+}
+
+function firstDiffElement(group: DiffElementGroup, key: PaneKey): HTMLElement | null {
+  return group[key][0] ?? null;
 }
 
 function smoothViewportAlign(container: HTMLElement, element: Element, behavior: ScrollBehavior): number {
@@ -341,11 +416,11 @@ function smoothViewportAlign(container: HTMLElement, element: Element, behavior:
 function handleDiffClick(event: MouseEvent): void {
   if (!(event.target instanceof Element)) return;
 
-  const diffElement = event.target.closest<HTMLElement>('ins[data-diff-id], del[data-diff-id]');
-  const diffId = diffElement?.dataset.diffId;
-  if (!diffId) return;
+  const diffElement = event.target.closest<HTMLElement>(DIFF_ELEMENT_SELECTOR);
+  const rawId = diffElement?.dataset.diffId;
+  if (!rawId) return;
 
-  const index = Number.parseInt(diffId.replace('diff-', ''), 10);
+  const index = parseDiffId(rawId);
   if (Number.isNaN(index)) return;
 
   currentDiffIndex.value = index;
@@ -361,14 +436,18 @@ function buildViewportLockMatrix(): void {
   if (!containerA || !containerB) return;
 
   for (let index = 1; index <= totalDiffs.value; index++) {
-    const id = `diff-${index}`;
-    const elementA = containerA.querySelector<HTMLElement>(`[data-diff-id="${id}"]`);
-    const elementB = containerB.querySelector<HTMLElement>(`[data-diff-id="${id}"]`);
+    const group = diffElementIndex.get(diffId(index));
+    const elementA = group ? firstDiffElement(group, 'A') : null;
+    const elementB = group ? firstDiffElement(group, 'B') : null;
 
     if (elementA && elementB) {
       alignmentAnchors.push({ topA: elementA.offsetTop, topB: elementB.offsetTop });
     }
   }
+}
+
+function rebuildDiffElementIndex(): void {
+  diffElementIndex = buildDiffElementIndex(getPaneViewport('A'), getPaneViewport('B'));
 }
 
 function toggleSyncLock(): void {
@@ -489,7 +568,11 @@ function interpolateScrollTop(
 }
 
 function handleResize(): void {
-  if (hasResult.value) buildViewportLockMatrix();
+  if (resizeTimer !== null) window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(() => {
+    resizeTimer = null;
+    if (hasResult.value) buildViewportLockMatrix();
+  }, 150);
 }
 
 onMounted(() => {
@@ -498,7 +581,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
+  compareRunId++;
+  cancelPendingTextDiffs();
   if (compareNoticeTimer !== null) window.clearTimeout(compareNoticeTimer);
+  if (resizeTimer !== null) window.clearTimeout(resizeTimer);
 });
 </script>
 

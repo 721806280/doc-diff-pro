@@ -12,6 +12,18 @@
       </div>
       <div class="indicator-group" v-if="fileName">
         <span class="status-chip" :class="status">{{ statusLabel }}</span>
+        <div v-if="warnings.length" class="warning-chip" tabindex="0">
+          <span class="status-chip warning">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            {{ warnings.length }}
+          </span>
+          <div class="warning-popover" role="tooltip">
+            <strong>转换提示</strong>
+            <ul>
+              <li v-for="(warning, index) in warnings" :key="index">{{ warning }}</li>
+            </ul>
+          </div>
+        </div>
         <label class="reupload-trigger" :title="reuploadTitle" :aria-label="reuploadTitle">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           <span>更换文档</span>
@@ -61,7 +73,7 @@
           <div class="pulse-dot"></div>
           <p>
             <span>{{ waitingText }}</span>
-            <small v-if="fileSizeLabel">{{ fileSizeLabel }}</small>
+            <small v-if="documentMetaLabel">{{ documentMetaLabel }}</small>
           </p>
         </div>
       </div>
@@ -81,6 +93,9 @@ const props = defineProps<{
   title: string;
   fileName: string;
   fileSize: number;
+  textLength: number;
+  imageCount: number;
+  warnings: string[];
   emptyLabel: string;
   reuploadTitle: string;
   uploadTitle: string;
@@ -121,6 +136,18 @@ const fileSizeLabel = computed(() => {
   if (props.fileSize < 1024 * 1024) return `${Math.max(1, Math.round(props.fileSize / 1024))} KB`;
   return `${(props.fileSize / 1024 / 1024).toFixed(1)} MB`;
 });
+
+const documentMetaLabel = computed(() => {
+  const parts = [fileSizeLabel.value];
+
+  if (props.textLength > 0) parts.push(`${formatCount(props.textLength)} 字`);
+  if (props.imageCount > 0) parts.push(`${props.imageCount} 张图`);
+  return parts.filter(Boolean).join(' · ');
+});
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat('zh-CN').format(value);
+}
 
 function handleFileInput(event: Event): void {
   const input = event.target;
@@ -175,6 +202,7 @@ defineExpose({ viewport });
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  position: relative;
   z-index: 10;
   min-height: 40px;
   box-sizing: border-box;
@@ -532,6 +560,81 @@ defineExpose({ viewport });
   background: rgba(244, 63, 94, 0.1);
   color: var(--del-text);
   border-color: var(--del-border);
+}
+
+.warning-chip {
+  position: relative;
+  display: inline-flex;
+  outline: none;
+}
+
+.status-chip.warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.3);
+  cursor: default;
+}
+
+.warning-chip:focus-visible .status-chip.warning {
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4);
+}
+
+.warning-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: 260px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow:
+    0 4px 12px rgba(15, 23, 42, 0.08),
+    0 8px 24px rgba(15, 23, 42, 0.1);
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  pointer-events: none;
+}
+
+.warning-chip:hover .warning-popover,
+.warning-chip:focus-within .warning-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.warning-popover strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.warning-popover ul {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.warning-popover li {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  word-break: break-word;
 }
 
 .state-card {

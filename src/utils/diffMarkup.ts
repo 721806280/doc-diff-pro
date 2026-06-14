@@ -1,30 +1,32 @@
-import type { DiffTuple } from '@/types/diff';
+import type { DiffOperation, DiffTuple } from '@/types/diff';
 import type { TextMappingEntry } from './documentText';
+import { DIFF_EQUAL } from './textDiffCore';
 
-type DiffOperation = -1 | 1;
+type MarkupDiffOperation = Exclude<DiffOperation, 0>;
 type WrapperTag = 'del' | 'ins';
 type DiffRange = { start: number; length: number; groupId: string };
-type NodeOffsetMap = Map<Text, Map<number, string>>;
+type TextNodeRange = { startOffset: number; endOffset: number; groupId: string };
+type NodeRangeMap = Map<Text, TextNodeRange[]>;
 
 export function applyDiffMarkup(
   domElement: HTMLElement,
   mapping: TextMappingEntry[],
   diffs: DiffTuple[],
-  targetOperation: DiffOperation,
+  targetOperation: MarkupDiffOperation,
   wrapperTag: WrapperTag
 ): string {
   const ranges = collectDiffRanges(diffs, targetOperation);
   const nodesToWrap = mapRangesToTextNodes(mapping, ranges);
   const ownerDocument = domElement.ownerDocument;
 
-  for (const [node, offsetMap] of nodesToWrap) {
-    replaceTextNodeWithMarkup(ownerDocument, node, offsetMap, wrapperTag);
+  for (const [node, nodeRanges] of nodesToWrap) {
+    replaceTextNodeWithMarkup(ownerDocument, node, nodeRanges, wrapperTag);
   }
 
   return domElement.innerHTML;
 }
 
-function collectDiffRanges(diffs: DiffTuple[], targetOperation: DiffOperation): DiffRange[] {
+function collectDiffRanges(diffs: DiffTuple[], targetOperation: MarkupDiffOperation): DiffRange[] {
   let currentIndex = 0;
   const ranges: DiffRange[] = [];
 
@@ -34,7 +36,7 @@ function collectDiffRanges(diffs: DiffTuple[], targetOperation: DiffOperation): 
     if (operation === targetOperation) {
       ranges.push({ start: currentIndex, length, groupId: diff.groupId ?? '' });
       currentIndex += length;
-    } else if (operation === 0) {
+    } else if (operation === DIFF_EQUAL) {
       currentIndex += length;
     }
   }
@@ -42,55 +44,92 @@ function collectDiffRanges(diffs: DiffTuple[], targetOperation: DiffOperation): 
   return ranges;
 }
 
-function mapRangesToTextNodes(mapping: TextMappingEntry[], ranges: DiffRange[]): NodeOffsetMap {
-  const nodesToWrap: NodeOffsetMap = new Map();
+function mapRangesToTextNodes(mapping: TextMappingEntry[], ranges: DiffRange[]): NodeRangeMap {
+  const nodesToWrap: NodeRangeMap = new Map();
 
   for (const range of ranges) {
-    for (let index = 0; index < range.length; index++) {
-      const mapped = mapping[range.start + index];
-      if (!mapped?.node) continue;
+    const end = range.start + range.length;
+    let activeNode: Text | null = null;
+    let activeStartOffset = 0;
+    let previousOffset = -1;
 
-      let offsetMap = nodesToWrap.get(mapped.node);
-      if (!offsetMap) {
-        offsetMap = new Map<number, string>();
-        nodesToWrap.set(mapped.node, offsetMap);
+    const flushActiveRange = (): void => {
+      if (!activeNode) return;
+
+      addNodeRange(nodesToWrap, activeNode, {
+        startOffset: activeStartOffset,
+        endOffset: previousOffset + 1,
+        groupId: range.groupId
+      });
+      activeNode = null;
+      previousOffset = -1;
+    };
+
+    for (let index = range.start; index < end; index++) {
+      const mapped = mapping[index];
+      if (!mapped?.node) {
+        flushActiveRange();
+        continue;
       }
-      offsetMap.set(mapped.offset, range.groupId);
+
+      if (activeNode === mapped.node && mapped.offset === previousOffset + 1) {
+        previousOffset = mapped.offset;
+        continue;
+      }
+
+      flushActiveRange();
+      activeNode = mapped.node;
+      activeStartOffset = mapped.offset;
+      previousOffset = mapped.offset;
     }
+
+    flushActiveRange();
   }
 
   return nodesToWrap;
 }
 
+function addNodeRange(nodesToWrap: NodeRangeMap, node: Text, range: TextNodeRange): void {
+  const nodeRanges = nodesToWrap.get(node) ?? [];
+  const previous = nodeRanges.at(-1);
+
+  if (previous && previous.endOffset === range.startOffset && previous.groupId === range.groupId) {
+    previous.endOffset = range.endOffset;
+  } else {
+    nodeRanges.push(range);
+  }
+
+  nodesToWrap.set(node, nodeRanges);
+}
+
 function replaceTextNodeWithMarkup(
   ownerDocument: Document,
   node: Text,
-  offsetMap: Map<number, string>,
+  ranges: TextNodeRange[],
   wrapperTag: WrapperTag
 ): void {
   const nodeText = node.nodeValue;
   if (!nodeText) return;
 
   const fragment = ownerDocument.createDocumentFragment();
-  let currentGroupId = offsetMap.get(0);
-  let isMarked = offsetMap.has(0);
-  let runStart = 0;
+  let cursor = 0;
 
-  for (let index = 1; index < nodeText.length; index++) {
-    const groupId = offsetMap.get(index);
-    const marked = offsetMap.has(index);
-
-    if (marked === isMarked && groupId === currentGroupId) {
-      continue;
+  for (const range of ranges) {
+    const startOffset = Math.max(cursor, Math.min(range.startOffset, nodeText.length));
+    const endOffset = Math.max(startOffset, Math.min(range.endOffset, nodeText.length));
+    if (startOffset > cursor) {
+      fragment.appendChild(ownerDocument.createTextNode(nodeText.slice(cursor, startOffset)));
     }
-
-    appendWrappedText(ownerDocument, fragment, wrapperTag, nodeText.slice(runStart, index), isMarked, currentGroupId);
-    isMarked = marked;
-    currentGroupId = groupId;
-    runStart = index;
+    if (endOffset > startOffset) {
+      appendWrappedText(ownerDocument, fragment, wrapperTag, nodeText.slice(startOffset, endOffset), range.groupId);
+    }
+    cursor = endOffset;
   }
 
-  appendWrappedText(ownerDocument, fragment, wrapperTag, nodeText.slice(runStart), isMarked, currentGroupId);
+  if (cursor < nodeText.length) {
+    fragment.appendChild(ownerDocument.createTextNode(nodeText.slice(cursor)));
+  }
+
   node.parentNode?.replaceChild(fragment, node);
 }
 
@@ -99,16 +138,10 @@ function appendWrappedText(
   fragment: DocumentFragment,
   wrapperTag: WrapperTag,
   text: string,
-  isMarked: boolean,
-  groupId?: string
+  groupId: string
 ): void {
-  if (!isMarked) {
-    fragment.appendChild(ownerDocument.createTextNode(text));
-    return;
-  }
-
   const element = ownerDocument.createElement(wrapperTag);
-  element.dataset.diffId = groupId ?? '';
+  element.dataset.diffId = groupId;
   element.textContent = text;
   fragment.appendChild(element);
 }
