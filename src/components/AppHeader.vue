@@ -276,7 +276,6 @@ function toggleIgnoreSpaces(): void {
   display: flex;
   min-width: 0;
   background: rgba(241, 245, 249, 0.8);
-  padding: 3px;
   border-radius: 7px;
   gap: 2px;
   border: 1px solid var(--border-subtle);
@@ -309,7 +308,6 @@ function toggleIgnoreSpaces(): void {
   position: relative;
   display: inline-flex;
   align-items: center;
-  padding: 3px;
   border-radius: 8px;
   background: rgba(241, 245, 249, 0.85);
   box-shadow: inset 0 0 0 1px var(--border-subtle);
@@ -336,7 +334,7 @@ function toggleIgnoreSpaces(): void {
 .lang-switch__option {
   position: relative;
   z-index: 1;
-  min-width: 44px;
+  min-width: 38px;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -557,7 +555,6 @@ function toggleIgnoreSpaces(): void {
   }
 
   .compare-settings {
-    padding: 3px;
     gap: 1px;
   }
 
