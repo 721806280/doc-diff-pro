@@ -12,6 +12,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
     "diff-match-patch": "^1.0.5",
     "dompurify": "^3.4.10",
     "mammoth": "https://github.com/721806280/mammoth.js/archive/refs/tags//v1.12.0-rc2.tar.gz",
