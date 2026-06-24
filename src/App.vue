@@ -654,10 +654,10 @@ onUnmounted(() => {
   --del-border: rgba(244, 63, 94, 0.3);
   --del-focus: #f43f5e;
 
-  --accent: #6366f1;
-  --accent-glow: rgba(99, 102, 241, 0.15);
+  --accent: #2563eb;
+  --accent-glow: rgba(37, 99, 235, 0.16);
 
-  --gradient-accent: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --gradient-accent: linear-gradient(135deg, #2563eb 0%, #0891b2 100%);
   --gradient-ins: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(52, 211, 153, 0.08) 100%);
   --gradient-del: linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, rgba(251, 113, 133, 0.08) 100%);
 

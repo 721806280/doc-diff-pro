@@ -37,10 +37,12 @@
 
     <div class="nav-triggers" v-if="summary.total > 0">
       <button class="btn-action-nav" @click="$emit('previous')" :disabled="currentDiffIndex <= 1">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>{{ i18n.diffNavigator.previous }}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <span>{{ i18n.diffNavigator.previous }}</span>
       </button>
       <button class="btn-action-nav" @click="$emit('next')" :disabled="currentDiffIndex >= summary.total">
-        {{ i18n.diffNavigator.next }}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        <span>{{ i18n.diffNavigator.next }}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
       </button>
       <div class="panel-divider"></div>
       <button
@@ -96,10 +98,11 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
 <style scoped>
 .floating-navigator {
   background: var(--bg-panel);
-  border-radius: 10px;
-  padding: 8px 14px;
+  border-radius: 8px;
+  padding: 7px 10px;
   border: 1px solid var(--border-subtle);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
@@ -110,6 +113,7 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   backdrop-filter: blur(12px);
   position: relative;
   z-index: 5;
+  animation: navigator-rise 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .stat-banner {
@@ -167,12 +171,18 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   border: 1px solid var(--border-subtle);
   background: rgba(248, 250, 252, 0.9);
   line-height: 1.2;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.summary-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
 }
 
 .summary-chip.modified {
   color: var(--accent);
-  border-color: rgba(99, 102, 241, 0.2);
-  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .summary-chip.similarity {
@@ -244,16 +254,28 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   min-width: 6px;
   border-radius: inherit;
   background: var(--gradient-accent);
-  transition: width 0.22s ease;
+  position: relative;
+  overflow: hidden;
+  transition: width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.diff-progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.42) 48%, transparent 100%);
+  transform: translateX(-120%);
+  animation: progress-sheen 1.8s ease-in-out infinite;
 }
 
 .nav-triggers {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   justify-content: flex-end;
   flex-shrink: 0;
   min-width: 0;
+  border-radius: 7px;
 }
 
 .btn-action-nav {
@@ -270,13 +292,29 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   gap: 6px;
   transition: all 0.2s ease;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.btn-action-nav svg {
+  flex: 0 0 auto;
 }
 
 .btn-action-nav:hover:not(:disabled) {
-  background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
   color: var(--accent);
   border-color: var(--accent);
   box-shadow: 0 2px 8px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.btn-action-nav:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-action-nav:focus-visible,
+.ios-toggle-shell:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .btn-action-nav:disabled {
@@ -293,15 +331,36 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   color: var(--text-secondary);
   background: transparent;
   border: 0;
-  padding: 0;
+  padding: 4px 7px;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  min-width: 0;
+}
+
+.ios-toggle-shell:hover {
+  background: rgba(255, 255, 255, 0.72);
+  transform: translateY(-1px);
+}
+
+.ios-toggle-shell:active {
+  transform: translateY(0);
+}
+
+.ios-toggle-shell span,
+.btn-action-nav span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ios-switch {
   width: 26px;
   height: 15px;
+  flex: 0 0 26px;
   background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
   border-radius: 99px;
   position: relative;
@@ -348,10 +407,30 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
 }
 
+@keyframes navigator-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes progress-sheen {
+  0%, 35% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
 @media (max-width: 820px) {
   .floating-navigator {
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
-    flex-direction: column;
     gap: 6px;
     padding: 6px 10px;
   }
@@ -363,7 +442,7 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
 
   .nav-triggers {
     justify-content: flex-start;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .panel-divider {
@@ -389,7 +468,7 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
 
   .nav-triggers {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: center;
   }
 
@@ -398,9 +477,8 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   }
 
   .ios-toggle-shell {
-    grid-column: 1 / -1;
     justify-content: center;
-    padding: 4px 0;
+    padding: 4px 6px;
   }
 }
 
@@ -412,7 +490,40 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   }
 
   .btn-action-nav {
-    padding: 5px 8px;
+    padding: 5px 4px;
+    gap: 3px;
+    font-size: 0.64rem;
+  }
+
+  .ios-toggle-shell {
+    padding: 4px 3px;
+    gap: 4px;
+    font-size: 0.64rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-navigator,
+  .radar-dot,
+  .diff-progress-bar::after {
+    animation: none;
+  }
+
+  .summary-chip,
+  .diff-progress-bar,
+  .btn-action-nav,
+  .ios-toggle-shell,
+  .ios-switch,
+  .ios-switch::after {
+    transition: none;
+  }
+
+  .summary-chip:hover,
+  .btn-action-nav:hover:not(:disabled),
+  .btn-action-nav:active:not(:disabled),
+  .ios-toggle-shell:hover,
+  .ios-toggle-shell:active {
+    transform: none;
   }
 }
 </style>

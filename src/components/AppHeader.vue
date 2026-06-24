@@ -3,12 +3,12 @@
     <div class="brand-zone">
       <div class="brand-logo-glow">
         <svg viewBox="0 0 32 32" fill="none">
-          <rect x="3" y="3" width="12" height="26" rx="2" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+          <rect x="3" y="3" width="12" height="26" rx="2" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
           <rect x="17" y="3" width="12" height="26" rx="2" fill="#f0fdf4" stroke="#10b981" stroke-width="1.5"/>
-          <path d="M6 9h6M6 13h6M6 17h5" stroke="#a5b4fc" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M6 9h6M6 13h6M6 17h5" stroke="#93c5fd" stroke-width="1.5" stroke-linecap="round"/>
           <path d="M20 9h6M20 13h6M20 17h5" stroke="#86efac" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M14 16h4" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
-          <path d="M16 14v4" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+          <path d="M14 16h4" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+          <path d="M16 14v4" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </div>
       <div class="brand-text">
@@ -143,6 +143,7 @@ function toggleIgnoreSpaces(): void {
   backdrop-filter: blur(12px);
   position: relative;
   z-index: 10;
+  animation: toolbar-rise 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .brand-zone {
@@ -166,12 +167,13 @@ function toggleIgnoreSpaces(): void {
 .brand-logo-glow svg {
   width: 32px;
   height: 32px;
-  filter: drop-shadow(0 2px 4px rgba(99, 102, 241, 0.2));
+  filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.18));
   transition: transform 0.3s ease;
+  transform-origin: center;
 }
 
 .brand-logo-glow:hover svg {
-  transform: scale(1.05);
+  transform: translateY(-1px) scale(1.05);
 }
 
 .brand-text h1 {
@@ -193,7 +195,7 @@ function toggleIgnoreSpaces(): void {
   border-radius: 4px;
   font-weight: 800;
   letter-spacing: 0;
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.22);
 }
 
 .control-core {
@@ -264,6 +266,7 @@ function toggleIgnoreSpaces(): void {
 .classic-select:hover {
   border-color: var(--accent);
   background: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
 }
 
 .classic-select:focus {
@@ -323,7 +326,7 @@ function toggleIgnoreSpaces(): void {
   background: #ffffff;
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(99, 102, 241, 0.12);
+    0 0 0 1px rgba(37, 99, 235, 0.12);
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -364,6 +367,7 @@ function toggleIgnoreSpaces(): void {
 .capsule-node {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   font-size: 0.7rem;
   font-weight: 500;
@@ -376,11 +380,37 @@ function toggleIgnoreSpaces(): void {
   border-radius: 5px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.capsule-node span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+  z-index: 1;
+}
+
+.capsule-node .node-pulse {
+  position: relative;
+  z-index: 1;
 }
 
 .capsule-node:hover:not(.active) {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05);
+}
+
+.capsule-node:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.capsule-node:active {
+  transform: translateY(0);
 }
 
 .capsule-node.active {
@@ -388,7 +418,17 @@ function toggleIgnoreSpaces(): void {
   color: var(--accent);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(99, 102, 241, 0.1);
+    0 0 0 1px rgba(37, 99, 235, 0.1);
+}
+
+.capsule-node.active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 0%, rgba(37, 99, 235, 0.08) 45%, transparent 70%);
+  transform: translateX(-120%);
+  animation: button-sheen 2.4s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .node-pulse {
@@ -402,6 +442,7 @@ function toggleIgnoreSpaces(): void {
 .capsule-node.active .node-pulse {
   background: var(--accent);
   box-shadow: 0 0 8px var(--accent-glow);
+  animation: node-signal 1.8s ease-out infinite;
 }
 
 .panel-divider {
@@ -474,9 +515,13 @@ function toggleIgnoreSpaces(): void {
 
 @media (max-width: 820px) {
   .app-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     padding: 6px 8px 7px;
     gap: 6px 8px;
     align-items: center;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .brand-logo-glow {
@@ -499,14 +544,18 @@ function toggleIgnoreSpaces(): void {
   }
 
   .control-core {
+    grid-column: 1 / -1;
     order: 3;
-    flex-wrap: nowrap;
-    align-items: center;
-    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    flex: none;
     width: 100%;
+    max-width: 100%;
     gap: 6px;
-    justify-content: space-between;
-    overflow: visible;
+    justify-content: stretch;
+    overflow: hidden;
+    justify-self: stretch;
   }
 
   .panel-divider {
@@ -515,21 +564,26 @@ function toggleIgnoreSpaces(): void {
 
   .granularity-panel {
     justify-content: space-between;
-    flex: 0 1 auto;
+    flex: none;
     min-width: 0;
+    width: 100%;
   }
 
   .compare-settings {
-    flex: 0 0 auto;
-    flex-wrap: nowrap;
-    justify-content: flex-end;
-    margin-left: auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+    justify-content: stretch;
+    margin-left: 0;
   }
 
   .classic-select {
-    width: 140px;
-    min-width: 140px;
-    max-width: 140px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
   }
 
   .language-control {
@@ -538,9 +592,10 @@ function toggleIgnoreSpaces(): void {
   }
 
   .capsule-node {
-    flex: 0 0 auto;
+    flex: none;
     justify-content: center;
-    min-width: max-content;
+    min-width: 0;
+    min-height: 28px;
   }
 }
 
@@ -549,13 +604,29 @@ function toggleIgnoreSpaces(): void {
     gap: 8px;
   }
 
+  .control-core {
+    width: 100%;
+    max-width: 100%;
+    justify-self: start;
+  }
+
   .granularity-panel {
     align-items: center;
     gap: 6px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .premium-select-wrapper {
+    flex: 1 1 auto;
+    max-width: 100%;
   }
 
   .compare-settings {
     gap: 1px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    max-width: 100%;
   }
 
   .panel-label {
@@ -564,9 +635,9 @@ function toggleIgnoreSpaces(): void {
   }
 
   .classic-select {
-    width: 180px;
-    min-width: 180px;
-    max-width: 180px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
     font-size: 0.62rem;
     padding: 4px 18px 4px 8px;
   }
@@ -588,12 +659,13 @@ function toggleIgnoreSpaces(): void {
 
   .capsule-node {
     padding: 4px 5px;
-    font-size: 0.59rem;
-    gap: 0;
+    font-size: 0.58rem;
+    gap: 3px;
   }
 
   .node-pulse {
-    display: none;
+    width: 4px;
+    height: 4px;
   }
 }
 
@@ -622,13 +694,67 @@ function toggleIgnoreSpaces(): void {
 
   .capsule-node {
     font-size: 0.56rem;
-    padding: 4px 3px;
+    padding: 4px 2px;
   }
 
   .classic-select {
-    width: 172px;
-    min-width: 172px;
-    max-width: 172px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+@keyframes toolbar-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes button-sheen {
+  0%, 45% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes node-signal {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-glow);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-toolbar,
+  .capsule-node.active::after,
+  .capsule-node.active .node-pulse {
+    animation: none;
+  }
+
+  .brand-logo-glow svg,
+  .classic-select,
+  .lang-switch__thumb,
+  .capsule-node,
+  .node-pulse {
+    transition: none;
+  }
+
+  .brand-logo-glow:hover svg,
+  .capsule-node:hover:not(.active),
+  .capsule-node:active {
+    transform: none;
   }
 }
 </style>

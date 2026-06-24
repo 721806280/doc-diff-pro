@@ -24,7 +24,7 @@
             min-height: 100vh;
             position: relative;
             overflow: hidden;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 50%, #f0f2f5 100%);
+            background: #e7ebf0;
         }
 
         .bg-decoration {
@@ -33,9 +33,9 @@
             pointer-events: none;
             z-index: 0;
             background:
-                radial-gradient(ellipse 80% 50% at 20% -10%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse 60% 40% at 80% 110%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
-                radial-gradient(ellipse 40% 30% at 50% 50%, rgba(168, 85, 247, 0.03) 0%, transparent 50%);
+                linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(226, 232, 240, 0.28) 100%),
+                repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.16) 0 1px, transparent 1px 56px);
+            opacity: 0.72;
         }
 
         .bg-decoration::before {
@@ -45,7 +45,7 @@
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.2), transparent);
+            background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.22), transparent);
         }
 
         #app {

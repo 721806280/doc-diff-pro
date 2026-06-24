@@ -24,7 +24,7 @@ defineProps<{
   align-items: center;
   gap: 10px;
   padding: 10px 18px;
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(37, 99, 235, 0.15);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.95);
   color: var(--text-secondary);
@@ -35,6 +35,7 @@ defineProps<{
     0 8px 24px rgba(15, 23, 42, 0.04);
   transform: translateX(-50%);
   backdrop-filter: blur(12px);
+  will-change: transform, opacity;
 }
 
 .compare-toast-dot {
@@ -48,13 +49,15 @@ defineProps<{
 
 .compare-toast-dot.done {
   background: var(--ins-focus);
-  animation: none;
+  animation: toast-done-pop 0.36s ease both;
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
 }
 
 .compare-toast-enter-active,
 .compare-toast-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .compare-toast-enter-from,
@@ -64,8 +67,26 @@ defineProps<{
 }
 
 @keyframes micro-flash {
-  0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+@keyframes toast-done-pop {
+  0% { transform: scale(0.78); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compare-toast-dot,
+  .compare-toast-dot.done {
+    animation: none;
+  }
+
+  .compare-toast-enter-active,
+  .compare-toast-leave-active {
+    transition: none;
+  }
 }
 </style>

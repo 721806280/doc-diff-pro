@@ -47,7 +47,7 @@
       @dragleave.prevent="setDragging(false)"
       @drop.prevent="handleDrop"
     >
-      <label v-if="!fileName" class="pane-upload-zone" :class="{ dragging }">
+      <label v-if="!fileName" class="pane-upload-zone" :class="{ dragging }" :aria-label="uploadTitle">
         <div class="upload-icon-box">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
         </div>
@@ -182,6 +182,10 @@ defineExpose({ viewport });
 
 <style scoped>
 .view-dock-panel {
+  --pane-accent: var(--accent);
+  --pane-soft: rgba(37, 99, 235, 0.08);
+  --pane-line: rgba(37, 99, 235, 0.28);
+
   flex: 1;
   background: var(--bg-panel);
   border-radius: 8px;
@@ -194,18 +198,38 @@ defineExpose({ viewport });
     0 1px 2px rgba(15, 23, 42, 0.02),
     0 8px 24px rgba(15, 23, 42, 0.04);
   backdrop-filter: blur(12px);
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  animation: dock-panel-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.side-revision {
+  animation-delay: 0.05s;
+}
+
+.side-original {
+  --pane-accent: var(--del-focus);
+  --pane-soft: rgba(244, 63, 94, 0.07);
+  --pane-line: rgba(244, 63, 94, 0.32);
+}
+
+.side-revision {
+  --pane-accent: var(--ins-focus);
+  --pane-soft: rgba(16, 185, 129, 0.07);
+  --pane-line: rgba(16, 185, 129, 0.32);
 }
 
 .view-dock-panel:hover {
   box-shadow:
     0 2px 6px rgba(15, 23, 42, 0.04),
     0 12px 32px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
 }
 
 .dock-banner {
   padding: 8px 14px;
-  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  background:
+    linear-gradient(90deg, var(--pane-soft) 0%, rgba(255, 255, 255, 0) 32%),
+    linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
@@ -231,16 +255,17 @@ defineExpose({ viewport });
   border-radius: 2px;
   flex-shrink: 0;
   box-shadow: 0 0 5px currentColor;
+  animation: banner-signal 2.6s ease-out infinite;
 }
 
 .side-original .bullet {
-  background: var(--del-focus);
-  color: var(--del-focus);
+  background: var(--pane-accent);
+  color: var(--pane-accent);
 }
 
 .side-revision .bullet {
-  background: var(--ins-focus);
-  color: var(--ins-focus);
+  background: var(--pane-accent);
+  color: var(--pane-accent);
 }
 
 .dock-banner .main-title {
@@ -315,27 +340,25 @@ defineExpose({ viewport });
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #fafbfc 0%, #f1f5f9 100%);
-  padding: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(241, 245, 249, 0.94) 100%),
+    repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.08) 0 1px, transparent 1px 32px);
+  padding: 32px;
   position: relative;
   overflow: hidden;
 }
 
 .render-viewport.is-dragging {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--pane-accent);
   outline-offset: -6px;
 }
 
 .render-viewport.is-empty::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background:
-    radial-gradient(ellipse 60% 40% at 50% 30%, rgba(99, 102, 241, 0.04) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 30% at 30% 70%, rgba(139, 92, 246, 0.03) 0%, transparent 60%);
+  inset: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
   pointer-events: none;
 }
 
@@ -359,18 +382,27 @@ defineExpose({ viewport });
 .pane-upload-zone {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  border: 2px dashed rgba(99, 102, 241, 0.25);
-  border-radius: 16px;
-  padding: 40px 48px;
+  border: 1px dashed var(--pane-line);
+  border-left: 4px solid var(--pane-accent);
+  border-radius: 8px;
+  padding: 34px 38px;
   width: 100%;
-  max-width: 340px;
+  max-width: 560px;
+  min-height: 224px;
+  min-width: 0;
   box-sizing: border-box;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%);
+  background:
+    linear-gradient(90deg, var(--pane-soft) 0%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.98) 100%);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-align: center;
+  transition:
+    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+  text-align: left;
   position: relative;
   overflow: hidden;
   z-index: 1;
@@ -379,46 +411,88 @@ defineExpose({ viewport });
 .pane-upload-zone::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: 14px;
-  background: var(--gradient-accent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  inset: 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  pointer-events: none;
+  transition: border-color 0.2s ease, transform 0.24s ease;
+}
+
+.pane-upload-zone::after {
+  content: 'A';
+  position: absolute;
+  top: 22px;
+  right: 26px;
+  color: var(--pane-accent);
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 3.6rem;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0.08;
+  pointer-events: none;
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
+.side-revision .pane-upload-zone::after {
+  content: 'B';
 }
 
 .pane-upload-zone:hover {
-  border-color: transparent;
-  transform: translateY(-4px);
+  border-color: var(--pane-accent);
+  transform: translateY(-2px);
   box-shadow:
-    0 12px 32px rgba(99, 102, 241, 0.15),
-    0 4px 12px rgba(99, 102, 241, 0.1);
-}
-
-.pane-upload-zone.dragging {
-  border-color: var(--accent);
-  background: #ffffff;
-  box-shadow:
-    0 12px 32px rgba(99, 102, 241, 0.16),
-    0 0 0 4px var(--accent-glow);
+    0 0 0 3px var(--pane-soft),
+    0 12px 32px rgba(15, 23, 42, 0.08);
 }
 
 .pane-upload-zone:hover::before {
-  opacity: 0.06;
+  border-color: var(--pane-line);
+  transform: scale(0.985);
 }
 
-.pane-upload-zone input[type="file"] {
-  display: none;
+.pane-upload-zone:hover::after {
+  opacity: 0.13;
+  transform: translate(-4px, 3px);
+}
+
+.pane-upload-zone.dragging {
+  border-color: var(--pane-accent);
+  background: #ffffff;
+  transform: translateY(-2px) scale(1.01);
+  box-shadow:
+    0 12px 32px rgba(15, 23, 42, 0.08),
+    0 0 0 4px var(--pane-soft);
+}
+
+.pane-upload-zone.dragging .upload-icon-box {
+  animation: upload-breathe 0.9s ease-in-out infinite;
+}
+
+.pane-upload-zone:focus-within {
+  outline: 3px solid var(--pane-soft);
+  outline-offset: 3px;
+}
+
+.pane-upload-zone input[type="file"],
+.reupload-trigger input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .upload-icon-box {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid var(--pane-line);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent);
+  color: var(--pane-accent);
   margin-bottom: 18px;
   transition: all 0.3s ease;
   position: relative;
@@ -426,15 +500,20 @@ defineExpose({ viewport });
 }
 
 .upload-icon-box svg {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
+  transition: transform 0.24s ease;
 }
 
 .pane-upload-zone:hover .upload-icon-box {
-  background: var(--gradient-accent);
+  background: var(--pane-accent);
   color: white;
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
-  transform: scale(1.1);
+  box-shadow: 0 8px 18px var(--pane-soft);
+  transform: translateY(-2px);
+}
+
+.pane-upload-zone:hover .upload-icon-box svg {
+  transform: translateY(-1px) scale(1.04);
 }
 
 .pane-upload-zone h3 {
@@ -449,7 +528,7 @@ defineExpose({ viewport });
 .pane-upload-zone p {
   margin: 0;
   font-size: 0.8rem;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   position: relative;
   z-index: 1;
 }
@@ -483,6 +562,7 @@ defineExpose({ viewport });
   box-shadow:
     0 2px 8px rgba(15, 23, 42, 0.03),
     0 8px 24px rgba(15, 23, 42, 0.04);
+  animation: state-soft-in 0.28s ease both;
 }
 
 .waiting-card p {
@@ -512,6 +592,7 @@ defineExpose({ viewport });
 }
 
 .reupload-trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -528,18 +609,15 @@ defineExpose({ viewport });
 }
 
 .reupload-trigger:hover {
-  background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
   color: var(--accent);
-  border-color: rgba(99, 102, 241, 0.25);
+  border-color: rgba(37, 99, 235, 0.25);
   box-shadow: 0 2px 8px var(--accent-glow);
 }
 
-.reupload-trigger span {
-  display: none;
-}
-
-.reupload-trigger input[type="file"] {
-  display: none;
+.reupload-trigger:focus-within {
+  outline: 3px solid var(--accent-glow);
+  outline-offset: 2px;
 }
 
 .status-chip {
@@ -560,9 +638,9 @@ defineExpose({ viewport });
 }
 
 .status-chip.parsing {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(37, 99, 235, 0.1);
   color: var(--accent);
-  border-color: rgba(99, 102, 241, 0.2);
+  border-color: rgba(37, 99, 235, 0.2);
 }
 
 .status-chip.error {
@@ -659,6 +737,7 @@ defineExpose({ viewport });
   box-shadow:
     0 2px 8px rgba(15, 23, 42, 0.03),
     0 8px 24px rgba(15, 23, 42, 0.04);
+  animation: state-soft-in 0.28s ease both;
 }
 
 .state-card.error {
@@ -698,6 +777,7 @@ defineExpose({ viewport });
   align-items: center;
   gap: 12px;
   backdrop-filter: blur(1px);
+  animation: state-soft-in 0.28s ease both;
 }
 
 .loading-spinner-wrapper p {
@@ -711,7 +791,7 @@ defineExpose({ viewport });
 .spinner-large {
   width: 24px;
   height: 24px;
-  border: 2px solid rgba(99, 102, 241, 0.12);
+  border: 2px solid rgba(37, 99, 235, 0.12);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -832,8 +912,8 @@ defineExpose({ viewport });
 
 @keyframes inline-pulse {
   0% { box-shadow: 0 0 0 0 var(--accent-glow); }
-  70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
 }
 
 @keyframes spin {
@@ -846,6 +926,43 @@ defineExpose({ viewport });
   100% { transform: scale(1); }
 }
 
+@keyframes dock-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes banner-signal {
+  0% { box-shadow: 0 0 0 0 currentColor; }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes upload-breathe {
+  0%, 100% {
+    transform: translateY(-2px) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.04);
+  }
+}
+
+@keyframes state-soft-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 820px) {
   .view-dock-panel {
     height: 50%;
@@ -855,14 +972,24 @@ defineExpose({ viewport });
     padding: 12px 16px;
   }
 
-  .pane-upload-zone {
+  .render-viewport.is-empty {
     padding: 18px;
+  }
+
+  .render-viewport.is-empty::before {
+    inset: 10px;
+  }
+
+  .pane-upload-zone {
+    min-height: 176px;
+    padding: 22px;
+    width: 100%;
     max-width: 100%;
   }
 
   .upload-icon-box {
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
   }
 
   .pane-upload-zone h3 {
@@ -871,6 +998,51 @@ defineExpose({ viewport });
 
   .pane-upload-zone p {
     font-size: 0.68rem;
+  }
+
+  .pane-upload-zone::after {
+    top: 18px;
+    right: 20px;
+    font-size: 2.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-dock-panel,
+  .dock-banner .bullet,
+  .pane-upload-zone.dragging .upload-icon-box,
+  .waiting-card,
+  .state-card,
+  .loading-spinner-wrapper,
+  .pulse-dot,
+  .spinner-large,
+  .docx-render-content :deep(ins.focus-diff),
+  .docx-render-content :deep(del.focus-diff) {
+    animation: none;
+  }
+
+  .view-dock-panel,
+  .file-badge-inline,
+  .pane-upload-zone,
+  .pane-upload-zone::before,
+  .pane-upload-zone::after,
+  .upload-icon-box,
+  .upload-icon-box svg,
+  .reupload-trigger,
+  .warning-popover,
+  .docx-render-content :deep(ins),
+  .docx-render-content :deep(del) {
+    transition: none;
+  }
+
+  .view-dock-panel:hover,
+  .pane-upload-zone:hover,
+  .pane-upload-zone.dragging,
+  .pane-upload-zone:hover::before,
+  .pane-upload-zone:hover::after,
+  .pane-upload-zone:hover .upload-icon-box,
+  .pane-upload-zone:hover .upload-icon-box svg {
+    transform: none;
   }
 }
 </style>
