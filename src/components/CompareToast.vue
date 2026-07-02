@@ -24,7 +24,7 @@ defineProps<{
   align-items: center;
   gap: 10px;
   padding: 10px 18px;
-  border: 1px solid rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(var(--accent-rgb), 0.15);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.95);
   color: var(--text-secondary);
@@ -50,7 +50,7 @@ defineProps<{
 .compare-toast-dot.done {
   background: var(--ins-focus);
   animation: toast-done-pop 0.36s ease both;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 8px rgba(var(--ins-rgb), 0.36);
 }
 
 .compare-toast-enter-active,
@@ -67,9 +67,9 @@ defineProps<{
 }
 
 @keyframes micro-flash {
-  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.36); }
+  70% { box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
 }
 
 @keyframes toast-done-pop {

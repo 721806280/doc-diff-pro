@@ -3,12 +3,12 @@
     <div class="brand-zone">
       <div class="brand-logo-glow">
         <svg viewBox="0 0 32 32" fill="none">
-          <rect x="3" y="3" width="12" height="26" rx="2" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
-          <rect x="17" y="3" width="12" height="26" rx="2" fill="#f0fdf4" stroke="#10b981" stroke-width="1.5"/>
-          <path d="M6 9h6M6 13h6M6 17h5" stroke="#93c5fd" stroke-width="1.5" stroke-linecap="round"/>
+          <rect x="3" y="3" width="12" height="26" rx="2" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.5"/>
+          <rect x="17" y="3" width="12" height="26" rx="2" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+          <path d="M6 9h6M6 13h6M6 17h5" stroke="#a5b4fc" stroke-width="1.5" stroke-linecap="round"/>
           <path d="M20 9h6M20 13h6M20 17h5" stroke="#86efac" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M14 16h4" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
-          <path d="M16 14v4" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+          <path d="M14 16h4" stroke="#4f46e5" stroke-width="2" stroke-linecap="round"/>
+          <path d="M16 14v4" stroke="#4f46e5" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </div>
       <div class="brand-text">
@@ -20,7 +20,13 @@
       <div class="granularity-panel">
         <label class="panel-label" for="diff-granularity">{{ i18n.header.diffGranularityLabel }}</label>
         <div class="premium-select-wrapper">
-          <select id="diff-granularity" :value="diffGranularity" class="classic-select" @change="emitGranularity">
+          <select
+            id="diff-granularity"
+            :value="diffGranularity"
+            class="classic-select"
+            :title="i18n.header.diffGranularityLabel"
+            @change="emitGranularity"
+          >
             <option value="semantic">{{ i18n.header.granularityOptions.semantic }}</option>
             <option value="word">{{ i18n.header.granularityOptions.word }}</option>
             <option value="char">{{ i18n.header.granularityOptions.char }}</option>
@@ -167,7 +173,7 @@ function toggleIgnoreSpaces(): void {
 .brand-logo-glow svg {
   width: 32px;
   height: 32px;
-  filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.18));
+  filter: drop-shadow(0 2px 4px rgba(var(--accent-rgb), 0.18));
   transition: transform 0.3s ease;
   transform-origin: center;
 }
@@ -195,7 +201,7 @@ function toggleIgnoreSpaces(): void {
   border-radius: 4px;
   font-weight: 800;
   letter-spacing: 0;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.22);
+  box-shadow: 0 2px 6px rgba(var(--accent-rgb), 0.22);
 }
 
 .control-core {
@@ -216,9 +222,15 @@ function toggleIgnoreSpaces(): void {
 }
 
 .panel-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  border: 0;
   white-space: nowrap;
 }
 
@@ -266,7 +278,7 @@ function toggleIgnoreSpaces(): void {
 .classic-select:hover {
   border-color: var(--accent);
   background: #ffffff;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.08);
 }
 
 .classic-select:focus {
@@ -326,7 +338,7 @@ function toggleIgnoreSpaces(): void {
   background: #ffffff;
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(37, 99, 235, 0.12);
+    0 0 0 1px rgba(var(--accent-rgb), 0.12);
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -381,7 +393,6 @@ function toggleIgnoreSpaces(): void {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   position: relative;
-  overflow: hidden;
 }
 
 .capsule-node span {
@@ -400,8 +411,7 @@ function toggleIgnoreSpaces(): void {
 .capsule-node:hover:not(.active) {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 
 .capsule-node:focus-visible {
@@ -418,17 +428,7 @@ function toggleIgnoreSpaces(): void {
   color: var(--accent);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(37, 99, 235, 0.1);
-}
-
-.capsule-node.active::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(110deg, transparent 0%, rgba(37, 99, 235, 0.08) 45%, transparent 70%);
-  transform: translateX(-120%);
-  animation: button-sheen 2.4s ease-in-out infinite;
-  pointer-events: none;
+    0 0 0 1px rgba(var(--accent-rgb), 0.1);
 }
 
 .node-pulse {
@@ -629,11 +629,6 @@ function toggleIgnoreSpaces(): void {
     max-width: 100%;
   }
 
-  .panel-label {
-    display: inline;
-    font-size: 0.62rem;
-  }
-
   .classic-select {
     width: 100%;
     min-width: 0;
@@ -715,30 +710,20 @@ function toggleIgnoreSpaces(): void {
   }
 }
 
-@keyframes button-sheen {
-  0%, 45% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(120%);
-  }
-}
-
 @keyframes node-signal {
   0% {
     box-shadow: 0 0 0 0 var(--accent-glow);
   }
   70% {
-    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0);
+    box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .app-toolbar,
-  .capsule-node.active::after,
   .capsule-node.active .node-pulse {
     animation: none;
   }

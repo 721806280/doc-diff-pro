@@ -26,17 +26,6 @@
             <strong>{{ i18n.diffNavigator.layoutNoiseDetailsTitle }}</strong>
             <span class="layout-noise-total">{{ i18n.diffNavigator.layoutNoiseDetailsCount(summary.layoutNoiseFiltered) }}</span>
           </div>
-          <div class="layout-noise-breakdown">
-            <span
-              v-for="item in layoutNoiseBreakdown"
-              :key="item.side"
-              class="layout-noise-breakdown__item"
-              :class="`side-${item.side}`"
-            >
-              <span>{{ i18n.diffNavigator.layoutNoiseSide[item.side] }}</span>
-              <strong>{{ item.count }}</strong>
-            </span>
-          </div>
           <ul class="layout-noise-list">
             <li
               v-for="(item, index) in summary.layoutNoiseItems"
@@ -135,23 +124,6 @@ const progressPercent = computed(() => {
 const progressWidth = computed(() => `${progressPercent.value}%`);
 
 const similarityPercent = computed(() => percentFormatter.value.format(props.summary.similarity));
-
-const layoutNoiseSides = ['original', 'revised'] as const;
-
-const layoutNoiseBreakdown = computed(() => {
-  const counts = {
-    original: 0,
-    revised: 0
-  };
-
-  props.summary.layoutNoiseItems.forEach((item) => {
-    counts[item.side] += item.count;
-  });
-
-  return layoutNoiseSides
-    .map((side) => ({ side, count: counts[side] }))
-    .filter((item) => item.count > 0);
-});
 </script>
 
 <style scoped>
@@ -190,13 +162,13 @@ const layoutNoiseBreakdown = computed(() => {
   background: var(--del-focus);
   border-radius: 50%;
   animation: micro-flash 2s infinite;
-  box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+  box-shadow: 0 0 8px rgba(var(--del-rgb), 0.36);
 }
 
 .radar-dot.clean {
   background: var(--ins-focus);
   animation: none;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 8px rgba(var(--ins-rgb), 0.36);
 }
 
 .pure-text {
@@ -253,14 +225,14 @@ button.summary-chip {
 
 .summary-chip.modified {
   color: var(--accent);
-  border-color: rgba(37, 99, 235, 0.2);
-  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(var(--accent-rgb), 0.2);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 
 .summary-chip.similarity {
   color: #0f766e;
-  border-color: rgba(20, 184, 166, 0.24);
-  background: rgba(20, 184, 166, 0.09);
+  border-color: rgba(15, 118, 110, 0.22);
+  background: rgba(15, 118, 110, 0.08);
 }
 
 .summary-chip.similarity strong {
@@ -271,19 +243,19 @@ button.summary-chip {
 .summary-chip.inserted {
   color: var(--ins-text);
   border-color: var(--ins-border);
-  background: rgba(16, 185, 129, 0.08);
+  background: rgba(var(--ins-rgb), 0.08);
 }
 
 .summary-chip.deleted {
   color: var(--del-text);
   border-color: var(--del-border);
-  background: rgba(244, 63, 94, 0.08);
+  background: rgba(var(--del-rgb), 0.08);
 }
 
 .summary-chip.layout-noise {
-  color: #6d4c1d;
-  border-color: rgba(180, 83, 9, 0.22);
-  background: rgba(245, 158, 11, 0.1);
+  color: #475569;
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(241, 245, 249, 0.9);
   min-width: 76px;
 }
 
@@ -295,8 +267,8 @@ button.summary-chip {
 }
 
 .layout-noise-chip:focus-within .summary-chip.layout-noise {
-  border-color: rgba(180, 83, 9, 0.42);
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.24);
+  border-color: rgba(var(--accent-rgb), 0.28);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.12);
 }
 
 .layout-noise-popover {
@@ -358,9 +330,9 @@ button.summary-chip {
   height: 25px;
   padding: 0 9px;
   border-radius: 6px;
-  color: #7c2d12;
-  background: linear-gradient(180deg, rgba(255, 247, 237, 0.96) 0%, rgba(254, 243, 199, 0.74) 100%);
-  border: 1px solid rgba(251, 146, 60, 0.28);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.16);
   font-family: 'SF Mono', 'Monaco', monospace;
   font-size: 0.7rem;
   font-weight: 750;
@@ -368,54 +340,9 @@ button.summary-chip {
   animation: count-soft-pop 0.28s ease both;
 }
 
-.layout-noise-breakdown {
-  display: flex;
-  gap: 6px;
-  padding: 8px 0;
-}
-
-.layout-noise-breakdown__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 27px;
-  padding: 0 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(203, 213, 225, 0.7);
-  background: rgba(248, 250, 252, 0.86);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  font-weight: 700;
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.layout-noise-breakdown__item.side-original {
-  border-color: rgba(244, 63, 94, 0.2);
-  background: rgba(244, 63, 94, 0.06);
-}
-
-.layout-noise-breakdown__item.side-revised {
-  border-color: rgba(16, 185, 129, 0.22);
-  background: rgba(16, 185, 129, 0.07);
-}
-
-.layout-noise-breakdown__item span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.layout-noise-breakdown__item strong {
-  color: var(--text-primary);
-  font-family: 'SF Mono', 'Monaco', monospace;
-  font-size: 0.72rem;
-}
-
 .layout-noise-list {
   margin: 0;
-  padding: 0;
+  padding: 8px 0 0;
   list-style: none;
 }
 
@@ -444,11 +371,11 @@ button.summary-chip {
 }
 
 .layout-noise-list li.is-original::before {
-  background: var(--del-focus);
+  background: rgba(var(--del-rgb), 0.5);
 }
 
 .layout-noise-list li.is-revised::before {
-  background: var(--ins-focus);
+  background: rgba(var(--ins-rgb), 0.5);
 }
 
 .layout-noise-meta {
@@ -479,14 +406,14 @@ button.summary-chip {
 
 .layout-noise-side.side-original {
   color: var(--del-text);
-  background: rgba(244, 63, 94, 0.07);
-  border-color: rgba(244, 63, 94, 0.18);
+  background: rgba(var(--del-rgb), 0.055);
+  border-color: rgba(var(--del-rgb), 0.14);
 }
 
 .layout-noise-side.side-revised {
   color: var(--ins-text);
-  background: rgba(16, 185, 129, 0.08);
-  border-color: rgba(16, 185, 129, 0.2);
+  background: rgba(var(--ins-rgb), 0.06);
+  border-color: rgba(var(--ins-rgb), 0.15);
 }
 
 .layout-noise-reason {
@@ -496,15 +423,15 @@ button.summary-chip {
 }
 
 .layout-noise-reason.reason-hint {
-  color: #1d4ed8;
-  background: rgba(219, 234, 254, 0.68);
-  border-color: rgba(147, 197, 253, 0.62);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.07);
+  border-color: rgba(var(--accent-rgb), 0.16);
 }
 
 .layout-noise-reason.reason-page-number {
-  color: #92400e;
-  background: rgba(254, 243, 199, 0.72);
-  border-color: rgba(245, 158, 11, 0.22);
+  color: #475569;
+  background: rgba(241, 245, 249, 0.8);
+  border-color: rgba(203, 213, 225, 0.72);
 }
 
 .layout-noise-reason.reason-repeated-layout-text {
@@ -519,8 +446,8 @@ button.summary-chip {
   min-height: 17px;
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgba(180, 83, 9, 0.1);
-  color: #78350f;
+  background: rgba(var(--accent-rgb), 0.07);
+  color: var(--accent);
   font-family: 'SF Mono', 'Monaco', monospace;
   font-size: 0.62rem;
   font-weight: 700;
@@ -627,7 +554,7 @@ button.summary-chip {
 }
 
 .btn-action-nav:hover:not(:disabled) {
-  background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%);
   color: var(--accent);
   border-color: var(--accent);
   box-shadow: 0 2px 8px var(--accent-glow);
@@ -729,9 +656,9 @@ button.summary-chip {
 }
 
 @keyframes micro-flash {
-  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(var(--del-rgb), 0.36); }
+  70% { box-shadow: 0 0 0 6px rgba(var(--del-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--del-rgb), 0); }
 }
 
 @keyframes navigator-rise {

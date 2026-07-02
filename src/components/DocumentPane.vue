@@ -183,8 +183,8 @@ defineExpose({ viewport });
 <style scoped>
 .view-dock-panel {
   --pane-accent: var(--accent);
-  --pane-soft: rgba(37, 99, 235, 0.08);
-  --pane-line: rgba(37, 99, 235, 0.28);
+  --pane-soft: rgba(var(--accent-rgb), 0.08);
+  --pane-line: rgba(var(--accent-rgb), 0.28);
 
   flex: 1;
   background: var(--bg-panel);
@@ -208,14 +208,14 @@ defineExpose({ viewport });
 
 .side-original {
   --pane-accent: var(--del-focus);
-  --pane-soft: rgba(244, 63, 94, 0.07);
-  --pane-line: rgba(244, 63, 94, 0.32);
+  --pane-soft: rgba(var(--del-rgb), 0.07);
+  --pane-line: rgba(var(--del-rgb), 0.28);
 }
 
 .side-revision {
   --pane-accent: var(--ins-focus);
-  --pane-soft: rgba(16, 185, 129, 0.07);
-  --pane-line: rgba(16, 185, 129, 0.32);
+  --pane-soft: rgba(var(--ins-rgb), 0.07);
+  --pane-line: rgba(var(--ins-rgb), 0.28);
 }
 
 .view-dock-panel:hover {
@@ -595,29 +595,44 @@ defineExpose({ viewport });
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: linear-gradient(180deg, #f1f5f9 0%, #e8ecf0 100%);
+  justify-content: center;
+  gap: 4px;
+  min-height: 23px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.72);
   color: var(--text-secondary);
-  padding: 5px 12px;
-  border-radius: 8px;
-  font-size: 0.74rem;
-  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.25s ease;
-  border: 1px solid transparent;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  border: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
 
 .reupload-trigger:hover {
-  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
-  color: var(--accent);
-  border-color: rgba(37, 99, 235, 0.25);
-  box-shadow: 0 2px 8px var(--accent-glow);
+  background: var(--pane-soft);
+  color: var(--pane-accent);
+  border-color: var(--pane-line);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  transform: translateY(-1px);
+}
+
+.reupload-trigger svg {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  opacity: 0.82;
 }
 
 .reupload-trigger:focus-within {
-  outline: 3px solid var(--accent-glow);
-  outline-offset: 2px;
+  outline: none;
+}
+
+.reupload-trigger:has(input[type="file"]:focus-visible) {
+  border-color: var(--pane-line);
+  box-shadow: 0 0 0 2px var(--pane-soft);
 }
 
 .status-chip {
@@ -632,19 +647,19 @@ defineExpose({ viewport });
 }
 
 .status-chip.ready {
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(var(--ins-rgb), 0.1);
   color: var(--ins-text);
   border-color: var(--ins-border);
 }
 
 .status-chip.parsing {
-  background: rgba(37, 99, 235, 0.1);
+  background: rgba(var(--accent-rgb), 0.1);
   color: var(--accent);
-  border-color: rgba(37, 99, 235, 0.2);
+  border-color: rgba(var(--accent-rgb), 0.2);
 }
 
 .status-chip.error {
-  background: rgba(244, 63, 94, 0.1);
+  background: rgba(var(--del-rgb), 0.1);
   color: var(--del-text);
   border-color: var(--del-border);
 }
@@ -791,7 +806,7 @@ defineExpose({ viewport });
 .spinner-large {
   width: 24px;
   height: 24px;
-  border: 2px solid rgba(37, 99, 235, 0.12);
+  border: 2px solid rgba(var(--accent-rgb), 0.12);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -872,8 +887,8 @@ defineExpose({ viewport });
 }
 
 .docx-render-content :deep(ins:hover) {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(52, 211, 153, 0.15) 100%);
-  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, rgba(var(--ins-rgb), 0.2) 0%, rgba(var(--ins-rgb), 0.12) 100%);
+  box-shadow: 0 2px 6px rgba(var(--ins-rgb), 0.26);
 }
 
 .docx-render-content :deep(del) {
@@ -888,13 +903,13 @@ defineExpose({ viewport });
 }
 
 .docx-render-content :deep(del:hover) {
-  background: linear-gradient(135deg, rgba(244, 63, 94, 0.2) 0%, rgba(251, 113, 133, 0.15) 100%);
-  box-shadow: 0 2px 6px rgba(244, 63, 94, 0.3);
+  background: linear-gradient(135deg, rgba(var(--del-rgb), 0.2) 0%, rgba(var(--del-rgb), 0.12) 100%);
+  box-shadow: 0 2px 6px rgba(var(--del-rgb), 0.26);
 }
 
 .docx-render-content :deep(ins.focus-diff) {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.28) 0%, rgba(52, 211, 153, 0.22) 100%) !important;
-  box-shadow: 0 0 0 2px var(--ins-focus), 0 4px 16px rgba(16, 185, 129, 0.35);
+  background: linear-gradient(135deg, rgba(var(--ins-rgb), 0.28) 0%, rgba(var(--ins-rgb), 0.18) 100%) !important;
+  box-shadow: 0 0 0 2px var(--ins-focus), 0 4px 16px rgba(var(--ins-rgb), 0.3);
   font-weight: 600;
   border-bottom: none;
   border-radius: 4px;
@@ -902,8 +917,8 @@ defineExpose({ viewport });
 }
 
 .docx-render-content :deep(del.focus-diff) {
-  background: linear-gradient(135deg, rgba(244, 63, 94, 0.25) 0%, rgba(251, 113, 133, 0.2) 100%) !important;
-  box-shadow: 0 0 0 2px var(--del-focus), 0 4px 16px rgba(244, 63, 94, 0.35);
+  background: linear-gradient(135deg, rgba(var(--del-rgb), 0.25) 0%, rgba(var(--del-rgb), 0.16) 100%) !important;
+  box-shadow: 0 0 0 2px var(--del-focus), 0 4px 16px rgba(var(--del-rgb), 0.3);
   font-weight: 600;
   border-bottom: none;
   border-radius: 4px;
@@ -912,8 +927,8 @@ defineExpose({ viewport });
 
 @keyframes inline-pulse {
   0% { box-shadow: 0 0 0 0 var(--accent-glow); }
-  70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+  70% { box-shadow: 0 0 0 10px rgba(var(--accent-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
 }
 
 @keyframes spin {
@@ -1041,7 +1056,8 @@ defineExpose({ viewport });
   .pane-upload-zone:hover::before,
   .pane-upload-zone:hover::after,
   .pane-upload-zone:hover .upload-icon-box,
-  .pane-upload-zone:hover .upload-icon-box svg {
+  .pane-upload-zone:hover .upload-icon-box svg,
+  .reupload-trigger:hover {
     transform: none;
   }
 }

@@ -659,26 +659,29 @@ onUnmounted(() => {
 .app-container {
   --bg-app: transparent;
   --bg-panel: rgba(255, 255, 255, 0.95);
-  --border-subtle: rgba(226, 232, 240, 0.8);
-  --border-strong: #cbd5e1;
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-tertiary: #94a3b8;
+  --border-subtle: rgba(229, 231, 235, 0.82);
+  --border-strong: #d1d5db;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-tertiary: #9ca3af;
 
-  --ins-text: #059669;
-  --ins-border: rgba(16, 185, 129, 0.3);
-  --ins-focus: #10b981;
+  --accent: #4f46e5;
+  --accent-rgb: 79, 70, 229;
+  --accent-glow: rgba(var(--accent-rgb), 0.16);
 
-  --del-text: #e11d48;
-  --del-border: rgba(244, 63, 94, 0.3);
-  --del-focus: #f43f5e;
+  --ins-text: #15803d;
+  --ins-border: rgba(22, 163, 74, 0.28);
+  --ins-focus: #16a34a;
+  --ins-rgb: 22, 163, 74;
 
-  --accent: #2563eb;
-  --accent-glow: rgba(37, 99, 235, 0.16);
+  --del-text: #b91c1c;
+  --del-border: rgba(220, 38, 38, 0.28);
+  --del-focus: #dc2626;
+  --del-rgb: 220, 38, 38;
 
-  --gradient-accent: linear-gradient(135deg, #2563eb 0%, #0891b2 100%);
-  --gradient-ins: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(52, 211, 153, 0.08) 100%);
-  --gradient-del: linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, rgba(251, 113, 133, 0.08) 100%);
+  --gradient-accent: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  --gradient-ins: linear-gradient(135deg, rgba(var(--ins-rgb), 0.12) 0%, rgba(var(--ins-rgb), 0.06) 100%);
+  --gradient-del: linear-gradient(135deg, rgba(var(--del-rgb), 0.12) 0%, rgba(var(--del-rgb), 0.06) 100%);
 
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   width: 100%;
@@ -733,7 +736,7 @@ onUnmounted(() => {
 
 .app-error-banner button:hover {
   border-color: var(--del-focus);
-  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.12);
+  box-shadow: 0 2px 8px rgba(var(--del-rgb), 0.12);
 }
 
 @media (max-width: 1200px) {
