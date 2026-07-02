@@ -1,4 +1,5 @@
 import type * as MammothModule from 'mammoth';
+import { extractLayoutNoiseHints, type LayoutNoiseHints } from './layoutNoise';
 import { sanitizeDocumentHtml } from './sanitizeDocumentHtml';
 
 type MammothImage = {
@@ -23,6 +24,7 @@ type MammothApi = typeof MammothModule & {
 
 export type ParsedDocx = {
   html: string;
+  layoutNoiseHints: LayoutNoiseHints;
   textLength: number;
   imageCount: number;
   warnings: string[];
@@ -42,13 +44,18 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
       src: `data:${image.contentType};base64,${await image.read('base64')}`,
       alt: options.embeddedImageAlt ?? 'Embedded document image'
     }));
-    const result = await mammoth.convertToHtml({ arrayBuffer }, { convertImage });
+    const result = await mammoth.convertToHtml(
+      { arrayBuffer },
+      { convertImage, includeHeadersAndFooters: true }
+    );
     const html = result.value ? result.value.trim() : options.emptyDocumentHtml ?? '<p>(Empty document)</p>';
     const sanitizedHtml = await sanitizeDocumentHtml(html);
+    const { html: contentHtml, hints } = extractLayoutNoiseHints(sanitizedHtml);
 
     return {
-      html: sanitizedHtml,
-      ...collectDocxMetadata(sanitizedHtml),
+      html: contentHtml,
+      layoutNoiseHints: hints,
+      ...collectDocxMetadata(contentHtml),
       warnings: collectMammothWarnings((result as MammothResultWithMessages).messages)
     };
   } catch (error) {

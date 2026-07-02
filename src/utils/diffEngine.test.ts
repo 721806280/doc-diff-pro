@@ -5,7 +5,8 @@ const DEFAULT_OPTIONS: CompareOptions = {
   granularity: 'char',
   ignoreSpaces: true,
   ignoreFullHalfWidth: true,
-  ignoreCase: false
+  filterLayoutNoise: false,
+  layoutNoiseHints: { exact: [], fragments: [] }
 };
 
 describe('compareDocuments', () => {
@@ -23,13 +24,112 @@ describe('compareDocuments', () => {
     expect(result.revisedHtml).toContain('<ins data-diff-id="diff-1">x</ins>');
   });
 
-  it('uses full-width and case normalization when enabled', async () => {
-    const result = await compareDocuments('<p>ＡＢＣ</p>', '<p>abc</p>', {
-      ...DEFAULT_OPTIONS,
-      ignoreCase: true
-    });
+  it('uses full-width normalization but keeps case differences', async () => {
+    const sameWidth = await compareDocuments('<p>１２３</p>', '<p>123</p>', DEFAULT_OPTIONS);
+    const differentCase = await compareDocuments('<p>ABC</p>', '<p>abc</p>', DEFAULT_OPTIONS);
+
+    expect(sameWidth.summary.total).toBe(0);
+    expect(sameWidth.summary.similarity).toBe(1);
+    expect(differentCase.summary.total).toBe(1);
+  });
+
+  it('filters converted footer text when it matches layout hints', async () => {
+    const result = await compareDocuments(
+      '<p>正文内容</p>',
+      '<p>正文内容</p><p>示例公司保密页脚</p>',
+      {
+        ...DEFAULT_OPTIONS,
+        filterLayoutNoise: true,
+        layoutNoiseHints: { exact: ['示例公司保密页脚'], fragments: [] }
+      }
+    );
 
     expect(result.summary.total).toBe(0);
-    expect(result.summary.similarity).toBe(1);
+    expect(result.summary.layoutNoiseFiltered).toBe(1);
+    expect(result.summary.layoutNoiseItems).toEqual([
+      {
+        side: 'revised',
+        reason: 'hint',
+        text: '示例公司保密页脚',
+        count: 1
+      }
+    ]);
+    expect(result.revisedHtml).not.toContain('公司保密页脚');
+  });
+
+  it('filters converted footer lines by stable hint fragments', async () => {
+    const result = await compareDocuments(
+      '<p>正文内容</p>',
+      '<p>正文内容</p><p>第4/5页示例联系人:张三；联系电话:13800000000；邮箱:review@examp1e.com</p>',
+      {
+        ...DEFAULT_OPTIONS,
+        filterLayoutNoise: true,
+        layoutNoiseHints: {
+          exact: ['第3/5页示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'],
+          fragments: ['示例联系人：张三', '联系电话：13800000000', '邮箱：review@example.com']
+        }
+      }
+    );
+
+    expect(result.summary.total).toBe(0);
+    expect(result.summary.layoutNoiseFiltered).toBe(1);
+    expect(result.summary.layoutNoiseItems[0]).toMatchObject({
+      side: 'revised',
+      reason: 'hint'
+    });
+  });
+
+  it('keeps body contact lines that only share footer fragments', async () => {
+    const bodyContact = '供应商:示例科技有限公司地址:示例市示例路1号联系人:张三邮箱:review@example.com电话:13800000000';
+    const result = await compareDocuments(
+      `<p>${bodyContact}</p>`,
+      `<p>${bodyContact}</p>`,
+      {
+        ...DEFAULT_OPTIONS,
+        filterLayoutNoise: true,
+        layoutNoiseHints: {
+          exact: ['第3/5页示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'],
+          fragments: ['示例联系人：张三', '联系电话：13800000000', '邮箱：review@example.com']
+        }
+      }
+    );
+
+    expect(result.summary.total).toBe(0);
+    expect(result.summary.layoutNoiseFiltered).toBe(0);
+    expect(result.originalHtml).toContain('示例科技有限公司');
+  });
+
+  it('does not filter converted footer lines when layout filtering is disabled', async () => {
+    const result = await compareDocuments(
+      '<p>正文内容</p>',
+      '<p>正文内容</p><p>第4/5页示例联系人:张三；联系电话:13800000000；邮箱:review@examp1e.com</p>',
+      {
+        ...DEFAULT_OPTIONS,
+        layoutNoiseHints: {
+          exact: ['第3/5页示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'],
+          fragments: ['示例联系人：张三', '联系电话：13800000000', '邮箱：review@example.com']
+        }
+      }
+    );
+
+    expect(result.summary.total).toBe(1);
+    expect(result.summary.layoutNoiseFiltered).toBe(0);
+  });
+
+  it('filters repeated layout text when layout filtering is enabled', async () => {
+    const result = await compareDocuments(
+      '<p>第一段</p><p>第二段</p>',
+      '<p>第一段</p><p>内部资料</p><p>第二段</p><p>内部资料</p>',
+      {
+        ...DEFAULT_OPTIONS,
+        filterLayoutNoise: true
+      }
+    );
+
+    expect(result.summary.total).toBe(0);
+    expect(result.summary.layoutNoiseFiltered).toBe(2);
+    expect(result.summary.layoutNoiseItems).toEqual([
+      { side: 'revised', reason: 'repeated-layout-text', text: '内部资料', count: 2 }
+    ]);
   });
 });

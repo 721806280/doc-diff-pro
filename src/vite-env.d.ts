@@ -17,7 +17,7 @@ declare module 'mammoth' {
 
   export function convertToHtml(
     options: { arrayBuffer: ArrayBuffer },
-    config?: { convertImage?: unknown }
+    config?: { convertImage?: unknown; includeHeadersAndFooters?: boolean }
   ): Promise<{ value?: string }>;
 }
 

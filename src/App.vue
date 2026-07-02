@@ -4,7 +4,7 @@
       v-model:diff-granularity="diffGranularity"
       v-model:ignore-spaces="ignoreSpaces"
       v-model:ignore-full-half-width="ignoreFullHalfWidth"
-      v-model:ignore-case="ignoreCase"
+      v-model:filter-layout-noise="filterLayoutNoise"
     />
 
     <CompareToast :message="compareNotice" :comparing="comparing" />
@@ -95,6 +95,7 @@ import {
 import { compareDocuments } from './utils/diffEngine';
 import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
 import { parseDocx, type ParsedDocx } from './utils/docxParser';
+import type { LayoutNoiseHints } from './utils/layoutNoise';
 import { diffId, parseDiffId } from './utils/textDiffCore';
 
 type PaneKey = 'A' | 'B';
@@ -118,6 +119,7 @@ type DocumentState = {
   textLength: number;
   imageCount: number;
   warnings: string[];
+  layoutNoiseHints: LayoutNoiseHints;
   status: DocumentStatus;
   error: string;
 };
@@ -129,7 +131,9 @@ const EMPTY_DIFF_SUMMARY: DiffSummary = {
   inserted: 0,
   deleted: 0,
   modified: 0,
-  similarity: 1
+  similarity: 1,
+  layoutNoiseFiltered: 0,
+  layoutNoiseItems: []
 };
 const MAX_DOCX_SIZE = 25 * 1024 * 1024;
 
@@ -147,7 +151,7 @@ const syncScroll = ref(true);
 
 const ignoreSpaces = ref(true);
 const ignoreFullHalfWidth = ref(true);
-const ignoreCase = ref(false);
+const filterLayoutNoise = ref(false);
 const diffGranularity = ref<DiffGranularity>('semantic');
 
 const paneA = ref<DocumentPaneExpose | null>(null);
@@ -177,6 +181,7 @@ function createEmptyDocumentState(): DocumentState {
     textLength: 0,
     imageCount: 0,
     warnings: [],
+    layoutNoiseHints: createEmptyLayoutNoiseHints(),
     status: 'idle',
     error: ''
   };
@@ -266,6 +271,7 @@ function applyParsedDocument(documentState: DocumentState, parsed: ParsedDocx): 
   documentState.textLength = parsed.textLength;
   documentState.imageCount = parsed.imageCount;
   documentState.warnings = parsed.warnings;
+  documentState.layoutNoiseHints = parsed.layoutNoiseHints;
   documentState.status = 'ready';
 }
 
@@ -275,9 +281,14 @@ function resetDocumentContent(documentState: DocumentState): void {
   documentState.textLength = 0;
   documentState.imageCount = 0;
   documentState.warnings = [];
+  documentState.layoutNoiseHints = createEmptyLayoutNoiseHints();
 }
 
-watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, ignoreCase], () => {
+function createEmptyLayoutNoiseHints(): LayoutNoiseHints {
+  return { exact: [], fragments: [] };
+}
+
+watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise], () => {
   if (!ready.value) return;
 
   showCompareNotice(i18n.value.app.notices.settingsUpdated);
@@ -342,7 +353,8 @@ async function compare(showDoneNotice = false): Promise<void> {
       granularity: diffGranularity.value,
       ignoreSpaces: ignoreSpaces.value,
       ignoreFullHalfWidth: ignoreFullHalfWidth.value,
-      ignoreCase: ignoreCase.value
+      filterLayoutNoise: filterLayoutNoise.value,
+      layoutNoiseHints: mergeLayoutNoiseHints(documents.A.layoutNoiseHints, documents.B.layoutNoiseHints)
     });
 
     if (runId !== compareRunId) return;
@@ -373,6 +385,13 @@ async function compare(showDoneNotice = false): Promise<void> {
       if (showDoneNotice) showCompareNotice(i18n.value.app.notices.compareRefreshed);
     }
   }
+}
+
+function mergeLayoutNoiseHints(...hints: LayoutNoiseHints[]): LayoutNoiseHints {
+  return {
+    exact: hints.flatMap((hint) => hint.exact),
+    fragments: hints.flatMap((hint) => hint.fragments)
+  };
 }
 
 function retryCompare(): void {

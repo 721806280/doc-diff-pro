@@ -10,6 +10,19 @@ export type DiffSummary = {
   deleted: number;
   modified: number;
   similarity: number;
+  layoutNoiseFiltered: number;
+  layoutNoiseItems: LayoutNoiseItem[];
+};
+
+export type LayoutNoiseReason = 'hint' | 'page-number' | 'repeated-layout-text';
+
+export type LayoutNoiseSide = 'original' | 'revised';
+
+export type LayoutNoiseItem = {
+  side: LayoutNoiseSide;
+  reason: LayoutNoiseReason;
+  text: string;
+  count: number;
 };
 
 export type DiffWorkerRequest = {

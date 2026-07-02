@@ -57,8 +57,8 @@ const en = {
     ignoreSpaces: 'Ignore spaces',
     ignoreFullHalfWidthTitle: 'Treat full-width and half-width letters, numbers, and common symbols as equivalent.',
     ignoreFullHalfWidth: 'Normalize width',
-    ignoreCaseTitle: 'Treat uppercase and lowercase letters as equivalent.',
-    ignoreCase: 'Ignore case',
+    filterLayoutNoiseTitle: 'Filter page headers, footers, page numbers, and repeated layout text before comparing.',
+    filterLayoutNoise: 'Layout filter',
     languageLabel: 'Interface language',
     english: 'EN',
     chinese: '中文'
@@ -96,6 +96,23 @@ const en = {
     modified: 'Modified',
     inserted: 'Added',
     deleted: 'Deleted',
+    layoutNoiseFiltered(count: number): string {
+      return `Layout noise ${count}`;
+    },
+    layoutNoiseTitle: 'Headers, footers, page numbers, or repeated layout text excluded from the comparison. Click to view.',
+    layoutNoiseDetailsTitle: 'Layout noise',
+    layoutNoiseDetailsCount(count: number): string {
+      return `${count} ${count === 1 ? 'item' : 'items'} excluded`;
+    },
+    layoutNoiseSide: {
+      original: 'Original',
+      revised: 'Revised'
+    },
+    layoutNoiseReason: {
+      hint: 'Header/footer hint',
+      'page-number': 'Page number',
+      'repeated-layout-text': 'Repeated layout text'
+    },
     currentPositionAria(current: number, total: number): string {
       return `Current difference: ${current} / ${total}`;
     },
@@ -164,8 +181,8 @@ const zhCN: I18nMessages = {
     ignoreSpaces: '忽略空白',
     ignoreFullHalfWidthTitle: '统一全角与半角字母、数字和常见符号后再比对',
     ignoreFullHalfWidth: '统一全半角',
-    ignoreCaseTitle: '忽略英文字母大小写差异',
-    ignoreCase: '忽略大小写',
+    filterLayoutNoiseTitle: '比对前过滤正文里的页眉、页脚、页码和重复版面文字',
+    filterLayoutNoise: '版面过滤',
     languageLabel: '界面语言',
     english: 'EN',
     chinese: '中文'
@@ -203,6 +220,23 @@ const zhCN: I18nMessages = {
     modified: '修改',
     inserted: '新增',
     deleted: '删除',
+    layoutNoiseFiltered(count: number): string {
+      return `版面干扰 ${count}`;
+    },
+    layoutNoiseTitle: '已从比对中排除的页眉、页脚、页码或重复版面文字。点击查看。',
+    layoutNoiseDetailsTitle: '版面干扰',
+    layoutNoiseDetailsCount(count: number): string {
+      return `已排除 ${count} 条`;
+    },
+    layoutNoiseSide: {
+      original: '左侧文档',
+      revised: '右侧文档'
+    },
+    layoutNoiseReason: {
+      hint: '页眉页脚线索',
+      'page-number': '页码',
+      'repeated-layout-text': '重复版面文字'
+    },
     currentPositionAria(current: number, total: number): string {
       return `当前差异位置：${current} / ${total}`;
     },

@@ -56,13 +56,13 @@
         <button
           type="button"
           class="capsule-node"
-          :class="{ active: ignoreCase }"
-          :title="i18n.header.ignoreCaseTitle"
-          :aria-pressed="ignoreCase"
-          @click="$emit('update:ignoreCase', !ignoreCase)"
+          :class="{ active: filterLayoutNoise }"
+          :title="i18n.header.filterLayoutNoiseTitle"
+          :aria-pressed="filterLayoutNoise"
+          @click="$emit('update:filterLayoutNoise', !filterLayoutNoise)"
         >
           <div class="node-pulse"></div>
-          <span>{{ i18n.header.ignoreCase }}</span>
+          <span>{{ i18n.header.filterLayoutNoise }}</span>
         </button>
       </div>
     </div>
@@ -105,14 +105,14 @@ const props = defineProps<{
   diffGranularity: DiffGranularity;
   ignoreSpaces: boolean;
   ignoreFullHalfWidth: boolean;
-  ignoreCase: boolean;
+  filterLayoutNoise: boolean;
 }>();
 
 const emit = defineEmits<{
   'update:diffGranularity': [value: DiffGranularity];
   'update:ignoreSpaces': [value: boolean];
   'update:ignoreFullHalfWidth': [value: boolean];
-  'update:ignoreCase': [value: boolean];
+  'update:filterLayoutNoise': [value: boolean];
 }>();
 
 const { locale, messages: i18n, setLocale } = useI18n();

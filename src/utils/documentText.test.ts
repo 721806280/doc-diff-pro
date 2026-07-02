@@ -7,11 +7,11 @@ function bodyFromHtml(html: string): HTMLElement {
 
 describe('documentText utilities', () => {
   it('collapses layout whitespace without removing ordinary English word spaces', () => {
-    const track = buildTextMapping(bodyFromHtml('<p>邮箱： name@example. com</p><p>Wolters Kluwer Ltd</p>'));
+    const track = buildTextMapping(bodyFromHtml('<p>邮箱： name@example. com</p><p>Example Corp Ltd</p>'));
     const collapsed = collapseWhitespace(track);
 
     expect(collapsed.text).toContain('邮箱：name@example.com');
-    expect(collapsed.text).toContain('Wolters Kluwer Ltd');
+    expect(collapsed.text).toContain('Example Corp Ltd');
   });
 
   it('keeps the space after a complete email so adjacent tokens stay separate', () => {

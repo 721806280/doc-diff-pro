@@ -92,7 +92,9 @@ function buildDiffSummary(
     inserted: 0,
     deleted: 0,
     modified: 0,
-    similarity: calculateSimilarity(diffs, originalLength, revisedLength)
+    similarity: calculateSimilarity(diffs, originalLength, revisedLength),
+    layoutNoiseFiltered: 0,
+    layoutNoiseItems: []
   };
 
   for (const operations of groupOperations.values()) {
