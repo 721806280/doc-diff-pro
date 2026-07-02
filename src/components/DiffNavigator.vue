@@ -459,7 +459,6 @@ button.summary-chip {
   color: var(--text-secondary);
   font-size: 0.72rem;
   line-height: 1.45;
-  overflow-wrap: anywhere;
 }
 
 .slash {
@@ -757,9 +756,38 @@ button.summary-chip {
     padding: 4px 6px;
   }
 
+  .layout-noise-chip {
+    display: block;
+    position: relative;
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
   .layout-noise-popover {
-    right: auto;
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
     left: 0;
+    z-index: 40;
+    width: auto;
+    max-width: none;
+    max-height: min(38vh, 260px);
+    margin-top: 0;
+    box-sizing: border-box;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .layout-noise-chip:hover .layout-noise-popover,
+  .layout-noise-chip:focus-within .layout-noise-popover {
+    display: block;
+    transform: none;
   }
 }
 
