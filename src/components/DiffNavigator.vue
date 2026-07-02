@@ -7,27 +7,6 @@
         <span class="summary-chip similarity" :title="i18n.diffNavigator.similarityTitle">
           {{ i18n.diffNavigator.similarity }} <strong>{{ similarityPercent }}</strong>
         </span>
-        <div v-if="summary.layoutNoiseFiltered > 0" class="layout-noise-chip">
-          <button type="button" class="summary-chip layout-noise" :title="i18n.diffNavigator.layoutNoiseTitle">
-            {{ i18n.diffNavigator.layoutNoiseFiltered(summary.layoutNoiseFiltered) }}
-          </button>
-          <div v-if="summary.layoutNoiseItems.length > 0" class="layout-noise-popover" role="tooltip">
-            <div class="layout-noise-popover__head">
-              <strong>{{ i18n.diffNavigator.layoutNoiseDetailsTitle }}</strong>
-              <span>{{ i18n.diffNavigator.layoutNoiseDetailsCount(summary.layoutNoiseFiltered) }}</span>
-            </div>
-            <ul class="layout-noise-list">
-              <li v-for="(item, index) in summary.layoutNoiseItems" :key="`${item.side}-${item.reason}-${index}`">
-                <div class="layout-noise-meta">
-                  <span class="layout-noise-side">{{ i18n.diffNavigator.layoutNoiseSide[item.side] }}</span>
-                  <span class="layout-noise-reason">{{ i18n.diffNavigator.layoutNoiseReason[item.reason] }}</span>
-                  <span v-if="item.count > 1" class="layout-noise-count">x{{ item.count }}</span>
-                </div>
-                <p class="layout-noise-text">{{ item.text }}</p>
-              </li>
-            </ul>
-          </div>
-        </div>
       </template>
       <template v-else>
         <span class="pure-text">{{ i18n.diffNavigator.withDiffsBefore }} <strong class="diff-count">{{ summary.total }}</strong> {{ i18n.diffNavigator.withDiffsAfter(summary.total) }}</span>
@@ -37,44 +16,65 @@
         <span class="summary-chip modified">{{ i18n.diffNavigator.modified }} {{ summary.modified }}</span>
         <span class="summary-chip inserted">{{ i18n.diffNavigator.inserted }} {{ summary.inserted }}</span>
         <span class="summary-chip deleted">{{ i18n.diffNavigator.deleted }} {{ summary.deleted }}</span>
-        <div v-if="summary.layoutNoiseFiltered > 0" class="layout-noise-chip">
-          <button type="button" class="summary-chip layout-noise" :title="i18n.diffNavigator.layoutNoiseTitle">
-            {{ i18n.diffNavigator.layoutNoiseFiltered(summary.layoutNoiseFiltered) }}
-          </button>
-          <div v-if="summary.layoutNoiseItems.length > 0" class="layout-noise-popover" role="tooltip">
-            <div class="layout-noise-popover__head">
-              <strong>{{ i18n.diffNavigator.layoutNoiseDetailsTitle }}</strong>
-              <span>{{ i18n.diffNavigator.layoutNoiseDetailsCount(summary.layoutNoiseFiltered) }}</span>
-            </div>
-            <ul class="layout-noise-list">
-              <li v-for="(item, index) in summary.layoutNoiseItems" :key="`${item.side}-${item.reason}-${index}`">
-                <div class="layout-noise-meta">
-                  <span class="layout-noise-side">{{ i18n.diffNavigator.layoutNoiseSide[item.side] }}</span>
-                  <span class="layout-noise-reason">{{ i18n.diffNavigator.layoutNoiseReason[item.reason] }}</span>
-                  <span v-if="item.count > 1" class="layout-noise-count">x{{ item.count }}</span>
-                </div>
-                <p class="layout-noise-text">{{ item.text }}</p>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div
-          class="diff-progress"
-          role="progressbar"
-          :aria-label="i18n.diffNavigator.currentPositionAria(currentDiffIndex, summary.total)"
-          :aria-valuemin="1"
-          :aria-valuemax="summary.total"
-          :aria-valuenow="currentDiffIndex"
-        >
-          <div class="diff-progress-meta">
-            <span>{{ i18n.diffNavigator.difference }} {{ currentDiffIndex }} <span class="slash">/</span> {{ summary.total }}</span>
-            <strong>{{ progressPercent }}%</strong>
-          </div>
-          <div class="diff-progress-track">
-            <div class="diff-progress-bar" :style="{ width: progressWidth }"></div>
-          </div>
-        </div>
       </template>
+      <div v-if="summary.layoutNoiseFiltered > 0" class="layout-noise-chip">
+        <button type="button" class="summary-chip layout-noise" :title="i18n.diffNavigator.layoutNoiseTitle">
+          {{ i18n.diffNavigator.layoutNoiseFiltered(summary.layoutNoiseFiltered) }}
+        </button>
+        <div v-if="summary.layoutNoiseItems.length > 0" class="layout-noise-popover" role="tooltip">
+          <div class="layout-noise-popover__head">
+            <strong>{{ i18n.diffNavigator.layoutNoiseDetailsTitle }}</strong>
+            <span class="layout-noise-total">{{ i18n.diffNavigator.layoutNoiseDetailsCount(summary.layoutNoiseFiltered) }}</span>
+          </div>
+          <div class="layout-noise-breakdown">
+            <span
+              v-for="item in layoutNoiseBreakdown"
+              :key="item.side"
+              class="layout-noise-breakdown__item"
+              :class="`side-${item.side}`"
+            >
+              <span>{{ i18n.diffNavigator.layoutNoiseSide[item.side] }}</span>
+              <strong>{{ item.count }}</strong>
+            </span>
+          </div>
+          <ul class="layout-noise-list">
+            <li
+              v-for="(item, index) in summary.layoutNoiseItems"
+              :key="`${item.side}-${item.reason}-${index}`"
+              :class="`is-${item.side}`"
+              :style="{ animationDelay: `${Math.min(index, 8) * 24}ms` }"
+            >
+              <div class="layout-noise-meta">
+                <span class="layout-noise-side" :class="`side-${item.side}`">
+                  {{ i18n.diffNavigator.layoutNoiseSide[item.side] }}
+                </span>
+                <span class="layout-noise-reason" :class="`reason-${item.reason}`">
+                  {{ i18n.diffNavigator.layoutNoiseReason[item.reason] }}
+                </span>
+                <span v-if="item.count > 1" class="layout-noise-count">x{{ item.count }}</span>
+              </div>
+              <p class="layout-noise-text">{{ item.text }}</p>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div
+        v-if="summary.total > 0"
+        class="diff-progress"
+        role="progressbar"
+        :aria-label="i18n.diffNavigator.currentPositionAria(currentDiffIndex, summary.total)"
+        :aria-valuemin="1"
+        :aria-valuemax="summary.total"
+        :aria-valuenow="currentDiffIndex"
+      >
+        <div class="diff-progress-meta">
+          <span>{{ i18n.diffNavigator.difference }} {{ currentDiffIndex }} <span class="slash">/</span> {{ summary.total }}</span>
+          <strong>{{ progressPercent }}%</strong>
+        </div>
+        <div class="diff-progress-track">
+          <div class="diff-progress-bar" :style="{ width: progressWidth }"></div>
+        </div>
+      </div>
     </div>
 
     <div class="nav-triggers" v-if="summary.total > 0">
@@ -135,6 +135,23 @@ const progressPercent = computed(() => {
 const progressWidth = computed(() => `${progressPercent.value}%`);
 
 const similarityPercent = computed(() => percentFormatter.value.format(props.summary.similarity));
+
+const layoutNoiseSides = ['original', 'revised'] as const;
+
+const layoutNoiseBreakdown = computed(() => {
+  const counts = {
+    original: 0,
+    revised: 0
+  };
+
+  props.summary.layoutNoiseItems.forEach((item) => {
+    counts[item.side] += item.count;
+  });
+
+  return layoutNoiseSides
+    .map((side) => ({ side, count: counts[side] }))
+    .filter((item) => item.count > 0);
+});
 </script>
 
 <style scoped>
@@ -216,14 +233,15 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   border: 1px solid var(--border-subtle);
   background: rgba(248, 250, 252, 0.9);
   line-height: 1;
-  min-height: 20px;
+  height: 22px;
+  min-height: 22px;
   box-sizing: border-box;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 button.summary-chip {
   appearance: none;
-  font: inherit;
+  font-family: inherit;
   margin: 0;
   cursor: pointer;
 }
@@ -266,6 +284,7 @@ button.summary-chip {
   color: #6d4c1d;
   border-color: rgba(180, 83, 9, 0.22);
   background: rgba(245, 158, 11, 0.1);
+  min-width: 76px;
 }
 
 .layout-noise-chip {
@@ -285,14 +304,15 @@ button.summary-chip {
   top: calc(100% + 6px);
   right: 0;
   z-index: 30;
-  width: 360px;
-  max-width: min(360px, calc(100vw - 32px));
-  max-height: 220px;
+  width: 388px;
+  max-width: min(388px, calc(100vw - 32px));
+  max-height: 320px;
   overflow-y: auto;
-  padding: 9px 10px 8px;
-  border: 1px solid rgba(180, 83, 9, 0.22);
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 8px;
-  background: #ffffff;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
   box-shadow:
     0 4px 12px rgba(15, 23, 42, 0.08),
     0 8px 24px rgba(15, 23, 42, 0.1);
@@ -300,7 +320,7 @@ button.summary-chip {
   opacity: 0;
   visibility: hidden;
   transform: translateY(-4px);
-  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
   pointer-events: none;
 }
 
@@ -319,14 +339,78 @@ button.summary-chip {
   gap: 12px;
   color: var(--text-secondary);
   font-size: 0.72rem;
-  padding-bottom: 7px;
-  margin-bottom: 2px;
-  border-bottom: 1px solid rgba(180, 83, 9, 0.12);
+  padding: 1px 2px 7px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.86);
 }
 
 .layout-noise-popover__head strong {
-  color: #92400e;
-  font-size: 0.74rem;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  line-height: 1;
+}
+
+.layout-noise-popover__head .layout-noise-total {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 25px;
+  padding: 0 9px;
+  border-radius: 6px;
+  color: #7c2d12;
+  background: linear-gradient(180deg, rgba(255, 247, 237, 0.96) 0%, rgba(254, 243, 199, 0.74) 100%);
+  border: 1px solid rgba(251, 146, 60, 0.28);
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 0.7rem;
+  font-weight: 750;
+  transform-origin: center;
+  animation: count-soft-pop 0.28s ease both;
+}
+
+.layout-noise-breakdown {
+  display: flex;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.layout-noise-breakdown__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 27px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  background: rgba(248, 250, 252, 0.86);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.layout-noise-breakdown__item.side-original {
+  border-color: rgba(244, 63, 94, 0.2);
+  background: rgba(244, 63, 94, 0.06);
+}
+
+.layout-noise-breakdown__item.side-revised {
+  border-color: rgba(16, 185, 129, 0.22);
+  background: rgba(16, 185, 129, 0.07);
+}
+
+.layout-noise-breakdown__item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-noise-breakdown__item strong {
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 0.72rem;
 }
 
 .layout-noise-list {
@@ -336,21 +420,43 @@ button.summary-chip {
 }
 
 .layout-noise-list li {
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  position: relative;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.82);
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+  animation: noise-item-in 0.22s ease both;
 }
 
-.layout-noise-list li:last-child {
-  border-bottom: 0;
-  padding-bottom: 1px;
+.layout-noise-list li + li {
+  margin-top: 6px;
+}
+
+.layout-noise-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--border-strong);
+}
+
+.layout-noise-list li.is-original::before {
+  background: var(--del-focus);
+}
+
+.layout-noise-list li.is-revised::before {
+  background: var(--ins-focus);
 }
 
 .layout-noise-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 5px;
 }
 
 .layout-noise-side,
@@ -371,10 +477,40 @@ button.summary-chip {
   border: 1px solid rgba(203, 213, 225, 0.7);
 }
 
+.layout-noise-side.side-original {
+  color: var(--del-text);
+  background: rgba(244, 63, 94, 0.07);
+  border-color: rgba(244, 63, 94, 0.18);
+}
+
+.layout-noise-side.side-revised {
+  color: var(--ins-text);
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
 .layout-noise-reason {
+  color: #334155;
+  background: rgba(241, 245, 249, 0.84);
+  border: 1px solid rgba(203, 213, 225, 0.75);
+}
+
+.layout-noise-reason.reason-hint {
+  color: #1d4ed8;
+  background: rgba(219, 234, 254, 0.68);
+  border-color: rgba(147, 197, 253, 0.62);
+}
+
+.layout-noise-reason.reason-page-number {
   color: #92400e;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.18);
+  background: rgba(254, 243, 199, 0.72);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+.layout-noise-reason.reason-repeated-layout-text {
+  color: #475569;
+  background: rgba(226, 232, 240, 0.58);
+  border-color: rgba(148, 163, 184, 0.38);
 }
 
 .layout-noise-count {
@@ -618,6 +754,28 @@ button.summary-chip {
   }
 }
 
+@keyframes count-soft-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes noise-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 820px) {
   .floating-navigator {
     grid-template-columns: minmax(0, 1fr);
@@ -701,7 +859,9 @@ button.summary-chip {
 @media (prefers-reduced-motion: reduce) {
   .floating-navigator,
   .radar-dot,
-  .diff-progress-bar::after {
+  .diff-progress-bar::after,
+  .layout-noise-total,
+  .layout-noise-list li {
     animation: none;
   }
 

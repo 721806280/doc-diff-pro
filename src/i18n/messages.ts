@@ -97,19 +97,19 @@ const en = {
     inserted: 'Added',
     deleted: 'Deleted',
     layoutNoiseFiltered(count: number): string {
-      return `Layout noise ${count}`;
+      return `Layout content ${count}`;
     },
     layoutNoiseTitle: 'Headers, footers, page numbers, or repeated layout text excluded from the comparison. Click to view.',
-    layoutNoiseDetailsTitle: 'Layout noise',
+    layoutNoiseDetailsTitle: 'Filter details',
     layoutNoiseDetailsCount(count: number): string {
-      return `${count} ${count === 1 ? 'item' : 'items'} excluded`;
+      return `${count} ${count === 1 ? 'item' : 'items'}`;
     },
     layoutNoiseSide: {
-      original: 'Original',
-      revised: 'Revised'
+      original: 'Baseline document',
+      revised: 'Revised document'
     },
     layoutNoiseReason: {
-      hint: 'Header/footer hint',
+      hint: 'Header/footer',
       'page-number': 'Page number',
       'repeated-layout-text': 'Repeated layout text'
     },
@@ -221,19 +221,19 @@ const zhCN: I18nMessages = {
     inserted: '新增',
     deleted: '删除',
     layoutNoiseFiltered(count: number): string {
-      return `版面干扰 ${count}`;
+      return `版面内容 ${count}`;
     },
     layoutNoiseTitle: '已从比对中排除的页眉、页脚、页码或重复版面文字。点击查看。',
-    layoutNoiseDetailsTitle: '版面干扰',
+    layoutNoiseDetailsTitle: '过滤明细',
     layoutNoiseDetailsCount(count: number): string {
-      return `已排除 ${count} 条`;
+      return `${count} 条`;
     },
     layoutNoiseSide: {
-      original: '左侧文档',
-      revised: '右侧文档'
+      original: '基准文档',
+      revised: '修订文档'
     },
     layoutNoiseReason: {
-      hint: '页眉页脚线索',
+      hint: '页眉页脚',
       'page-number': '页码',
       'repeated-layout-text': '重复版面文字'
     },

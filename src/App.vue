@@ -151,7 +151,7 @@ const syncScroll = ref(true);
 
 const ignoreSpaces = ref(true);
 const ignoreFullHalfWidth = ref(true);
-const filterLayoutNoise = ref(false);
+const filterLayoutNoise = ref(true);
 const diffGranularity = ref<DiffGranularity>('semantic');
 
 const paneA = ref<DocumentPaneExpose | null>(null);
