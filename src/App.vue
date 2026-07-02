@@ -92,6 +92,7 @@ import {
   type DiffElementGroup,
   type DiffElementIndex
 } from './utils/diffElementIndex';
+import { readSavedAppSettings, writeSavedAppSettings } from './utils/appSettings';
 import { compareDocuments } from './utils/diffEngine';
 import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
 import { parseDocx, type ParsedDocx } from './utils/docxParser';
@@ -147,12 +148,13 @@ const compareError = ref('');
 const hasResult = ref(false);
 const diffSummary = ref<DiffSummary>({ ...EMPTY_DIFF_SUMMARY });
 const currentDiffIndex = ref(0);
-const syncScroll = ref(true);
+const initialSettings = readSavedAppSettings();
+const syncScroll = ref(initialSettings.syncScroll);
 
-const ignoreSpaces = ref(true);
-const ignoreFullHalfWidth = ref(true);
-const filterLayoutNoise = ref(true);
-const diffGranularity = ref<DiffGranularity>('semantic');
+const ignoreSpaces = ref(initialSettings.ignoreSpaces);
+const ignoreFullHalfWidth = ref(initialSettings.ignoreFullHalfWidth);
+const filterLayoutNoise = ref(initialSettings.filterLayoutNoise);
+const diffGranularity = ref<DiffGranularity>(initialSettings.diffGranularity);
 
 const paneA = ref<DocumentPaneExpose | null>(null);
 const paneB = ref<DocumentPaneExpose | null>(null);
@@ -293,6 +295,18 @@ watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise], (
 
   showCompareNotice(i18n.value.app.notices.settingsUpdated);
   void compare(true);
+});
+
+watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll], (
+  [nextDiffGranularity, nextIgnoreSpaces, nextIgnoreFullHalfWidth, nextFilterLayoutNoise, nextSyncScroll]
+) => {
+  writeSavedAppSettings({
+    diffGranularity: nextDiffGranularity,
+    ignoreSpaces: nextIgnoreSpaces,
+    ignoreFullHalfWidth: nextIgnoreFullHalfWidth,
+    filterLayoutNoise: nextFilterLayoutNoise,
+    syncScroll: nextSyncScroll
+  });
 });
 
 watch(locale, () => {
