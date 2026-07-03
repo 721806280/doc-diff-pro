@@ -138,6 +138,7 @@ function toggleIgnoreSpaces(): void {
   border-radius: 8px;
   padding: 8px 12px;
   border: 1px solid var(--border-subtle);
+  box-sizing: border-box;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -629,6 +630,10 @@ function toggleIgnoreSpaces(): void {
     max-width: 100%;
   }
 
+  .compare-settings .capsule-node:last-child {
+    grid-column: auto;
+  }
+
   .classic-select {
     width: 100%;
     min-width: 0;
@@ -653,14 +658,15 @@ function toggleIgnoreSpaces(): void {
   }
 
   .capsule-node {
-    padding: 4px 5px;
+    padding: 4px 3px;
     font-size: 0.58rem;
-    gap: 3px;
+    gap: 2px;
   }
 
   .node-pulse {
     width: 4px;
     height: 4px;
+    flex: 0 0 4px;
   }
 }
 

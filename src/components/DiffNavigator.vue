@@ -1,54 +1,39 @@
 <template>
   <div class="floating-navigator">
-    <div class="stat-banner">
-      <div class="radar-dot" :class="{ clean: summary.total === 0 }"></div>
-      <template v-if="summary.total === 0">
-        <span class="pure-text">{{ i18n.diffNavigator.noDiffs }}</span>
+    <div class="navigator-summary">
+      <div class="summary-strip">
+        <div class="radar-dot" :class="{ clean: summary.total === 0 }"></div>
+        <span class="summary-chip status" :class="{ clean: summary.total === 0 }">
+          {{ i18n.diffNavigator.complete }}
+        </span>
+        <span class="summary-chip total" :class="{ clean: summary.total === 0, alert: summary.total > 0 }">
+          {{ summary.total === 0 ? i18n.diffNavigator.noDiffsTag : i18n.diffNavigator.differenceCount(summary.total) }}
+        </span>
         <span class="summary-chip similarity" :title="i18n.diffNavigator.similarityTitle">
           {{ i18n.diffNavigator.similarity }} <strong>{{ similarityPercent }}</strong>
         </span>
-      </template>
-      <template v-else>
-        <span class="pure-text">{{ i18n.diffNavigator.withDiffsBefore }} <strong class="diff-count">{{ summary.total }}</strong> {{ i18n.diffNavigator.withDiffsAfter(summary.total) }}</span>
-        <span class="summary-chip similarity" :title="i18n.diffNavigator.similarityTitle">
-          {{ i18n.diffNavigator.similarity }} <strong>{{ similarityPercent }}</strong>
-        </span>
-        <span class="summary-chip modified">{{ i18n.diffNavigator.modified }} {{ summary.modified }}</span>
-        <span class="summary-chip inserted">{{ i18n.diffNavigator.inserted }} {{ summary.inserted }}</span>
-        <span class="summary-chip deleted">{{ i18n.diffNavigator.deleted }} {{ summary.deleted }}</span>
-      </template>
-      <div v-if="summary.layoutNoiseFiltered > 0" class="layout-noise-chip">
-        <button type="button" class="summary-chip layout-noise" :title="i18n.diffNavigator.layoutNoiseTitle">
+        <template v-if="summary.total > 0">
+          <span class="summary-chip modified">{{ i18n.diffNavigator.modified }} <strong>{{ summary.modified }}</strong></span>
+          <span class="summary-chip inserted">{{ i18n.diffNavigator.inserted }} <strong>{{ summary.inserted }}</strong></span>
+          <span class="summary-chip deleted">{{ i18n.diffNavigator.deleted }} <strong>{{ summary.deleted }}</strong></span>
+        </template>
+        <button
+          v-if="summary.layoutNoiseFiltered > 0"
+          type="button"
+          class="summary-chip layout-noise"
+          :class="{ active: layoutNoiseOpen }"
+          :title="i18n.diffNavigator.layoutNoiseTitle"
+          :aria-expanded="layoutNoiseOpen"
+          @click="toggleLayoutNoise"
+        >
           {{ i18n.diffNavigator.layoutNoiseFiltered(summary.layoutNoiseFiltered) }}
         </button>
-        <div v-if="summary.layoutNoiseItems.length > 0" class="layout-noise-popover" role="tooltip">
-          <div class="layout-noise-popover__head">
-            <strong>{{ i18n.diffNavigator.layoutNoiseDetailsTitle }}</strong>
-            <span class="layout-noise-total">{{ i18n.diffNavigator.layoutNoiseDetailsCount(summary.layoutNoiseFiltered) }}</span>
-          </div>
-          <ul class="layout-noise-list">
-            <li
-              v-for="(item, index) in summary.layoutNoiseItems"
-              :key="`${item.side}-${item.reason}-${index}`"
-              :class="`is-${item.side}`"
-              :style="{ animationDelay: `${Math.min(index, 8) * 24}ms` }"
-            >
-              <div class="layout-noise-meta">
-                <span class="layout-noise-side" :class="`side-${item.side}`">
-                  {{ i18n.diffNavigator.layoutNoiseSide[item.side] }}
-                </span>
-                <span class="layout-noise-reason" :class="`reason-${item.reason}`">
-                  {{ i18n.diffNavigator.layoutNoiseReason[item.reason] }}
-                </span>
-                <span v-if="item.count > 1" class="layout-noise-count">x{{ item.count }}</span>
-              </div>
-              <p class="layout-noise-text">{{ item.text }}</p>
-            </li>
-          </ul>
-        </div>
       </div>
+
+    </div>
+
+    <div v-if="summary.total > 0" class="navigator-controls">
       <div
-        v-if="summary.total > 0"
         class="diff-progress"
         role="progressbar"
         :aria-label="i18n.diffNavigator.currentPositionAria(currentDiffIndex, summary.total)"
@@ -57,42 +42,54 @@
         :aria-valuenow="currentDiffIndex"
       >
         <div class="diff-progress-meta">
-          <span>{{ i18n.diffNavigator.difference }} {{ currentDiffIndex }} <span class="slash">/</span> {{ summary.total }}</span>
+          <span class="diff-progress-index">
+            <span class="diff-progress-label">{{ i18n.diffNavigator.difference }}</span>
+            <span class="diff-progress-count">{{ currentDiffIndex }}<span class="slash">/</span>{{ summary.total }}</span>
+          </span>
           <strong>{{ progressPercent }}%</strong>
         </div>
         <div class="diff-progress-track">
           <div class="diff-progress-bar" :style="{ width: progressWidth }"></div>
         </div>
       </div>
+
+      <div class="nav-triggers">
+        <button class="btn-action-nav" @click="$emit('previous')" :disabled="currentDiffIndex <= 1">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>{{ i18n.diffNavigator.previous }}</span>
+        </button>
+        <button class="btn-action-nav" @click="$emit('next')" :disabled="currentDiffIndex >= summary.total">
+          <span>{{ i18n.diffNavigator.next }}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+        <div class="panel-divider"></div>
+        <button
+          type="button"
+          class="ios-toggle-shell"
+          :class="{ active: syncScroll }"
+          :title="i18n.diffNavigator.syncScrollTitle"
+          :aria-pressed="syncScroll"
+          @click="$emit('toggle-sync')"
+        >
+          <div class="ios-switch"></div>
+          <span>{{ i18n.diffNavigator.syncScroll }}</span>
+        </button>
+      </div>
     </div>
 
-    <div class="nav-triggers" v-if="summary.total > 0">
-      <button class="btn-action-nav" @click="$emit('previous')" :disabled="currentDiffIndex <= 1">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        <span>{{ i18n.diffNavigator.previous }}</span>
-      </button>
-      <button class="btn-action-nav" @click="$emit('next')" :disabled="currentDiffIndex >= summary.total">
-        <span>{{ i18n.diffNavigator.next }}</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-      </button>
-      <div class="panel-divider"></div>
-      <button
-        type="button"
-        class="ios-toggle-shell"
-        :class="{ active: syncScroll }"
-        :title="i18n.diffNavigator.syncScrollTitle"
-        :aria-pressed="syncScroll"
-        @click="$emit('toggle-sync')"
-      >
-        <div class="ios-switch"></div>
-        <span>{{ i18n.diffNavigator.syncScroll }}</span>
-      </button>
-    </div>
   </div>
+
+  <LayoutNoiseModal
+    :open="layoutNoiseOpen"
+    :total="summary.layoutNoiseFiltered"
+    :items="summary.layoutNoiseItems"
+    @close="closeLayoutNoise"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import LayoutNoiseModal from '@/components/LayoutNoiseModal.vue';
 import { useI18n } from '@/i18n';
 import type { DiffSummary } from '@/types/diff';
 
@@ -108,6 +105,7 @@ defineEmits<{
   'toggle-sync': [];
 }>();
 
+const layoutNoiseOpen = ref(false);
 const { locale, messages: i18n } = useI18n();
 
 const percentFormatter = computed(() => new Intl.NumberFormat(locale.value, {
@@ -124,6 +122,18 @@ const progressPercent = computed(() => {
 const progressWidth = computed(() => `${progressPercent.value}%`);
 
 const similarityPercent = computed(() => percentFormatter.value.format(props.summary.similarity));
+
+watch(() => props.summary.layoutNoiseFiltered, (count) => {
+  if (count === 0) layoutNoiseOpen.value = false;
+});
+
+function toggleLayoutNoise(): void {
+  layoutNoiseOpen.value = !layoutNoiseOpen.value;
+}
+
+function closeLayoutNoise(): void {
+  layoutNoiseOpen.value = false;
+}
 </script>
 
 <style scoped>
@@ -134,8 +144,7 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   border: 1px solid var(--border-subtle);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  justify-content: space-between;
-  align-items: center;
+  align-items: start;
   gap: 10px;
   flex-shrink: 0;
   box-shadow:
@@ -147,12 +156,26 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   animation: navigator-rise 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-.stat-banner {
+.navigator-summary {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  align-items: start;
+}
+
+.navigator-controls {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.summary-strip {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -171,32 +194,11 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   box-shadow: 0 0 8px rgba(var(--ins-rgb), 0.36);
 }
 
-.pure-text {
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  min-width: 0;
-}
-
-.pure-text strong {
-  color: var(--text-primary);
-}
-
-.diff-count {
-  color: var(--del-focus);
-  font-weight: 700;
-  font-family: 'SF Mono', 'Monaco', monospace;
-  background: var(--gradient-del);
-  padding: 2px 7px;
-  border-radius: 5px;
-  border: 1px solid var(--del-border);
-}
-
 .summary-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 5px;
   padding: 3px 7px;
   border-radius: 4px;
   font-size: 0.68rem;
@@ -205,10 +207,14 @@ const similarityPercent = computed(() => percentFormatter.value.format(props.sum
   border: 1px solid var(--border-subtle);
   background: rgba(248, 250, 252, 0.9);
   line-height: 1;
-  height: 22px;
   min-height: 22px;
   box-sizing: border-box;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.summary-chip strong {
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-weight: 750;
 }
 
 button.summary-chip {
@@ -223,6 +229,29 @@ button.summary-chip {
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
 }
 
+.summary-chip.status {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.summary-chip.status.clean {
+  color: var(--ins-text);
+  border-color: rgba(var(--ins-rgb), 0.18);
+  background: rgba(var(--ins-rgb), 0.08);
+}
+
+.summary-chip.total.alert {
+  color: var(--del-text);
+  border-color: var(--del-border);
+  background: rgba(var(--del-rgb), 0.08);
+}
+
+.summary-chip.total.clean {
+  color: var(--ins-text);
+  border-color: rgba(var(--ins-rgb), 0.18);
+  background: rgba(var(--ins-rgb), 0.08);
+}
+
 .summary-chip.modified {
   color: var(--accent);
   border-color: rgba(var(--accent-rgb), 0.2);
@@ -233,11 +262,6 @@ button.summary-chip {
   color: #0f766e;
   border-color: rgba(15, 118, 110, 0.22);
   background: rgba(15, 118, 110, 0.08);
-}
-
-.summary-chip.similarity strong {
-  font-family: 'SF Mono', 'Monaco', monospace;
-  font-weight: 750;
 }
 
 .summary-chip.inserted {
@@ -253,253 +277,77 @@ button.summary-chip {
 }
 
 .summary-chip.layout-noise {
-  color: #475569;
-  border-color: rgba(148, 163, 184, 0.3);
-  background: rgba(241, 245, 249, 0.9);
-  min-width: 76px;
+  color: #a16207;
+  border-color: rgba(217, 119, 6, 0.24);
+  background: rgba(245, 158, 11, 0.1);
+  padding-inline: 6px;
 }
 
-.layout-noise-chip {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  outline: none;
-}
-
-.layout-noise-chip:focus-within .summary-chip.layout-noise {
-  border-color: rgba(var(--accent-rgb), 0.28);
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.12);
-}
-
-.layout-noise-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 30;
-  width: 388px;
-  max-width: min(388px, calc(100vw - 32px));
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
-  box-shadow:
-    0 4px 12px rgba(15, 23, 42, 0.08),
-    0 8px 24px rgba(15, 23, 42, 0.1);
-  text-align: left;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-4px);
-  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
-  pointer-events: none;
-}
-
-.layout-noise-chip:hover .layout-noise-popover,
-.layout-noise-chip:focus-within .layout-noise-popover {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.layout-noise-popover__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  padding: 1px 2px 7px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.86);
-}
-
-.layout-noise-popover__head strong {
-  color: var(--text-primary);
-  font-size: 0.76rem;
-  line-height: 1;
-}
-
-.layout-noise-popover__head .layout-noise-total {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 46px;
-  height: 25px;
-  padding: 0 9px;
-  border-radius: 6px;
-  color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.08);
-  border: 1px solid rgba(var(--accent-rgb), 0.16);
-  font-family: 'SF Mono', 'Monaco', monospace;
-  font-size: 0.7rem;
-  font-weight: 750;
-  transform-origin: center;
-  animation: count-soft-pop 0.28s ease both;
-}
-
-.layout-noise-list {
-  margin: 0;
-  padding: 8px 0 0;
-  list-style: none;
-}
-
-.layout-noise-list li {
-  position: relative;
-  padding: 9px 10px 9px 12px;
-  border: 1px solid rgba(226, 232, 240, 0.82);
-  border-radius: 6px;
-  background: #ffffff;
-  overflow: hidden;
-  animation: noise-item-in 0.22s ease both;
-}
-
-.layout-noise-list li + li {
-  margin-top: 6px;
-}
-
-.layout-noise-list li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--border-strong);
-}
-
-.layout-noise-list li.is-original::before {
-  background: rgba(var(--del-rgb), 0.5);
-}
-
-.layout-noise-list li.is-revised::before {
-  background: rgba(var(--ins-rgb), 0.5);
-}
-
-.layout-noise-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 5px;
-}
-
-.layout-noise-side,
-.layout-noise-reason {
-  display: inline-flex;
-  align-items: center;
-  min-height: 17px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 0.64rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.layout-noise-side {
-  color: var(--text-secondary);
-  background: #f1f5f9;
-  border: 1px solid rgba(203, 213, 225, 0.7);
-}
-
-.layout-noise-side.side-original {
-  color: var(--del-text);
-  background: rgba(var(--del-rgb), 0.055);
-  border-color: rgba(var(--del-rgb), 0.14);
-}
-
-.layout-noise-side.side-revised {
-  color: var(--ins-text);
-  background: rgba(var(--ins-rgb), 0.06);
-  border-color: rgba(var(--ins-rgb), 0.15);
-}
-
-.layout-noise-reason {
-  color: #334155;
-  background: rgba(241, 245, 249, 0.84);
-  border: 1px solid rgba(203, 213, 225, 0.75);
-}
-
-.layout-noise-reason.reason-hint {
-  color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.07);
-  border-color: rgba(var(--accent-rgb), 0.16);
-}
-
-.layout-noise-reason.reason-page-number {
-  color: #475569;
-  background: rgba(241, 245, 249, 0.8);
-  border-color: rgba(203, 213, 225, 0.72);
-}
-
-.layout-noise-reason.reason-repeated-layout-text {
-  color: #475569;
-  background: rgba(226, 232, 240, 0.58);
-  border-color: rgba(148, 163, 184, 0.38);
-}
-
-.layout-noise-count {
-  display: inline-flex;
-  align-items: center;
-  min-height: 17px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(var(--accent-rgb), 0.07);
-  color: var(--accent);
-  font-family: 'SF Mono', 'Monaco', monospace;
-  font-size: 0.62rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.layout-noise-text {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  line-height: 1.45;
+.summary-chip.layout-noise.active {
+  color: #92400e;
+  border-color: rgba(217, 119, 6, 0.34);
+  background: rgba(245, 158, 11, 0.16);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12);
 }
 
 .slash {
   color: var(--text-tertiary);
   font-weight: 400;
-  margin: 0 2px;
+  margin: 0 1px;
 }
 
 .diff-progress {
-  width: auto;
-  min-width: 112px;
-  padding: 5px 10px;
-  border-radius: 6px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  width: 118px;
+  min-width: 0;
+  padding: 0 2px;
+  display: grid;
+  gap: 4px;
+  align-self: center;
 }
 
 .diff-progress-meta {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
+  gap: 5px;
   color: var(--text-secondary);
   font-size: 0.7rem;
-  font-weight: 650;
+  font-weight: 700;
   white-space: nowrap;
+}
+
+.diff-progress-index {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.diff-progress-label {
+  flex: 0 0 auto;
+  font-weight: 650;
+}
+
+.diff-progress-count {
+  min-width: 0;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Monaco', monospace;
+  letter-spacing: -0.01em;
 }
 
 .diff-progress-meta strong {
   color: var(--accent);
   font-family: 'SF Mono', 'Monaco', monospace;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
+  opacity: 0.9;
 }
 
 .diff-progress-track {
   height: 3px;
+  width: 100%;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(203, 213, 225, 0.58);
+  background: rgba(203, 213, 225, 0.64);
 }
 
 .diff-progress-bar {
@@ -680,28 +528,6 @@ button.summary-chip {
   }
 }
 
-@keyframes count-soft-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.92);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes noise-item-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @media (max-width: 820px) {
   .floating-navigator {
     grid-template-columns: minmax(0, 1fr);
@@ -710,13 +536,12 @@ button.summary-chip {
     padding: 6px 10px;
   }
 
-  .stat-banner {
-    justify-content: flex-start;
-    text-align: left;
+  .navigator-controls {
+    justify-self: stretch;
+    justify-content: space-between;
   }
 
   .nav-triggers {
-    justify-content: flex-start;
     flex-wrap: nowrap;
   }
 
@@ -726,18 +551,41 @@ button.summary-chip {
 }
 
 @media (max-width: 640px) {
-  .pure-text {
-    flex: 1 1 100%;
+  .summary-chip {
+    min-height: 20px;
+    padding: 2px 6px;
+    font-size: 0.62rem;
+  }
+
+  .radar-dot {
+    flex: 0 0 6px;
+    width: 6px;
+    height: 6px;
   }
 
   .diff-progress {
-    flex: 1 1 128px;
-    width: auto;
-    min-width: 118px;
+    padding: 0 1px;
+    width: 108px;
   }
 
   .diff-progress-meta {
-    justify-content: flex-start;
+    gap: 4px;
+    font-size: 0.66rem;
+  }
+
+  .diff-progress-index {
+    letter-spacing: -0.02em;
+  }
+
+  .diff-progress-meta strong {
+    font-size: 0.62rem;
+  }
+
+  .diff-progress-track {
+    width: 100%;
+  }
+
+  .navigator-controls {
     gap: 8px;
   }
 
@@ -745,6 +593,7 @@ button.summary-chip {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: center;
+    flex: 1 1 auto;
   }
 
   .btn-action-nav {
@@ -755,47 +604,27 @@ button.summary-chip {
     justify-content: center;
     padding: 4px 6px;
   }
+}
 
-  .layout-noise-chip {
-    display: block;
-    position: relative;
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .layout-noise-popover {
+@media (max-width: 520px) {
+  .summary-chip.status {
     display: none;
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    left: 0;
-    z-index: 40;
-    width: auto;
-    max-width: none;
-    max-height: min(38vh, 260px);
-    margin-top: 0;
-    box-sizing: border-box;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    pointer-events: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
   }
 
-  .layout-noise-chip:hover .layout-noise-popover,
-  .layout-noise-chip:focus-within .layout-noise-popover {
-    display: block;
-    transform: none;
+  .navigator-controls {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
   }
 }
 
 @media (max-width: 420px) {
-  .summary-chip {
-    flex: 0 0 auto;
-    text-align: center;
-    padding: 3px 4px;
+  .summary-chip.modified,
+  .summary-chip.inserted,
+  .summary-chip.deleted,
+  .summary-chip.similarity {
+    display: none;
   }
 
   .btn-action-nav {
@@ -814,9 +643,7 @@ button.summary-chip {
 @media (prefers-reduced-motion: reduce) {
   .floating-navigator,
   .radar-dot,
-  .diff-progress-bar::after,
-  .layout-noise-total,
-  .layout-noise-list li {
+  .diff-progress-bar::after {
     animation: none;
   }
 

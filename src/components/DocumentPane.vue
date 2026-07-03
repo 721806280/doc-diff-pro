@@ -38,6 +38,7 @@
       ref="viewport"
       @scroll="$emit('pane-scroll')"
       @click="$emit('diff-click', $event)"
+      @keydown="handleKeydown"
       @mouseenter="$emit('activate')"
       @wheel.passive="$emit('activate')"
       @pointerdown="$emit('activate')"
@@ -113,6 +114,7 @@ const emit = defineEmits<{
   'file-select': [file: File];
   'pane-scroll': [];
   'diff-click': [event: MouseEvent];
+  'diff-activate': [event: KeyboardEvent];
   activate: [];
 }>();
 
@@ -165,6 +167,17 @@ function handleFileInput(event: Event): void {
   const file = input.files?.[0];
   if (file) emit('file-select', file);
   input.value = '';
+}
+
+function handleKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  if (!(event.target instanceof Element)) return;
+  // Only activate when a diff highlight itself is focused — leave ordinary
+  // document scroll (Space) and any other key targets alone.
+  if (!event.target.closest('[data-diff-id]')) return;
+
+  event.preventDefault();
+  emit('diff-activate', event);
 }
 
 function handleDrop(event: DragEvent): void {
@@ -325,14 +338,18 @@ defineExpose({ viewport });
 
 .render-viewport {
   overflow-y: scroll;
-  overflow-x: auto;
+  overflow-x: hidden;
   flex: 1;
+  min-width: 0;
   font-size: 0.88rem;
   line-height: 1.7;
   color: #1e293b;
   scroll-behavior: smooth;
   background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
   padding: 16px 24px;
+  /* Firefox: thin, themed scrollbar matching the WebKit slate ramp. */
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
 }
 
 .render-viewport.is-empty {
@@ -418,25 +435,6 @@ defineExpose({ viewport });
   transition: border-color 0.2s ease, transform 0.24s ease;
 }
 
-.pane-upload-zone::after {
-  content: 'A';
-  position: absolute;
-  top: 22px;
-  right: 26px;
-  color: var(--pane-accent);
-  font-family: 'SF Mono', 'Monaco', monospace;
-  font-size: 3.6rem;
-  font-weight: 800;
-  line-height: 1;
-  opacity: 0.08;
-  pointer-events: none;
-  transition: opacity 0.24s ease, transform 0.24s ease;
-}
-
-.side-revision .pane-upload-zone::after {
-  content: 'B';
-}
-
 .pane-upload-zone:hover {
   border-color: var(--pane-accent);
   transform: translateY(-2px);
@@ -448,11 +446,6 @@ defineExpose({ viewport });
 .pane-upload-zone:hover::before {
   border-color: var(--pane-line);
   transform: scale(0.985);
-}
-
-.pane-upload-zone:hover::after {
-  opacity: 0.13;
-  transform: translate(-4px, 3px);
 }
 
 .pane-upload-zone.dragging {
@@ -819,7 +812,10 @@ defineExpose({ viewport });
 
 .docx-render-content {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   color: #1e293b;
+  overflow-wrap: anywhere;
 }
 
 .docx-render-content :deep(p) {
@@ -852,7 +848,7 @@ defineExpose({ viewport });
   border-collapse: collapse;
   margin: 1.2rem 0;
   max-width: 100%;
-  width: 100% !important;
+  width: 100%;
 }
 
 .docx-render-content :deep(th),
@@ -907,6 +903,19 @@ defineExpose({ viewport });
   box-shadow: 0 2px 6px rgba(var(--del-rgb), 0.26);
 }
 
+/* Keyboard focus ring for highlights that can receive focus. Most highlights
+   are reached via the navigator's prev/next buttons (see .focus-diff below);
+   table-structure highlights are independently focusable (tabindex=0). */
+.docx-render-content :deep(ins:focus-visible) {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ins-focus);
+}
+
+.docx-render-content :deep(del:focus-visible) {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--del-focus);
+}
+
 .docx-render-content :deep(ins.focus-diff) {
   background: linear-gradient(135deg, rgba(var(--ins-rgb), 0.28) 0%, rgba(var(--ins-rgb), 0.18) 100%) !important;
   box-shadow: 0 0 0 2px var(--ins-focus), 0 4px 16px rgba(var(--ins-rgb), 0.3);
@@ -923,6 +932,49 @@ defineExpose({ viewport });
   border-bottom: none;
   border-radius: 4px;
   animation: focus-pulse 0.5s ease;
+}
+
+.docx-render-content :deep(ins.table-structure-diff),
+.docx-render-content :deep(del.table-structure-diff) {
+  position: relative;
+  background: rgba(255, 251, 235, 0.86) !important;
+  color: #78350f;
+  border-bottom: 2px solid rgba(217, 119, 6, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.16);
+  cursor: pointer;
+}
+
+.docx-render-content :deep(ins.focus-diff.table-structure-diff),
+.docx-render-content :deep(del.focus-diff.table-structure-diff) {
+  background: rgba(255, 251, 235, 0.95) !important;
+  box-shadow:
+    0 0 0 2px rgba(217, 119, 6, 0.28),
+    0 5px 14px rgba(120, 53, 15, 0.12);
+  color: #78350f;
+  border-bottom: 2px solid rgba(217, 119, 6, 0.8);
+}
+
+.docx-render-content :deep(ins.table-structure-diff[data-table-hint])::before,
+.docx-render-content :deep(del.table-structure-diff[data-table-hint])::before {
+  content: '?';
+  position: absolute;
+  top: -9px;
+  right: -8px;
+  z-index: 22;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  color: #78350f;
+  background: #fef3c7;
+  border: 1px solid rgba(217, 119, 6, 0.54);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(120, 53, 15, 0.14);
+  pointer-events: none;
 }
 
 @keyframes inline-pulse {
@@ -985,6 +1037,7 @@ defineExpose({ viewport });
 
   .render-viewport {
     padding: 12px 16px;
+    overflow-x: hidden;
   }
 
   .render-viewport.is-empty {
@@ -1015,10 +1068,35 @@ defineExpose({ viewport });
     font-size: 0.68rem;
   }
 
-  .pane-upload-zone::after {
-    top: 18px;
-    right: 20px;
-    font-size: 2.8rem;
+  .render-viewport:not(.is-empty) {
+    padding: 14px 14px 96px;
+  }
+
+  .docx-render-content :deep(table) {
+    table-layout: fixed;
+    margin: 0.85rem 0;
+  }
+
+  .docx-render-content :deep(th),
+  .docx-render-content :deep(td) {
+    padding: 6px 7px;
+  }
+}
+
+@media (max-width: 640px) {
+  .docx-render-content :deep(ins.table-structure-diff),
+  .docx-render-content :deep(del.table-structure-diff) {
+    border-bottom-width: 1px;
+    box-shadow: none;
+  }
+
+  .docx-render-content :deep(ins.table-structure-diff[data-table-hint])::before,
+  .docx-render-content :deep(del.table-structure-diff[data-table-hint])::before {
+    top: -7px;
+    right: -6px;
+    width: 12px;
+    height: 12px;
+    font-size: 0.56rem;
   }
 }
 
@@ -1040,7 +1118,6 @@ defineExpose({ viewport });
   .file-badge-inline,
   .pane-upload-zone,
   .pane-upload-zone::before,
-  .pane-upload-zone::after,
   .upload-icon-box,
   .upload-icon-box svg,
   .reupload-trigger,
@@ -1054,7 +1131,6 @@ defineExpose({ viewport });
   .pane-upload-zone:hover,
   .pane-upload-zone.dragging,
   .pane-upload-zone:hover::before,
-  .pane-upload-zone:hover::after,
   .pane-upload-zone:hover .upload-icon-box,
   .pane-upload-zone:hover .upload-icon-box svg,
   .reupload-trigger:hover {

@@ -36,10 +36,11 @@ export type ParseDocxOptions = {
 };
 
 export async function parseDocx(file: File, options: ParseDocxOptions = {}): Promise<ParsedDocx> {
-  const mammoth: MammothApi = await import('mammoth');
-
   try {
-    const arrayBuffer = await file.arrayBuffer();
+    const [mammoth, arrayBuffer] = await Promise.all([
+      import('mammoth') as Promise<MammothApi>,
+      file.arrayBuffer()
+    ]);
     const convertImage = mammoth.images.imgElement(async (image) => ({
       src: `data:${image.contentType};base64,${await image.read('base64')}`,
       alt: options.embeddedImageAlt ?? 'Embedded document image'

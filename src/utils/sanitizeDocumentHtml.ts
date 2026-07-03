@@ -16,9 +16,13 @@ const FORBIDDEN_TAGS = [
 
 const SAFE_IMAGE_SOURCE_PATTERN = /^data:image\/(?:bmp|gif|jpeg|png|webp);base64,/i;
 
+type DOMPurifyModule = typeof import('dompurify');
+type DOMPurifyInstance = ReturnType<DOMPurifyModule['default']>;
+
+let purifierPromise: Promise<DOMPurifyInstance> | null = null;
+
 export async function sanitizeDocumentHtml(html: string): Promise<string> {
-  const { default: createDOMPurify } = await import('dompurify');
-  const purifier = createDOMPurify(window);
+  const purifier = await getPurifier();
   const sanitized = purifier.sanitize(html, {
     FORBID_TAGS: FORBIDDEN_TAGS,
     USE_PROFILES: { html: true }
@@ -36,4 +40,11 @@ export async function sanitizeDocumentHtml(html: string): Promise<string> {
   });
 
   return body.innerHTML;
+}
+
+function getPurifier(): Promise<DOMPurifyInstance> {
+  purifierPromise ??= import('dompurify')
+    .then(({ default: createDOMPurify }) => createDOMPurify(window));
+
+  return purifierPromise;
 }

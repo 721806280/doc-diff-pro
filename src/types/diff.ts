@@ -25,6 +25,42 @@ export type LayoutNoiseItem = {
   count: number;
 };
 
+export type DiffTableContextHintKind =
+  | 'single-row-inserted'
+  | 'single-row-deleted'
+  | 'row-content-shift'
+  | 'cell-count-mismatch'
+  | 'row-count-mismatch';
+
+export type DiffTableContextHintConfidence = 'high' | 'medium';
+
+export type DiffTableRowPreviewRole = 'focus' | 'candidate' | 'missing';
+
+export type DiffTableRowPreview = {
+  side: LayoutNoiseSide;
+  row: number;
+  rowEnd?: number;
+  preview: string;
+  cellCount?: number;
+  role: DiffTableRowPreviewRole;
+  missing?: boolean;
+};
+
+export type DiffTableContextHint = {
+  tableNumber: number;
+  originalRows: number;
+  revisedRows: number;
+  kind: DiffTableContextHintKind;
+  confidence: DiffTableContextHintConfidence;
+  candidateSide?: LayoutNoiseSide;
+  candidateRow?: number;
+  candidateRowEnd?: number;
+  candidatePreview?: string;
+  originalCells?: number;
+  revisedCells?: number;
+  rowPreviews?: Record<LayoutNoiseSide, DiffTableRowPreview[]>;
+};
+
 export type DiffWorkerRequest = {
   id: number;
   originalText: string;

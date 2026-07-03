@@ -15,9 +15,11 @@ defineProps<{
 </script>
 
 <style scoped>
+/* Anchored just below the compact AppHeader. The wrapped two-row header at
+   <=820px sits taller, so the toast drops to clear that second row. */
 .compare-toast {
   position: absolute;
-  top: 80px;
+  top: 70px;
   left: 50%;
   z-index: 30;
   display: inline-flex;
@@ -87,6 +89,14 @@ defineProps<{
   .compare-toast-enter-active,
   .compare-toast-leave-active {
     transition: none;
+  }
+}
+
+/* Header wraps to a second grid row at <=820px (see AppHeader media query),
+   so the toast drops to clear that row instead of overlapping it. */
+@media (max-width: 820px) {
+  .compare-toast {
+    top: 116px;
   }
 }
 </style>

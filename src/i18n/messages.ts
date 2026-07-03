@@ -86,10 +86,15 @@ const en = {
     }
   },
   diffNavigator: {
-    noDiffs: 'Comparison complete: no text differences found with the current settings.',
-    withDiffsBefore: 'Comparison complete:',
+    complete: 'Complete',
+    noDiffs: 'Complete: no differences.',
+    noDiffsTag: 'No differences',
+    withDiffsBefore: 'Complete:',
     withDiffsAfter(count: number): string {
-      return `text ${count === 1 ? 'difference' : 'differences'} found`;
+      return count === 1 ? 'difference' : 'differences';
+    },
+    differenceCount(count: number): string {
+      return count === 1 ? '1 difference' : `${count} differences`;
     },
     similarity: 'Similarity',
     similarityTitle: 'Calculated from edit distance after applying the current normalization settings.',
@@ -97,7 +102,7 @@ const en = {
     inserted: 'Added',
     deleted: 'Deleted',
     layoutNoiseFiltered(count: number): string {
-      return `Layout content ${count}`;
+      return `Layout ${count}`;
     },
     layoutNoiseTitle: 'Headers, footers, page numbers, or repeated layout text excluded from the comparison. Click to view.',
     layoutNoiseDetailsTitle: 'Filter details',
@@ -113,10 +118,47 @@ const en = {
       'page-number': 'Page number',
       'repeated-layout-text': 'Repeated layout text'
     },
+    tableHintTooltipTitle: 'Table structure note',
+    tableHintLocation(tableNumber: number, originalRows: number, revisedRows: number): string {
+      return `Location: table ${tableNumber}, baseline ${originalRows} rows / revised ${revisedRows} rows`;
+    },
+    tableHintCells(originalCells: number, revisedCells: number): string {
+      return `Cells: baseline ${originalCells} / revised ${revisedCells}`;
+    },
+    tableHintCompareTitle: 'Compare:',
+    tableHintSides: {
+      original: 'Baseline',
+      revised: 'Revised'
+    },
+    tableHintRowPreview(side: string, rowLabel: string, preview: string, cellCount?: number): string {
+      const cells = cellCount === undefined ? '' : `, ${cellCount} ${cellCount === 1 ? 'cell' : 'cells'}`;
+      return `${side} row ${rowLabel}${cells} - ${preview}`;
+    },
+    tableHintMissingRow(side: string, rowLabel: string): string {
+      return `${side} row ${rowLabel} - no matching row`;
+    },
+    tableHintMessages: {
+      singleRowInserted(_tableNumber: number, rowLabel: string): string {
+        return `Reason: revised row ${rowLabel} was likely added.`;
+      },
+      singleRowDeleted(_tableNumber: number, rowLabel: string): string {
+        return `Reason: baseline row ${rowLabel} is likely missing in the revised table.`;
+      },
+      rowContentShift(_tableNumber: number, side: string, rowLabel: string): string {
+        return `Reason: content near ${side} row ${rowLabel} appears split across adjacent rows.`;
+      },
+      cellCountMismatch(_tableNumber: number, rowLabel: string): string {
+        return `Reason: row ${rowLabel} has a different cell count.`;
+      },
+      rowCountMismatch(_tableNumber: number): string {
+        return 'Reason: the two tables have different row counts.';
+      }
+    },
     currentPositionAria(current: number, total: number): string {
       return `Current difference: ${current} / ${total}`;
     },
     difference: 'Difference',
+    closeDetails: 'Close',
     previous: 'Previous',
     next: 'Next',
     syncScrollTitle: 'Scroll both documents together by difference position.',
@@ -210,10 +252,15 @@ const zhCN: I18nMessages = {
     }
   },
   diffNavigator: {
-    noDiffs: '比对完成：当前设置下，两份文档未发现文本差异。',
-    withDiffsBefore: '比对完成：发现',
+    complete: '比对完成',
+    noDiffs: '比对完成：无差异',
+    noDiffsTag: '无差异',
+    withDiffsBefore: '比对完成：',
     withDiffsAfter(): string {
-      return '处文本差异';
+      return '处差异';
+    },
+    differenceCount(count: number): string {
+      return `差异 ${count}`;
     },
     similarity: '相似度',
     similarityTitle: '基于当前归一化文本的编辑距离计算',
@@ -221,7 +268,7 @@ const zhCN: I18nMessages = {
     inserted: '新增',
     deleted: '删除',
     layoutNoiseFiltered(count: number): string {
-      return `版面内容 ${count}`;
+      return `版面 ${count}`;
     },
     layoutNoiseTitle: '已从比对中排除的页眉、页脚、页码或重复版面文字。点击查看。',
     layoutNoiseDetailsTitle: '过滤明细',
@@ -237,10 +284,47 @@ const zhCN: I18nMessages = {
       'page-number': '页码',
       'repeated-layout-text': '重复版面文字'
     },
+    tableHintTooltipTitle: '表格结构提示',
+    tableHintLocation(tableNumber: number, originalRows: number, revisedRows: number): string {
+      return `位置：第 ${tableNumber} 个表格，基准 ${originalRows} 行 / 修订 ${revisedRows} 行`;
+    },
+    tableHintCells(originalCells: number, revisedCells: number): string {
+      return `单元格：基准 ${originalCells} / 修订 ${revisedCells}`;
+    },
+    tableHintCompareTitle: '左右对照：',
+    tableHintSides: {
+      original: '基准',
+      revised: '修订'
+    },
+    tableHintRowPreview(side: string, rowLabel: string, preview: string, cellCount?: number): string {
+      const cells = cellCount === undefined ? '' : `，${cellCount} 格`;
+      return `${side}第 ${rowLabel} 行${cells}：${preview}`;
+    },
+    tableHintMissingRow(side: string, rowLabel: string): string {
+      return `${side}第 ${rowLabel} 行：无对应行`;
+    },
+    tableHintMessages: {
+      singleRowInserted(_tableNumber: number, rowLabel: string): string {
+        return `原因：修订表疑似新增第 ${rowLabel} 行。`;
+      },
+      singleRowDeleted(_tableNumber: number, rowLabel: string): string {
+        return `原因：修订表疑似缺少基准第 ${rowLabel} 行。`;
+      },
+      rowContentShift(_tableNumber: number, side: string, rowLabel: string): string {
+        return `原因：${side}第 ${rowLabel} 行附近疑似被拆到相邻行。`;
+      },
+      cellCountMismatch(_tableNumber: number, rowLabel: string): string {
+        return `原因：第 ${rowLabel} 行单元格数不一致。`;
+      },
+      rowCountMismatch(_tableNumber: number): string {
+        return '原因：两侧表格行数不一致。';
+      }
+    },
     currentPositionAria(current: number, total: number): string {
       return `当前差异位置：${current} / ${total}`;
     },
     difference: '差异',
+    closeDetails: '关闭',
     previous: '上一处',
     next: '下一处',
     syncScrollTitle: '开启后，两侧文档会按差异位置同步滚动，便于长文对照',
