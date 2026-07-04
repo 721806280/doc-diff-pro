@@ -1,0 +1,47 @@
+:root {
+  --popup-backdrop: rgba(15, 23, 42, 0.32);
+  --popup-surface: rgba(255, 255, 255, 0.96);
+  --popup-surface-soft: rgba(248, 250, 252, 0.94);
+  --popup-border: rgba(203, 213, 225, 0.8);
+  --popup-border-strong: rgba(148, 163, 184, 0.6);
+  --popup-radius: 8px;
+  --popup-control-radius: 6px;
+  --popup-shadow:
+    0 24px 48px -12px rgba(15, 23, 42, 0.18),
+    0 8px 16px -8px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(15, 23, 42, 0.04);
+  --popup-shadow-sm:
+    0 12px 20px -8px rgba(15, 23, 42, 0.12),
+    0 4px 10px -6px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(15, 23, 42, 0.04);
+  --popup-focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.18);
+  --popup-motion: 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Elegant Custom Scrollbars for All Overlay Scroll Containers */
+.layout-noise-list::-webkit-scrollbar,
+.table-hint-panel__body::-webkit-scrollbar,
+.warning-popover::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.layout-noise-list::-webkit-scrollbar-track,
+.table-hint-panel__body::-webkit-scrollbar-track,
+.warning-popover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.layout-noise-list::-webkit-scrollbar-thumb,
+.table-hint-panel__body::-webkit-scrollbar-thumb,
+.warning-popover::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.14);
+  border-radius: 99px;
+  transition: background 0.15s ease;
+}
+
+.layout-noise-list::-webkit-scrollbar-thumb:hover,
+.table-hint-panel__body::-webkit-scrollbar-thumb:hover,
+.warning-popover::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.28);
+}

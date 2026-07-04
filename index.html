@@ -24,28 +24,7 @@
             min-height: 100vh;
             position: relative;
             overflow: hidden;
-            background: #e7ebf0;
-        }
-
-        .bg-decoration {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 0;
-            background:
-                linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(226, 232, 240, 0.28) 100%),
-                repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.16) 0 1px, transparent 1px 56px);
-            opacity: 0.72;
-        }
-
-        .bg-decoration::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.22), transparent);
+            background: #edf1f5;
         }
 
         #app {
@@ -57,7 +36,6 @@
 </head>
 <body>
 <div id="app"></div>
-<div class="bg-decoration"></div>
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

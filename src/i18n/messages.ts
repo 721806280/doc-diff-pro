@@ -86,13 +86,7 @@ const en = {
     }
   },
   diffNavigator: {
-    complete: 'Complete',
-    noDiffs: 'Complete: no differences.',
     noDiffsTag: 'No differences',
-    withDiffsBefore: 'Complete:',
-    withDiffsAfter(count: number): string {
-      return count === 1 ? 'difference' : 'differences';
-    },
     differenceCount(count: number): string {
       return count === 1 ? '1 difference' : `${count} differences`;
     },
@@ -118,40 +112,25 @@ const en = {
       'page-number': 'Page number',
       'repeated-layout-text': 'Repeated layout text'
     },
-    tableHintTooltipTitle: 'Table structure note',
-    tableHintLocation(tableNumber: number, originalRows: number, revisedRows: number): string {
-      return `Location: table ${tableNumber}, baseline ${originalRows} rows / revised ${revisedRows} rows`;
-    },
-    tableHintCells(originalCells: number, revisedCells: number): string {
-      return `Cells: baseline ${originalCells} / revised ${revisedCells}`;
-    },
-    tableHintCompareTitle: 'Compare:',
     tableHintSides: {
-      original: 'Baseline',
-      revised: 'Revised'
-    },
-    tableHintRowPreview(side: string, rowLabel: string, preview: string, cellCount?: number): string {
-      const cells = cellCount === undefined ? '' : `, ${cellCount} ${cellCount === 1 ? 'cell' : 'cells'}`;
-      return `${side} row ${rowLabel}${cells} - ${preview}`;
-    },
-    tableHintMissingRow(side: string, rowLabel: string): string {
-      return `${side} row ${rowLabel} - no matching row`;
+      original: 'Baseline document',
+      revised: 'Revised document'
     },
     tableHintMessages: {
       singleRowInserted(_tableNumber: number, rowLabel: string): string {
-        return `Reason: revised row ${rowLabel} was likely added.`;
+        return `Revised row ${rowLabel} was likely added.`;
       },
       singleRowDeleted(_tableNumber: number, rowLabel: string): string {
-        return `Reason: baseline row ${rowLabel} is likely missing in the revised table.`;
+        return `Baseline row ${rowLabel} is likely missing in the revised table.`;
       },
       rowContentShift(_tableNumber: number, side: string, rowLabel: string): string {
-        return `Reason: content near ${side} row ${rowLabel} appears split across adjacent rows.`;
+        return `Content near ${side} row ${rowLabel} appears split across adjacent rows.`;
       },
       cellCountMismatch(_tableNumber: number, rowLabel: string): string {
-        return `Reason: row ${rowLabel} has a different cell count.`;
+        return `Row ${rowLabel} has a different cell count.`;
       },
       rowCountMismatch(_tableNumber: number): string {
-        return 'Reason: the two tables have different row counts.';
+        return 'The two tables have different row counts.';
       }
     },
     currentPositionAria(current: number, total: number): string {
@@ -252,13 +231,7 @@ const zhCN: I18nMessages = {
     }
   },
   diffNavigator: {
-    complete: '比对完成',
-    noDiffs: '比对完成：无差异',
     noDiffsTag: '无差异',
-    withDiffsBefore: '比对完成：',
-    withDiffsAfter(): string {
-      return '处差异';
-    },
     differenceCount(count: number): string {
       return `差异 ${count}`;
     },
@@ -284,40 +257,25 @@ const zhCN: I18nMessages = {
       'page-number': '页码',
       'repeated-layout-text': '重复版面文字'
     },
-    tableHintTooltipTitle: '表格结构提示',
-    tableHintLocation(tableNumber: number, originalRows: number, revisedRows: number): string {
-      return `位置：第 ${tableNumber} 个表格，基准 ${originalRows} 行 / 修订 ${revisedRows} 行`;
-    },
-    tableHintCells(originalCells: number, revisedCells: number): string {
-      return `单元格：基准 ${originalCells} / 修订 ${revisedCells}`;
-    },
-    tableHintCompareTitle: '左右对照：',
     tableHintSides: {
-      original: '基准',
-      revised: '修订'
-    },
-    tableHintRowPreview(side: string, rowLabel: string, preview: string, cellCount?: number): string {
-      const cells = cellCount === undefined ? '' : `，${cellCount} 格`;
-      return `${side}第 ${rowLabel} 行${cells}：${preview}`;
-    },
-    tableHintMissingRow(side: string, rowLabel: string): string {
-      return `${side}第 ${rowLabel} 行：无对应行`;
+      original: '基准文档',
+      revised: '修订文档'
     },
     tableHintMessages: {
       singleRowInserted(_tableNumber: number, rowLabel: string): string {
-        return `原因：修订表疑似新增第 ${rowLabel} 行。`;
+        return `修订表疑似新增第 ${rowLabel} 行。`;
       },
       singleRowDeleted(_tableNumber: number, rowLabel: string): string {
-        return `原因：修订表疑似缺少基准第 ${rowLabel} 行。`;
+        return `修订表疑似缺少基准第 ${rowLabel} 行。`;
       },
       rowContentShift(_tableNumber: number, side: string, rowLabel: string): string {
-        return `原因：${side}第 ${rowLabel} 行附近疑似被拆到相邻行。`;
+        return `${side}第 ${rowLabel} 行附近疑似被拆到相邻行。`;
       },
       cellCountMismatch(_tableNumber: number, rowLabel: string): string {
-        return `原因：第 ${rowLabel} 行单元格数不一致。`;
+        return `第 ${rowLabel} 行单元格数不一致。`;
       },
       rowCountMismatch(_tableNumber: number): string {
-        return '原因：两侧表格行数不一致。';
+        return '两侧表格行数不一致。';
       }
     },
     currentPositionAria(current: number, total: number): string {

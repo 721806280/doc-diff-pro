@@ -1,10 +1,10 @@
 <template>
   <div class="app-container">
     <AppHeader
-      v-model:diff-granularity="diffGranularity"
-      v-model:ignore-spaces="ignoreSpaces"
-      v-model:ignore-full-half-width="ignoreFullHalfWidth"
-      v-model:filter-layout-noise="filterLayoutNoise"
+        v-model:diff-granularity="diffGranularity"
+        v-model:ignore-spaces="ignoreSpaces"
+        v-model:ignore-full-half-width="ignoreFullHalfWidth"
+        v-model:filter-layout-noise="filterLayoutNoise"
     />
 
     <CompareToast :message="compareNotice" :comparing="comparing" />
@@ -15,106 +15,93 @@
     </div>
 
     <DiffNavigator
-      v-if="hasResult"
-      :summary="diffSummary"
-      :current-diff-index="currentDiffIndex"
-      :sync-scroll="syncScroll"
-      @previous="prevDiff"
-      @next="nextDiff"
-      @toggle-sync="toggleSyncLock"
+        v-if="hasResult"
+        :summary="diffSummary"
+        :current-diff-index="currentDiffIndex"
+        :sync-scroll="syncScroll"
+        @previous="prevDiff"
+        @next="nextDiff"
+        @toggle-sync="toggleSyncLock"
     />
 
     <div class="workspace-container">
       <DocumentPane
-        ref="paneA"
-        side-class="side-original"
-        :title="i18n.app.documents.A.title"
-        :file-name="documents.A.name"
-        :file-size="documents.A.size"
-        :text-length="documents.A.textLength"
-        :image-count="documents.A.imageCount"
-        :warnings="documents.A.warnings"
-        :empty-label="i18n.app.documents.A.emptyLabel"
-        :reupload-title="i18n.app.documents.A.reuploadTitle"
-        :upload-title="i18n.app.documents.A.uploadTitle"
-        :upload-hint="i18n.app.documents.A.uploadHint"
-        :waiting-text="i18n.app.documents.A.waitingText"
-        :status="documents.A.status"
-        :error-message="documents.A.error"
-        :has-result="hasResult"
-        :comparing="comparing"
-        :highlighted-html="documents.A.highlightedHtml"
-        @file-select="handleFile('A', $event)"
-        @pane-scroll="onScrollA"
-        @diff-click="handleDiffClick"
-        @diff-activate="handleDiffActivate"
-        @activate="setActiveDriver('A')"
+          ref="paneA"
+          side-class="side-original"
+          :title="i18n.app.documents.A.title"
+          :file-name="documents.A.name"
+          :file-size="documents.A.size"
+          :text-length="documents.A.textLength"
+          :image-count="documents.A.imageCount"
+          :warnings="documents.A.warnings"
+          :empty-label="i18n.app.documents.A.emptyLabel"
+          :reupload-title="i18n.app.documents.A.reuploadTitle"
+          :upload-title="i18n.app.documents.A.uploadTitle"
+          :upload-hint="i18n.app.documents.A.uploadHint"
+          :waiting-text="i18n.app.documents.A.waitingText"
+          :status="documents.A.status"
+          :error-message="documents.A.error"
+          :has-result="hasResult"
+          :comparing="comparing"
+          :highlighted-html="documents.A.highlightedHtml"
+          @file-select="handleFile('A', $event)"
+          @pane-scroll="onScrollA"
+          @diff-click="handleDiffClick"
+          @diff-activate="handleDiffActivate"
+          @activate="setActiveDriver('A')"
       />
 
       <DocumentPane
-        ref="paneB"
-        side-class="side-revision"
-        :title="i18n.app.documents.B.title"
-        :file-name="documents.B.name"
-        :file-size="documents.B.size"
-        :text-length="documents.B.textLength"
-        :image-count="documents.B.imageCount"
-        :warnings="documents.B.warnings"
-        :empty-label="i18n.app.documents.B.emptyLabel"
-        :reupload-title="i18n.app.documents.B.reuploadTitle"
-        :upload-title="i18n.app.documents.B.uploadTitle"
-        :upload-hint="i18n.app.documents.B.uploadHint"
-        :waiting-text="i18n.app.documents.B.waitingText"
-        :status="documents.B.status"
-        :error-message="documents.B.error"
-        :has-result="hasResult"
-        :comparing="comparing"
-        :highlighted-html="documents.B.highlightedHtml"
-        @file-select="handleFile('B', $event)"
-        @pane-scroll="onScrollB"
-        @diff-click="handleDiffClick"
-        @diff-activate="handleDiffActivate"
-        @activate="setActiveDriver('B')"
+          ref="paneB"
+          side-class="side-revision"
+          :title="i18n.app.documents.B.title"
+          :file-name="documents.B.name"
+          :file-size="documents.B.size"
+          :text-length="documents.B.textLength"
+          :image-count="documents.B.imageCount"
+          :warnings="documents.B.warnings"
+          :empty-label="i18n.app.documents.B.emptyLabel"
+          :reupload-title="i18n.app.documents.B.reuploadTitle"
+          :upload-title="i18n.app.documents.B.uploadTitle"
+          :upload-hint="i18n.app.documents.B.uploadHint"
+          :waiting-text="i18n.app.documents.B.waitingText"
+          :status="documents.B.status"
+          :error-message="documents.B.error"
+          :has-result="hasResult"
+          :comparing="comparing"
+          :highlighted-html="documents.B.highlightedHtml"
+          @file-select="handleFile('B', $event)"
+          @pane-scroll="onScrollB"
+          @diff-click="handleDiffClick"
+          @diff-activate="handleDiffActivate"
+          @activate="setActiveDriver('B')"
       />
     </div>
 
-    <transition name="table-hint-panel">
-      <section
-        v-if="tableHintPanelOpen && activeTableHint"
-        id="table-hint-panel"
-        class="table-hint-panel"
-        role="dialog"
-        aria-modal="false"
-        :aria-label="i18n.diffNavigator.tableHintTooltipTitle"
+    <transition name="table-hint-tip">
+      <aside
+          v-if="tableHintPanelOpen && activeTableHint"
+          id="table-hint-panel"
+          class="table-hint-tip"
+          role="status"
+          aria-live="polite"
+          @mouseenter="clearTableHintTimer"
+          @mouseleave="scheduleTableHintClose"
       >
-        <div class="table-hint-panel__header">
-          <div class="table-hint-panel__title-group">
-            <span class="table-hint-panel__eyebrow">{{ i18n.diffNavigator.tableHintTooltipTitle }}</span>
-            <strong>{{ tableHintMessageText }}</strong>
-          </div>
-          <button
+        <span>{{ tableHintMessageText }}</span>
+        <button
             type="button"
-            class="table-hint-panel__close"
+            class="table-hint-tip__close"
             :aria-label="i18n.diffNavigator.closeDetails"
             :title="i18n.diffNavigator.closeDetails"
             @click="closeTableHintPanel"
-          >
-            ×
-          </button>
-        </div>
-
-        <div class="table-hint-panel__meta">
-          <span>{{ tableHintLocationText }}</span>
-          <span v-if="tableHintCellText">{{ tableHintCellText }}</span>
-        </div>
-
-        <div v-if="activeTableHintPreviewLines.length > 0" class="table-hint-panel__body">
-          <span class="table-hint-panel__section">{{ i18n.diffNavigator.tableHintCompareTitle }}</span>
-          <ul class="table-hint-panel__list">
-            <li v-for="line in activeTableHintPreviewLines" :key="line">{{ line }}</li>
-          </ul>
-        </div>
-      </section>
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </aside>
     </transition>
   </div>
 </template>
@@ -126,7 +113,7 @@ import AppHeader from './components/AppHeader.vue';
 import CompareToast from './components/CompareToast.vue';
 import DiffNavigator from './components/DiffNavigator.vue';
 import DocumentPane from './components/DocumentPane.vue';
-import type { DiffGranularity, DiffSummary, DiffTableContextHint, DiffTableRowPreview } from './types/diff';
+import type { DiffGranularity, DiffSummary, DiffTableContextHint } from './types/diff';
 import {
   buildDiffElementIndex,
   DIFF_ELEMENT_SELECTOR,
@@ -209,8 +196,10 @@ let alignmentAnchors: AlignmentAnchor[] = [];
 let diffElementIndex: DiffElementIndex = new Map();
 let focusedDiffElements: HTMLElement[] = [];
 let compareNoticeTimer: number | null = null;
+let tableHintTimer: number | null = null;
 let resizeTimer: number | null = null;
 let settingsCompareTimer: number | null = null;
+let scrollRaf: number | null = null;
 let compareRunId = 0;
 const fileLoadIds: Record<PaneKey, number> = { A: 0, B: 0 };
 const documentErrors = reactive<Partial<Record<PaneKey, { kind: ErrorKind; detail?: string }>>>({});
@@ -219,24 +208,8 @@ const compareErrorDetail = ref('');
 const ready = computed(() => documents.A.status === 'ready' && documents.B.status === 'ready');
 const totalDiffs = computed(() => diffSummary.value.total);
 const tableHintMessageText = computed(() => activeTableHint.value
-  ? formatTableHintMessage(activeTableHint.value)
-  : ''
-);
-const tableHintLocationText = computed(() => activeTableHint.value
-  ? i18n.value.diffNavigator.tableHintLocation(
-    activeTableHint.value.tableNumber,
-    activeTableHint.value.originalRows,
-    activeTableHint.value.revisedRows
-  )
-  : ''
-);
-const tableHintCellText = computed(() => activeTableHint.value
-  ? formatTableHintCellText(activeTableHint.value)
-  : ''
-);
-const activeTableHintPreviewLines = computed(() => activeTableHint.value
-  ? formatTableHintPreviewLines(activeTableHint.value)
-  : []
+    ? formatTableHintMessage(activeTableHint.value)
+    : ''
 );
 
 function createEmptyDocumentState(): DocumentState {
@@ -273,7 +246,6 @@ async function handleFile(key: PaneKey, file: File): Promise<void> {
       embeddedImageAlt: i18n.value.documentPane.embeddedImageAlt,
       emptyDocumentHtml: i18n.value.documentPane.emptyDocumentHtml
     });
-    // Ignore stale parse results when the user replaces a file before parsing finishes.
     if (loadId !== fileLoadIds[key]) return;
 
     applyParsedDocument(documentState, parsed);
@@ -363,7 +335,7 @@ watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise], (
 });
 
 watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll], (
-  [nextDiffGranularity, nextIgnoreSpaces, nextIgnoreFullHalfWidth, nextFilterLayoutNoise, nextSyncScroll]
+    [nextDiffGranularity, nextIgnoreSpaces, nextIgnoreFullHalfWidth, nextFilterLayoutNoise, nextSyncScroll]
 ) => {
   writeSavedAppSettings({
     diffGranularity: nextDiffGranularity,
@@ -377,8 +349,8 @@ watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, sy
 watch(locale, () => {
   syncDocumentLocale();
   compareError.value = compareErrorDetail.value
-    ? i18n.value.app.errors.compareFailed(compareErrorDetail.value)
-    : '';
+      ? i18n.value.app.errors.compareFailed(compareErrorDetail.value)
+      : '';
 
   (Object.keys(documents) as PaneKey[]).forEach((key) => {
     const errorState = documentErrors[key];
@@ -401,6 +373,10 @@ function clearCompareResult(): void {
   compareRunId++;
   clearSettingsCompareTimer();
   cancelPendingTextDiffs();
+  if (scrollRaf !== null) {
+    cancelAnimationFrame(scrollRaf);
+    scrollRaf = null;
+  }
   comparing.value = false;
   resetCompareState();
 }
@@ -531,8 +507,6 @@ function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
   const alignedTopA = containerA && targetA ? smoothViewportAlign(containerA, targetA, behavior) : null;
   const alignedTopB = containerB && targetB ? smoothViewportAlign(containerB, targetB, behavior) : null;
 
-  // Both panes already scrolled to their own occurrence; only mirror-sync when one
-  // side has no diff element of its own to align against.
   if (targetA && targetB) return;
 
   if (syncScroll.value && alignedTopA !== null) {
@@ -544,22 +518,24 @@ function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
 
 function clearFocusedDiffElements(): void {
   focusedDiffElements.forEach((element) => {
-    element.classList.remove('focus-diff', 'table-structure-diff');
-    restoreTableHintElementAttributes(element);
+    if (element) {
+      element.classList.remove('focus-diff', 'table-structure-diff');
+      restoreTableHintElementAttributes(element);
+    }
   });
   focusedDiffElements = [];
 }
 
 function updateTableStructureHint(group: DiffElementGroup): DiffTableContextHint | null {
   const resolution = resolveTableStructureHint(
-    getPaneViewport('A'),
-    getPaneViewport('B'),
-    group.A,
-    group.B,
-    {
-      ignoreSpaces: ignoreSpaces.value,
-      ignoreFullHalfWidth: ignoreFullHalfWidth.value
-    }
+      getPaneViewport('A'),
+      getPaneViewport('B'),
+      group.A,
+      group.B,
+      {
+        ignoreSpaces: ignoreSpaces.value,
+        ignoreFullHalfWidth: ignoreFullHalfWidth.value
+      }
   );
   if (!resolution) return null;
 
@@ -571,8 +547,8 @@ function updateTableStructureHint(group: DiffElementGroup): DiffTableContextHint
 }
 
 function resolveTableHintElements(
-  elements: HTMLElement[],
-  resolution: TableStructureResolution
+    elements: HTMLElement[],
+    resolution: TableStructureResolution
 ): HTMLElement[] {
   const relevantRows = new Set<HTMLElement>([
     ...resolution.contextRows,
@@ -580,13 +556,14 @@ function resolveTableHintElements(
   ]);
 
   return elements.filter((element) => {
-    const row = element.closest<HTMLElement>('tr');
+    const row = element?.closest<HTMLElement>('tr');
     return row ? relevantRows.has(row) : false;
   });
 }
 
 function applyTableStructureDiffMarkers(elements: HTMLElement[]): void {
   elements.forEach((element) => {
+    if (!element) return;
     element.classList.add('table-structure-diff');
     element.dataset.tableHint = 'true';
 
@@ -598,6 +575,7 @@ function applyTableStructureDiffMarkers(elements: HTMLElement[]): void {
 }
 
 function restoreTableHintElementAttributes(element: HTMLElement): void {
+  if (!element) return;
   delete element.dataset.tableHint;
 
   if (element.dataset.tableHintTabindex === 'added') {
@@ -616,46 +594,15 @@ function formatTableHintMessage(hint: DiffTableContextHint): string {
       return i18n.value.diffNavigator.tableHintMessages.singleRowDeleted(hint.tableNumber, rowLabel);
     case 'row-content-shift':
       return i18n.value.diffNavigator.tableHintMessages.rowContentShift(
-        hint.tableNumber,
-        formatTableHintSideLabel(hint),
-        rowLabel
+          hint.tableNumber,
+          formatTableHintSideLabel(hint),
+          rowLabel
       );
     case 'cell-count-mismatch':
       return i18n.value.diffNavigator.tableHintMessages.cellCountMismatch(hint.tableNumber, rowLabel);
     case 'row-count-mismatch':
       return i18n.value.diffNavigator.tableHintMessages.rowCountMismatch(hint.tableNumber);
   }
-}
-
-function formatTableHintCellText(hint: DiffTableContextHint): string {
-  if (hint.originalCells === undefined || hint.revisedCells === undefined) return '';
-
-  return i18n.value.diffNavigator.tableHintCells(hint.originalCells, hint.revisedCells);
-}
-
-function formatTableHintPreviewLines(hint: DiffTableContextHint): string[] {
-  const previews = hint.rowPreviews;
-  if (!previews) return [];
-
-  return [...previews.original, ...previews.revised]
-    .slice(0, 4)
-    .map(formatTableHintPreviewLine)
-    .filter(Boolean);
-}
-
-function formatTableHintPreviewLine(preview: DiffTableRowPreview): string {
-  const sideLabel = i18n.value.diffNavigator.tableHintSides[preview.side];
-  const rowLabel = formatTableHintRowLabel(preview.row, preview.rowEnd);
-  if (preview.missing) {
-    return i18n.value.diffNavigator.tableHintMissingRow(sideLabel, rowLabel);
-  }
-
-  return i18n.value.diffNavigator.tableHintRowPreview(
-    sideLabel,
-    rowLabel,
-    preview.preview,
-    preview.cellCount
-  );
 }
 
 function formatTableHintSideLabel(hint: DiffTableContextHint): string {
@@ -695,7 +642,7 @@ function handleDiffClick(event: MouseEvent): void {
 
   currentDiffIndex.value = index;
   focusOnDiff(index);
-  if (activeTableHint.value) tableHintPanelOpen.value = true;
+  if (activeTableHint.value) showTableHintTip();
 }
 
 function handleDiffActivate(event: KeyboardEvent): void {
@@ -710,16 +657,41 @@ function handleDiffActivate(event: KeyboardEvent): void {
 
   currentDiffIndex.value = index;
   focusOnDiff(index);
-  if (activeTableHint.value) tableHintPanelOpen.value = true;
+  if (activeTableHint.value) showTableHintTip();
 }
 
 function syncActiveTableHint(hint: DiffTableContextHint | null): void {
   activeTableHint.value = hint;
-  if (!hint) tableHintPanelOpen.value = false;
+  if (!hint) closeTableHintPanel();
+}
+
+function showTableHintTip(): void {
+  tableHintPanelOpen.value = true;
+  scheduleTableHintClose();
+}
+
+function scheduleTableHintClose(): void {
+  clearTableHintTimer();
+  tableHintTimer = window.setTimeout(() => {
+    tableHintTimer = null;
+    tableHintPanelOpen.value = false;
+  }, 3000);
+}
+
+function clearTableHintTimer(): void {
+  if (tableHintTimer === null) return;
+
+  window.clearTimeout(tableHintTimer);
+  tableHintTimer = null;
 }
 
 function closeTableHintPanel(): void {
+  clearTableHintTimer();
   tableHintPanelOpen.value = false;
+}
+
+function handleWindowKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && tableHintPanelOpen.value) closeTableHintPanel();
 }
 
 function buildViewportLockMatrix(): void {
@@ -754,11 +726,29 @@ function toggleSyncLock(): void {
 }
 
 function onScrollA(): void {
-  if (syncScroll.value && activeDriver === 'A') executeViewportSync('A');
+  if (!syncScroll.value || activeDriver !== 'A') return;
+  if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
+  scrollRaf = requestAnimationFrame(() => {
+    if (!syncScroll.value || activeDriver !== 'A') {
+      scrollRaf = null;
+      return;
+    }
+    executeViewportSync('A');
+    scrollRaf = null;
+  });
 }
 
 function onScrollB(): void {
-  if (syncScroll.value && activeDriver === 'B') executeViewportSync('B');
+  if (!syncScroll.value || activeDriver !== 'B') return;
+  if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
+  scrollRaf = requestAnimationFrame(() => {
+    if (!syncScroll.value || activeDriver !== 'B') {
+      scrollRaf = null;
+      return;
+    }
+    executeViewportSync('B');
+    scrollRaf = null;
+  });
 }
 
 function setActiveDriver(key: PaneKey): void {
@@ -788,8 +778,8 @@ function executeViewportSync(sourceKey: PaneKey, sourceTop?: number): void {
 
   if (alignmentAnchors.length === 0) {
     targetContainer.scrollTop = maxSourceScroll > 0
-      ? Math.round((currentSourceTop / maxSourceScroll) * maxTargetScroll)
-      : 0;
+        ? Math.round((currentSourceTop / maxSourceScroll) * maxTargetScroll)
+        : 0;
     return;
   }
 
@@ -797,11 +787,11 @@ function executeViewportSync(sourceKey: PaneKey, sourceTop?: number): void {
 }
 
 function syncByAnchors(
-  sourceKey: PaneKey,
-  currentSourceTop: number,
-  maxSourceScroll: number,
-  maxTargetScroll: number,
-  targetContainer: HTMLElement
+    sourceKey: PaneKey,
+    currentSourceTop: number,
+    maxSourceScroll: number,
+    maxTargetScroll: number,
+    targetContainer: HTMLElement
 ): void {
   const sourceTopKey = sourceKey === 'A' ? 'topA' : 'topB';
   const targetTopKey = sourceKey === 'A' ? 'topB' : 'topA';
@@ -816,11 +806,11 @@ function syncByAnchors(
   if (nextIndex === -1) {
     const last = alignmentAnchors[alignmentAnchors.length - 1];
     targetContainer.scrollTop = interpolateScrollTop(
-      currentSourceTop,
-      last[sourceTopKey],
-      maxSourceScroll,
-      last[targetTopKey],
-      maxTargetScroll
+        currentSourceTop,
+        last[sourceTopKey],
+        maxSourceScroll,
+        last[targetTopKey],
+        maxTargetScroll
     );
     return;
   }
@@ -828,11 +818,11 @@ function syncByAnchors(
   const previous = alignmentAnchors[nextIndex - 1];
   const next = alignmentAnchors[nextIndex];
   targetContainer.scrollTop = interpolateScrollTop(
-    currentSourceTop,
-    previous[sourceTopKey],
-    next[sourceTopKey],
-    previous[targetTopKey],
-    next[targetTopKey]
+      currentSourceTop,
+      previous[sourceTopKey],
+      next[sourceTopKey],
+      previous[targetTopKey],
+      next[targetTopKey]
   );
 }
 
@@ -849,11 +839,11 @@ function clampScrollTop(value: number, maxScrollTop: number): number {
 }
 
 function interpolateScrollTop(
-  sourceTop: number,
-  sourceStart: number,
-  sourceEnd: number,
-  targetStart: number,
-  targetEnd: number
+    sourceTop: number,
+    sourceStart: number,
+    sourceEnd: number,
+    targetStart: number,
+    targetEnd: number
 ): number {
   const sourceDistance = sourceEnd - sourceStart;
   if (sourceDistance <= 0) return targetStart;
@@ -891,15 +881,19 @@ function syncDocumentLocale(): void {
 onMounted(() => {
   syncDocumentLocale();
   window.addEventListener('resize', handleResize);
+  window.addEventListener('keydown', handleWindowKeydown);
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
+  window.removeEventListener('keydown', handleWindowKeydown);
   compareRunId++;
   clearSettingsCompareTimer();
   cancelPendingTextDiffs();
   if (compareNoticeTimer !== null) window.clearTimeout(compareNoticeTimer);
+  clearTableHintTimer();
   if (resizeTimer !== null) window.clearTimeout(resizeTimer);
+  if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
 });
 </script>
 
@@ -933,12 +927,13 @@ onUnmounted(() => {
 
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   width: 100%;
+  max-width: 100vw;
   height: 100vh;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 2px;
+  gap: 3px;
+  padding: 3px;
   box-sizing: border-box;
   background: var(--bg-app);
   color: var(--text-primary);
@@ -948,7 +943,7 @@ onUnmounted(() => {
 
 .workspace-container {
   display: flex;
-  gap: 2px;
+  gap: 3px;
   flex: 1;
   min-height: 0;
   min-width: 0;
@@ -989,159 +984,110 @@ onUnmounted(() => {
   box-shadow: 0 2px 8px rgba(var(--del-rgb), 0.12);
 }
 
-.table-hint-panel {
+.table-hint-tip {
   position: absolute;
-  right: 14px;
-  bottom: 14px;
+  left: 50%;
+  top: 70px;
   z-index: 28;
-  width: min(420px, calc(100vw - 28px));
-  max-height: min(52vh, 360px);
-  overflow: auto;
-  border-radius: 10px;
-  border: 1px solid rgba(217, 119, 6, 0.24);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 251, 235, 0.98) 100%);
-  box-shadow:
-    0 12px 36px rgba(15, 23, 42, 0.16),
-    0 4px 12px rgba(120, 53, 15, 0.1);
-  padding: 12px;
-  box-sizing: border-box;
-  backdrop-filter: blur(14px);
-}
-
-.table-hint-panel__header {
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  min-height: 34px;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.table-hint-panel__title-group {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.table-hint-panel__eyebrow {
-  font-size: 0.67rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #b45309;
-}
-
-.table-hint-panel__title-group strong {
-  color: var(--text-primary);
-  font-size: 0.82rem;
-  line-height: 1.45;
-}
-
-.table-hint-panel__close {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  border: 1px solid rgba(217, 119, 6, 0.18);
-  background: rgba(255, 255, 255, 0.88);
-  color: #92400e;
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.table-hint-panel__close:hover {
-  border-color: rgba(217, 119, 6, 0.32);
-  background: #ffffff;
-}
-
-.table-hint-panel__meta {
-  display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  padding: 7px 8px 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(217, 119, 6, 0.24);
+  background: rgba(255, 255, 255, 0.96);
+  color: #78350f;
+  box-shadow: var(--popup-shadow-sm);
+  box-sizing: border-box;
+  transform: translateX(-50%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.table-hint-panel__meta span {
+.table-hint-tip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: #d97706;
+}
+
+.table-hint-tip span {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: #78350f;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.table-hint-tip__close {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: rgba(255, 255, 255, 0.8);
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-  line-height: 1.4;
-}
-
-.table-hint-panel__body {
-  margin-top: 12px;
-}
-
-.table-hint-panel__section {
-  display: inline-block;
-  margin-bottom: 8px;
+  justify-content: center;
+  border: 1px solid rgba(217, 119, 6, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 251, 235, 0.7);
   color: #92400e;
-  font-size: 0.7rem;
-  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
 }
 
-.table-hint-panel__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 6px;
+.table-hint-tip__close:hover {
+  border-color: rgba(217, 119, 6, 0.32);
+  background: rgba(254, 243, 199, 0.9);
+  color: #78350f;
 }
 
-.table-hint-panel__list li {
-  padding: 8px 9px;
-  border-radius: 7px;
-  border: 1px solid rgba(226, 232, 240, 0.88);
-  background: rgba(255, 255, 255, 0.84);
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  line-height: 1.5;
+.table-hint-tip__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
 }
 
-.table-hint-panel-enter-active,
-.table-hint-panel-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
+.table-hint-tip-enter-active,
+.table-hint-tip-leave-active {
+  transition: opacity var(--popup-motion), transform var(--popup-motion);
 }
 
-.table-hint-panel-enter-from,
-.table-hint-panel-leave-to {
+.table-hint-tip-enter-from,
+.table-hint-tip-leave-to {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translate(-50%, -8px);
 }
 
 @media (max-width: 1200px) {
   .app-container {
-    gap: 4px;
-    padding: 4px;
+    gap: 3px;
+    padding: 3px;
   }
 
   .workspace-container {
-    gap: 6px;
+    gap: 3px;
   }
 }
 
 @media (max-width: 820px) {
   .app-container {
-    gap: 4px;
-    padding: 4px;
+    gap: 3px;
+    padding: 3px;
   }
 
   .workspace-container {
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
   }
 
-  .table-hint-panel {
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    width: auto;
-    max-height: min(56vh, 420px);
+  .table-hint-tip {
+    top: 124px;
+    max-width: calc(100vw - 16px);
   }
 }
 </style>

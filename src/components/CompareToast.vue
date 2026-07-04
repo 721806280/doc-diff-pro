@@ -15,8 +15,6 @@ defineProps<{
 </script>
 
 <style scoped>
-/* Anchored just below the compact AppHeader. The wrapped two-row header at
-   <=820px sits taller, so the toast drops to clear that second row. */
 .compare-toast {
   position: absolute;
   top: 70px;
@@ -25,19 +23,23 @@ defineProps<{
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 18px;
-  border: 1px solid rgba(var(--accent-rgb), 0.15);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
+  max-width: min(520px, calc(100vw - 28px));
+  padding: 9px 13px;
+  border: 1px solid var(--popup-border);
+  border-radius: var(--popup-radius);
+  background: var(--popup-surface);
   color: var(--text-secondary);
   font-size: 0.78rem;
   font-weight: 600;
-  box-shadow:
-    0 4px 16px rgba(15, 23, 42, 0.08),
-    0 8px 24px rgba(15, 23, 42, 0.04);
+  line-height: 1.4;
+  box-shadow: var(--popup-shadow-sm);
   transform: translateX(-50%);
   backdrop-filter: blur(12px);
-  will-change: transform, opacity;
+}
+
+.compare-toast span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .compare-toast-dot {
@@ -45,58 +47,34 @@ defineProps<{
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  animation: micro-flash 1.1s infinite;
-  box-shadow: 0 0 8px var(--accent-glow);
+  flex: 0 0 7px;
 }
 
 .compare-toast-dot.done {
   background: var(--ins-focus);
-  animation: toast-done-pop 0.36s ease both;
-  box-shadow: 0 0 8px rgba(var(--ins-rgb), 0.36);
 }
 
 .compare-toast-enter-active,
 .compare-toast-leave-active {
-  transition:
-    opacity 0.28s ease,
-    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity var(--popup-motion), transform var(--popup-motion);
 }
 
 .compare-toast-enter-from,
 .compare-toast-leave-to {
   opacity: 0;
-  transform: translate(-50%, -8px);
+  transform: translate(-50%, -12px);
 }
 
-@keyframes micro-flash {
-  0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.36); }
-  70% { box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0); }
-  100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
-}
-
-@keyframes toast-done-pop {
-  0% { transform: scale(0.78); }
-  60% { transform: scale(1.18); }
-  100% { transform: scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .compare-toast-dot,
-  .compare-toast-dot.done {
-    animation: none;
-  }
-
-  .compare-toast-enter-active,
-  .compare-toast-leave-active {
-    transition: none;
-  }
-}
-
-/* Header wraps to a second grid row at <=820px (see AppHeader media query),
-   so the toast drops to clear that row instead of overlapping it. */
 @media (max-width: 820px) {
   .compare-toast {
     top: 116px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compare-toast-enter-active,
+  .compare-toast-leave-active {
+    transition: none !important;
   }
 }
 </style>

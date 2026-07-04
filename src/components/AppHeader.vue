@@ -21,11 +21,11 @@
         <label class="panel-label" for="diff-granularity">{{ i18n.header.diffGranularityLabel }}</label>
         <div class="premium-select-wrapper">
           <select
-            id="diff-granularity"
-            :value="diffGranularity"
-            class="classic-select"
-            :title="i18n.header.diffGranularityLabel"
-            @change="emitGranularity"
+              id="diff-granularity"
+              :value="diffGranularity"
+              class="classic-select"
+              :title="i18n.header.diffGranularityLabel"
+              @change="emitGranularity"
           >
             <option value="semantic">{{ i18n.header.granularityOptions.semantic }}</option>
             <option value="word">{{ i18n.header.granularityOptions.word }}</option>
@@ -38,36 +38,33 @@
 
       <div class="compare-settings" :aria-label="i18n.header.compareSettingsAria">
         <button
-          type="button"
-          class="capsule-node"
-          :class="{ active: ignoreSpaces }"
-          :title="i18n.header.ignoreSpacesTitle"
-          :aria-pressed="ignoreSpaces"
-          @click="toggleIgnoreSpaces"
+            type="button"
+            class="capsule-node"
+            :class="{ active: ignoreSpaces }"
+            :title="i18n.header.ignoreSpacesTitle"
+            :aria-pressed="ignoreSpaces"
+            @click="$emit('update:ignoreSpaces', !ignoreSpaces)"
         >
-          <div class="node-pulse"></div>
           <span>{{ i18n.header.ignoreSpaces }}</span>
         </button>
         <button
-          type="button"
-          class="capsule-node"
-          :class="{ active: ignoreFullHalfWidth }"
-          :title="i18n.header.ignoreFullHalfWidthTitle"
-          :aria-pressed="ignoreFullHalfWidth"
-          @click="$emit('update:ignoreFullHalfWidth', !ignoreFullHalfWidth)"
+            type="button"
+            class="capsule-node"
+            :class="{ active: ignoreFullHalfWidth }"
+            :title="i18n.header.ignoreFullHalfWidthTitle"
+            :aria-pressed="ignoreFullHalfWidth"
+            @click="$emit('update:ignoreFullHalfWidth', !ignoreFullHalfWidth)"
         >
-          <div class="node-pulse"></div>
           <span>{{ i18n.header.ignoreFullHalfWidth }}</span>
         </button>
         <button
-          type="button"
-          class="capsule-node"
-          :class="{ active: filterLayoutNoise }"
-          :title="i18n.header.filterLayoutNoiseTitle"
-          :aria-pressed="filterLayoutNoise"
-          @click="$emit('update:filterLayoutNoise', !filterLayoutNoise)"
+            type="button"
+            class="capsule-node"
+            :class="{ active: filterLayoutNoise }"
+            :title="i18n.header.filterLayoutNoiseTitle"
+            :aria-pressed="filterLayoutNoise"
+            @click="$emit('update:filterLayoutNoise', !filterLayoutNoise)"
         >
-          <div class="node-pulse"></div>
           <span>{{ i18n.header.filterLayoutNoise }}</span>
         </button>
       </div>
@@ -83,20 +80,20 @@
       <div class="lang-switch" role="radiogroup" :aria-label="i18n.header.languageLabel">
         <span class="lang-switch__thumb" :class="{ 'is-second': locale === 'zh-CN' }" aria-hidden="true"></span>
         <button
-          type="button"
-          role="radio"
-          class="lang-switch__option"
-          :class="{ active: locale === 'en' }"
-          :aria-checked="locale === 'en'"
-          @click="setLocale('en')"
+            type="button"
+            role="radio"
+            class="lang-switch__option"
+            :class="{ active: locale === 'en' }"
+            :aria-checked="locale === 'en'"
+            @click="setLocale('en')"
         >{{ i18n.header.english }}</button>
         <button
-          type="button"
-          role="radio"
-          class="lang-switch__option"
-          :class="{ active: locale === 'zh-CN' }"
-          :aria-checked="locale === 'zh-CN'"
-          @click="setLocale('zh-CN')"
+            type="button"
+            role="radio"
+            class="lang-switch__option"
+            :class="{ active: locale === 'zh-CN' }"
+            :aria-checked="locale === 'zh-CN'"
+            @click="setLocale('zh-CN')"
         >{{ i18n.header.chinese }}</button>
       </div>
     </div>
@@ -107,7 +104,7 @@
 import { useI18n } from '@/i18n';
 import type { DiffGranularity } from '@/types/diff';
 
-const props = defineProps<{
+defineProps<{
   diffGranularity: DiffGranularity;
   ignoreSpaces: boolean;
   ignoreFullHalfWidth: boolean;
@@ -126,10 +123,6 @@ const { locale, messages: i18n, setLocale } = useI18n();
 function emitGranularity(event: Event): void {
   emit('update:diffGranularity', (event.target as HTMLSelectElement).value as DiffGranularity);
 }
-
-function toggleIgnoreSpaces(): void {
-  emit('update:ignoreSpaces', !props.ignoreSpaces);
-}
 </script>
 
 <style scoped>
@@ -144,13 +137,10 @@ function toggleIgnoreSpaces(): void {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.02),
-    0 4px 16px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02), 0 4px 16px rgba(15, 23, 42, 0.04);
   backdrop-filter: blur(12px);
   position: relative;
   z-index: 10;
-  animation: toolbar-rise 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .brand-zone {
@@ -163,31 +153,21 @@ function toggleIgnoreSpaces(): void {
 .brand-logo-glow {
   width: 36px;
   height: 36px;
-  background: transparent;
-  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
 }
 
 .brand-logo-glow svg {
   width: 32px;
   height: 32px;
   filter: drop-shadow(0 2px 4px rgba(var(--accent-rgb), 0.18));
-  transition: transform 0.3s ease;
-  transform-origin: center;
-}
-
-.brand-logo-glow:hover svg {
-  transform: translateY(-1px) scale(1.05);
 }
 
 .brand-text h1 {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -201,7 +181,6 @@ function toggleIgnoreSpaces(): void {
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 800;
-  letter-spacing: 0;
   box-shadow: 0 2px 6px rgba(var(--accent-rgb), 0.22);
 }
 
@@ -209,17 +188,16 @@ function toggleIgnoreSpaces(): void {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
   flex: 1 1 auto;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .granularity-panel {
   display: flex;
   align-items: center;
-  gap: 5px;
-  min-width: 0;
   flex: 0 1 auto;
+  min-width: 0;
 }
 
 .panel-label {
@@ -239,7 +217,7 @@ function toggleIgnoreSpaces(): void {
   position: relative;
   display: flex;
   align-items: center;
-  min-width: 0;
+  width: 100%;
 }
 
 .premium-select-wrapper::after {
@@ -247,12 +225,10 @@ function toggleIgnoreSpaces(): void {
   position: absolute;
   right: 12px;
   pointer-events: none;
-  width: 0;
-  height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
   border-top: 5px solid var(--text-secondary);
-  transition: all 0.2s;
+  transition: border-top-color 0.18s ease;
 }
 
 .premium-select-wrapper:hover::after {
@@ -265,36 +241,87 @@ function toggleIgnoreSpaces(): void {
   background: rgba(248, 250, 252, 0.8);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
-  padding: 5px 26px 5px 10px;
+  height: 30px;
+  padding: 0 26px 0 10px;
   font-size: 0.7rem;
   font-weight: 500;
   color: var(--text-secondary);
   outline: none;
   cursor: pointer;
-  transition: all 0.25s ease;
-  min-width: 140px;
-  max-width: 240px;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  min-width: 130px;
+  max-width: 200px;
 }
 
-.classic-select:hover {
+.classic-select:hover, .classic-select:focus {
   border-color: var(--accent);
   background: #ffffff;
-  box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.08);
 }
 
 .classic-select:focus {
-  border-color: var(--accent);
-  background: #ffffff;
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .compare-settings {
   display: flex;
-  min-width: 0;
   background: rgba(241, 245, 249, 0.8);
   border-radius: 7px;
   gap: 2px;
+  padding: 2px;
   border: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.capsule-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 5px;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.capsule-node span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.capsule-node:hover:not(.active) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(148, 163, 184, 0.26);
+}
+
+.capsule-node:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.capsule-node.active {
+  background: #ffffff;
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.14);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(var(--accent-rgb), 0.1);
+}
+
+.panel-divider {
+  height: 14px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--border-strong), transparent);
+  margin: 0 6px;
 }
 
 .language-control {
@@ -308,18 +335,13 @@ function toggleIgnoreSpaces(): void {
   width: 14px;
   height: 14px;
   color: var(--text-tertiary);
-  flex-shrink: 0;
   transition: color 0.2s ease;
 }
 
-.language-control:hover .language-icon,
-.language-control:focus-within .language-icon {
+.language-control:hover .language-icon {
   color: var(--accent);
 }
 
-/* Segmented language toggle. The container intentionally has no border:
-   the sliding thumb is sized at calc(50% - 3px) so it lands exactly on each
-   half of the padded content box, and a border would offset that math. */
 .lang-switch {
   position: relative;
   display: inline-flex;
@@ -327,19 +349,19 @@ function toggleIgnoreSpaces(): void {
   border-radius: 8px;
   background: rgba(241, 245, 249, 0.85);
   box-shadow: inset 0 0 0 1px var(--border-subtle);
+  min-height: 30px;
+  padding: 2px;
 }
 
 .lang-switch__thumb {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: calc(50% - 3px);
-  height: calc(100% - 6px);
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
   border-radius: 6px;
   background: #ffffff;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(var(--accent-rgb), 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(var(--accent-rgb), 0.12);
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -351,16 +373,15 @@ function toggleIgnoreSpaces(): void {
   position: relative;
   z-index: 1;
   min-width: 38px;
+  min-height: 26px;
   border: 0;
   background: transparent;
   cursor: pointer;
   font-size: 0.7rem;
   font-weight: 650;
   color: var(--text-secondary);
-  padding: 4px 6px;
+  padding: 0 6px;
   border-radius: 6px;
-  text-align: center;
-  white-space: nowrap;
   transition: color 0.2s ease;
 }
 
@@ -377,171 +398,12 @@ function toggleIgnoreSpaces(): void {
   box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
-.capsule-node {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  user-select: none;
-  padding: 4px 10px;
-  border-radius: 5px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
-  position: relative;
-}
-
-.capsule-node span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  position: relative;
-  z-index: 1;
-}
-
-.capsule-node .node-pulse {
-  position: relative;
-  z-index: 1;
-}
-
-.capsule-node:hover:not(.active) {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
-}
-
-.capsule-node:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
-.capsule-node:active {
-  transform: translateY(0);
-}
-
-.capsule-node.active {
-  background: #ffffff;
-  color: var(--accent);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(var(--accent-rgb), 0.1);
-}
-
-.node-pulse {
-  width: 5px;
-  height: 5px;
-  background: var(--text-tertiary);
-  border-radius: 50%;
-  transition: all 0.2s ease;
-}
-
-.capsule-node.active .node-pulse {
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
-  animation: node-signal 1.8s ease-out infinite;
-}
-
-.panel-divider {
-  height: 14px;
-  width: 1px;
-  background: linear-gradient(180deg, transparent, var(--border-strong), transparent);
-  margin: 0 6px;
-}
-
-@media (max-width: 1200px) {
-  .app-toolbar {
-    padding: 6px 10px;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .brand-logo-glow {
-    width: 32px;
-    height: 32px;
-  }
-
-  .brand-logo-glow svg {
-    width: 28px;
-    height: 28px;
-  }
-
-  .brand-text h1 {
-    font-size: 0.88rem;
-  }
-
-  .control-core {
-    justify-content: flex-end;
-    flex: 1 1 460px;
-    width: auto;
-    gap: 6px;
-  }
-
-  .granularity-panel {
-    gap: 5px;
-  }
-
-  .panel-label {
-    font-size: 0.65rem;
-  }
-
-  .classic-select {
-    min-width: 118px;
-    max-width: 180px;
-    font-size: 0.65rem;
-    padding: 4px 22px 4px 8px;
-  }
-
-  .capsule-node {
-    padding: 3px 8px;
-    font-size: 0.65rem;
-    gap: 4px;
-  }
-
-  .language-icon {
-    width: 13px;
-    height: 13px;
-  }
-
-  .lang-switch__option {
-    min-width: 40px;
-    font-size: 0.65rem;
-    padding: 3px 5px;
-  }
-}
-
 @media (max-width: 820px) {
   .app-toolbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    padding: 6px 8px 7px;
-    gap: 6px 8px;
-    align-items: center;
-    max-width: 100%;
-    overflow: hidden;
-  }
-
-  .brand-logo-glow {
-    width: 28px;
-    height: 28px;
-  }
-
-  .brand-logo-glow svg {
-    width: 24px;
-    height: 24px;
-  }
-
-  .brand-text h1 {
-    font-size: 0.8rem;
-  }
-
-  .badge-pro {
-    font-size: 0.5rem;
-    padding: 1px 5px;
+    padding: 6px 8px;
+    gap: 8px;
   }
 
   .control-core {
@@ -549,14 +411,8 @@ function toggleIgnoreSpaces(): void {
     order: 3;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-    flex: none;
     width: 100%;
-    max-width: 100%;
     gap: 6px;
-    justify-content: stretch;
-    overflow: hidden;
-    justify-self: stretch;
   }
 
   .panel-divider {
@@ -564,188 +420,51 @@ function toggleIgnoreSpaces(): void {
   }
 
   .granularity-panel {
-    justify-content: space-between;
-    flex: none;
-    min-width: 0;
     width: 100%;
+  }
+
+  .classic-select {
+    width: 100%;
+    max-width: none;
+    font-size: 0.65rem;
   }
 
   .compare-settings {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    min-width: 0;
-    justify-content: stretch;
-    margin-left: 0;
   }
 
-  .classic-select {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
+  .capsule-node {
+    font-size: 0.65rem;
+    padding: 0 4px;
+    min-height: 30px;
   }
 
   .language-control {
     order: 2;
     margin-left: auto;
   }
-
-  .capsule-node {
-    flex: none;
-    justify-content: center;
-    min-width: 0;
-    min-height: 28px;
-  }
 }
 
-@media (max-width: 520px) {
-  .brand-zone {
-    gap: 8px;
-  }
-
-  .control-core {
-    width: 100%;
-    max-width: 100%;
-    justify-self: start;
-  }
-
-  .granularity-panel {
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .premium-select-wrapper {
-    flex: 1 1 auto;
-    max-width: 100%;
-  }
-
-  .compare-settings {
-    gap: 1px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .compare-settings .capsule-node:last-child {
-    grid-column: auto;
-  }
-
-  .classic-select {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    font-size: 0.62rem;
-    padding: 4px 18px 4px 8px;
-  }
-
-  .premium-select-wrapper::after {
-    right: 8px;
-  }
-
-  .lang-switch__option {
-    min-width: 38px;
-    font-size: 0.62rem;
-    padding: 3px 4px;
-  }
-
-  .language-icon {
-    width: 12px;
-    height: 12px;
-  }
-
-  .capsule-node {
-    padding: 4px 3px;
-    font-size: 0.58rem;
-    gap: 2px;
-  }
-
-  .node-pulse {
-    width: 4px;
-    height: 4px;
-    flex: 0 0 4px;
-  }
-}
-
-@media (max-width: 380px) {
-  .app-toolbar {
-    padding: 5px 6px;
-  }
-
-  .brand-logo-glow {
+@media (max-width: 400px) {
+  .brand-logo-glow, .language-icon {
     display: none;
   }
 
   .brand-text h1 {
-    font-size: 0.78rem;
-  }
-
-  .language-icon {
-    display: none;
-  }
-
-  .lang-switch__option {
-    min-width: 34px;
-    font-size: 0.6rem;
-    padding: 3px 4px;
+    font-size: 0.8rem;
   }
 
   .capsule-node {
-    font-size: 0.56rem;
-    padding: 4px 2px;
-  }
-
-  .classic-select {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-  }
-}
-
-@keyframes toolbar-rise {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes node-signal {
-  0% {
-    box-shadow: 0 0 0 0 var(--accent-glow);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
+    font-size: 0.58rem;
+    padding: 0 2px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-toolbar,
-  .capsule-node.active .node-pulse {
-    animation: none;
-  }
-
-  .brand-logo-glow svg,
-  .classic-select,
-  .lang-switch__thumb,
-  .capsule-node,
-  .node-pulse {
-    transition: none;
-  }
-
-  .brand-logo-glow:hover svg,
-  .capsule-node:hover:not(.active),
-  .capsule-node:active {
-    transform: none;
+  .brand-logo-glow svg, .classic-select, .lang-switch__thumb, .capsule-node {
+    transition: none !important;
   }
 }
 </style>
