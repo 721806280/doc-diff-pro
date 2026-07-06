@@ -100,7 +100,7 @@ DocDiff Pro can filter layout text before diffing when `Layout filter` is enable
 
 ## ⚙️ Usage Tips
 
-- 🧭 Defaults favor review-friendly noise reduction: semantic diffing, whitespace ignore, full-/half-width normalization, layout filtering, and sync scrolling are enabled.
+- 🧭 Defaults favor precise review: character diffing, whitespace ignore, full-/half-width normalization, and sync scrolling are enabled; `Layout filter` is off by default.
 - 📝 General version comparison: enable `Ignore spaces` / `Normalize width` as needed.
 - 🎯 Strict character-by-character proofreading: choose the character granularity and turn off any normalization toggles you don't need.
 - 🔎 Comparing converted documents: enable `Ignore spaces` and `Layout filter` to reduce whitespace, page header/footer, and page-number noise introduced by conversion.

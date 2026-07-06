@@ -71,10 +71,10 @@ describe('appSettings', () => {
     }));
 
     expect(readSavedAppSettings()).toEqual({
-      diffGranularity: 'semantic',
+      diffGranularity: 'char',
       ignoreSpaces: true,
       ignoreFullHalfWidth: false,
-      filterLayoutNoise: true,
+      filterLayoutNoise: false,
       syncScroll: true
     });
   });

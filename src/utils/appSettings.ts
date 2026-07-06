@@ -12,10 +12,10 @@ export type AppSettings = {
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  diffGranularity: 'semantic',
+  diffGranularity: 'char',
   ignoreSpaces: true,
   ignoreFullHalfWidth: true,
-  filterLayoutNoise: true,
+  filterLayoutNoise: false,
   syncScroll: true
 };
 

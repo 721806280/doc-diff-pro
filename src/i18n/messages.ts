@@ -58,6 +58,7 @@ const en = {
       char: 'Char'
     },
     compareSettingsAria: 'Compare settings',
+    resetSettingsTitle: 'Restore default compare settings',
     compareRulesLabel: 'Compare rules',
     ignoreSpacesTitle: 'Ignore spacing differences, including regular spaces, full-width spaces, and tabs.',
     ignoreSpaces: 'Ignore spaces',
@@ -211,6 +212,7 @@ const zhCN: I18nMessages = {
       char: '字符'
     },
     compareSettingsAria: '比对设置',
+    resetSettingsTitle: '恢复默认比对设置',
     compareRulesLabel: '比对规则',
     ignoreSpacesTitle: '忽略普通空格、全角空格、制表符等版式差异',
     ignoreSpaces: '忽略空白',

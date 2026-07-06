@@ -66,14 +66,30 @@
             aria-labelledby="compare-settings-title"
         >
           <div class="settings-popover__header">
-            <span class="settings-popover__mark" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M15 4l5 5"></path>
-                <path d="M13 6l5 5"></path>
-                <path d="M4 20l10.5-10.5"></path>
+            <div class="settings-popover__title">
+              <span class="settings-popover__mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M15 4l5 5"></path>
+                  <path d="M13 6l5 5"></path>
+                  <path d="M4 20l10.5-10.5"></path>
+                </svg>
+              </span>
+              <span id="compare-settings-title">{{ i18n.header.compareSettingsAria }}</span>
+            </div>
+            <button
+                type="button"
+                class="settings-reset-button"
+                :aria-label="i18n.header.resetSettingsTitle"
+                :title="i18n.header.resetSettingsTitle"
+                :aria-disabled="isUsingDefaultSettings"
+                @click="resetSettings"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.25">
+                <path d="M7.2 7.8A6.9 6.9 0 1 1 5.9 13"></path>
+                <path d="M7.2 4.7v3.2H4"></path>
+                <path d="M12 8.9v3.8l2.5 1.5"></path>
               </svg>
-            </span>
-            <span id="compare-settings-title">{{ i18n.header.compareSettingsAria }}</span>
+            </button>
           </div>
 
           <div class="settings-section">
@@ -201,11 +217,12 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from '@/i18n';
 import type { DiffGranularity } from '@/types/diff';
+import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
 
-defineProps<{
+const props = defineProps<{
   diffGranularity: DiffGranularity;
   ignoreSpaces: boolean;
   ignoreFullHalfWidth: boolean;
@@ -225,9 +242,26 @@ const { locale, messages: i18n, setLocale } = useI18n();
 const isSettingsPanelOpen = ref(false);
 const settingsControlRef = ref<HTMLElement | null>(null);
 const githubRepositoryUrl = 'https://github.com/721806280/doc-diff-vision';
+const isUsingDefaultSettings = computed(() =>
+  props.diffGranularity === DEFAULT_APP_SETTINGS.diffGranularity &&
+  props.ignoreSpaces === DEFAULT_APP_SETTINGS.ignoreSpaces &&
+  props.ignoreFullHalfWidth === DEFAULT_APP_SETTINGS.ignoreFullHalfWidth &&
+  props.filterLayoutNoise === DEFAULT_APP_SETTINGS.filterLayoutNoise &&
+  props.syncScroll === DEFAULT_APP_SETTINGS.syncScroll
+);
 
 function updateGranularity(value: DiffGranularity): void {
   emit('update:diffGranularity', value);
+}
+
+function resetSettings(): void {
+  if (isUsingDefaultSettings.value) return;
+
+  emit('update:diffGranularity', DEFAULT_APP_SETTINGS.diffGranularity);
+  emit('update:ignoreSpaces', DEFAULT_APP_SETTINGS.ignoreSpaces);
+  emit('update:ignoreFullHalfWidth', DEFAULT_APP_SETTINGS.ignoreFullHalfWidth);
+  emit('update:filterLayoutNoise', DEFAULT_APP_SETTINGS.filterLayoutNoise);
+  emit('update:syncScroll', DEFAULT_APP_SETTINGS.syncScroll);
 }
 
 function toggleLocale(): void {
@@ -385,7 +419,8 @@ onBeforeUnmount(() => {
 
 .toolbar-icon-button:focus-visible,
 .granularity-segmented__option:focus-visible,
-.settings-toggle:focus-visible {
+.settings-toggle:focus-visible,
+.settings-reset-button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
@@ -477,12 +512,20 @@ onBeforeUnmount(() => {
 .settings-popover__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 2px 2px 4px;
   color: var(--text-primary);
   font-size: 0.74rem;
   font-weight: 700;
   line-height: 1.25;
+}
+
+.settings-popover__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .settings-popover__mark {
@@ -501,6 +544,33 @@ onBeforeUnmount(() => {
   height: 12px;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.settings-reset-button {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.settings-reset-button svg {
+  width: 19px;
+  height: 19px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settings-reset-button:hover {
+  color: var(--accent);
+  transform: rotate(-18deg);
 }
 
 .granularity-segmented {
@@ -678,6 +748,7 @@ onBeforeUnmount(() => {
   .toolbar-icon-button::after,
   .language-icon__symbol,
   .granularity-segmented__option,
+  .settings-reset-button,
   .settings-toggle,
   .settings-toggle__switch,
   .settings-toggle__switch-thumb {
