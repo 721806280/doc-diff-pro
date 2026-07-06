@@ -49,25 +49,29 @@
       </div>
 
       <div class="nav-triggers">
-        <button class="btn-action-nav" @click="$emit('previous')" :disabled="currentDiffIndex <= 1">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          <span>{{ i18n.diffNavigator.previous }}</span>
-        </button>
-        <button class="btn-action-nav" @click="$emit('next')" :disabled="currentDiffIndex >= summary.total">
-          <span>{{ i18n.diffNavigator.next }}</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </button>
-        <div class="panel-divider"></div>
         <button
-            type="button"
-            class="ios-toggle-shell"
-            :class="{ active: syncScroll }"
-            :title="i18n.diffNavigator.syncScrollTitle"
-            :aria-pressed="syncScroll"
-            @click="$emit('toggle-sync')"
+            class="btn-action-nav btn-action-nav--previous"
+            @click="$emit('previous')"
+            :disabled="currentDiffIndex <= 1"
         >
-          <div class="ios-switch"></div>
-          <span>{{ i18n.diffNavigator.syncScroll }}</span>
+          <span class="btn-action-nav__icon" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </span>
+          <span class="btn-action-nav__label">{{ i18n.diffNavigator.previous }}</span>
+        </button>
+        <button
+            class="btn-action-nav btn-action-nav--next"
+            @click="$emit('next')"
+            :disabled="currentDiffIndex >= summary.total"
+        >
+          <span class="btn-action-nav__label">{{ i18n.diffNavigator.next }}</span>
+          <span class="btn-action-nav__icon" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </span>
         </button>
       </div>
     </div>
@@ -90,13 +94,11 @@ import type { DiffSummary } from '@/types/diff';
 const props = defineProps<{
   summary: DiffSummary;
   currentDiffIndex: number;
-  syncScroll: boolean;
 }>();
 
 defineEmits<{
   previous: [];
   next: [];
-  'toggle-sync': [];
 }>();
 
 const layoutNoiseOpen = ref(false);
@@ -238,94 +240,76 @@ button.summary-chip {
 
 .nav-triggers {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
 }
 
 .btn-action-nav {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  min-height: 28px;
+  min-height: 30px;
   padding: 0 10px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.18s ease;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   white-space: nowrap;
 }
 
-.btn-action-nav:hover:not(:disabled) {
-  background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.btn-action-nav:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.ios-toggle-shell {
-  display: flex;
+.btn-action-nav__icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: transparent;
-  border: 0;
-  min-height: 28px;
-  padding: 0 6px;
-  border-radius: 6px;
-  cursor: pointer;
-  user-select: none;
+  justify-content: center;
+  color: currentColor;
 }
 
-.ios-switch {
-  width: 26px;
-  height: 15px;
-  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
-  border-radius: 99px;
-  position: relative;
-  transition: background 0.2s ease;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+.btn-action-nav__icon svg {
+  display: block;
 }
 
-.ios-switch::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 11px;
-  height: 11px;
-  background: white;
-  border-radius: 50%;
-  transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-.ios-toggle-shell.active, .ios-toggle-shell:active { color: var(--accent); }
-.ios-toggle-shell.active .ios-switch { background: var(--gradient-accent); }
-.ios-toggle-shell.active .ios-switch::after { left: 13px; }
-
-.btn-action-nav:focus-visible, .ios-toggle-shell:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
-.ios-toggle-shell span, .btn-action-nav span {
+.btn-action-nav__label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.panel-divider {
-  height: 14px;
-  width: 1px;
-  background: linear-gradient(180deg, transparent, var(--border-strong), transparent);
-  margin: 0 6px;
+.btn-action-nav--previous {
+  padding-left: 8px;
+}
+
+.btn-action-nav--next {
+  padding-right: 8px;
+}
+
+.btn-action-nav:hover:not(:disabled) {
+  background: #ffffff;
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.22);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.btn-action-nav:disabled {
+  background: rgba(248, 250, 252, 0.78);
+  border-color: rgba(148, 163, 184, 0.12);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-action-nav:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 @media (max-width: 820px) {
@@ -344,17 +328,12 @@ button.summary-chip {
 
   .nav-triggers {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
 
-  .btn-action-nav, .ios-toggle-shell {
-    justify-content: center;
+  .btn-action-nav {
     font-size: 0.65rem;
-  }
-
-  .panel-divider {
-    display: none;
   }
 }
 
@@ -376,7 +355,8 @@ button.summary-chip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .diff-progress-bar, .ios-switch, .ios-switch::after {
+  .diff-progress-bar,
+  .btn-action-nav {
     transition: none !important;
   }
 }

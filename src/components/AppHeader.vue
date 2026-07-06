@@ -16,91 +16,192 @@
       </div>
     </div>
 
-    <div class="control-core">
-      <div class="granularity-panel">
-        <label class="panel-label" for="diff-granularity">{{ i18n.header.diffGranularityLabel }}</label>
-        <div class="premium-select-wrapper">
-          <select
-              id="diff-granularity"
-              :value="diffGranularity"
-              class="classic-select"
-              :title="i18n.header.diffGranularityLabel"
-              @change="emitGranularity"
-          >
-            <option value="semantic">{{ i18n.header.granularityOptions.semantic }}</option>
-            <option value="word">{{ i18n.header.granularityOptions.word }}</option>
-            <option value="char">{{ i18n.header.granularityOptions.char }}</option>
-          </select>
+    <div ref="settingsControlRef" class="header-actions">
+      <button
+          type="button"
+          class="toolbar-icon-button language-trigger"
+          :aria-label="`${i18n.header.languageLabel}: ${locale === 'en' ? i18n.header.chinese : i18n.header.english}`"
+          :title="`${i18n.header.languageLabel}: ${locale === 'en' ? i18n.header.chinese : i18n.header.english}`"
+          @click="toggleLocale"
+      >
+        <svg
+            class="language-icon"
+            :class="{ 'is-en': locale === 'en' }"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            fill="none"
+        >
+          <text class="language-icon__symbol language-icon__symbol--zh" x="1.2" y="12">中</text>
+          <path class="language-icon__corner language-icon__corner--top" d="M16 4L19.5 4Q21 4 21 5.5L21 8"></path>
+          <text class="language-icon__symbol language-icon__symbol--en" x="12.2" y="22">A</text>
+          <path class="language-icon__corner" d="M8 20L4.5 20Q3 20 3 18.5L3 16"></path>
+        </svg>
+      </button>
+
+      <div class="settings-control">
+        <button
+            type="button"
+            class="toolbar-icon-button settings-trigger"
+            :class="{ active: isSettingsPanelOpen }"
+            :aria-label="i18n.header.compareSettingsAria"
+            :aria-expanded="isSettingsPanelOpen"
+            aria-haspopup="dialog"
+            :title="i18n.header.compareSettingsAria"
+            @click="toggleSettingsPanel"
+        >
+          <svg class="magic-wand-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85">
+            <path d="M5 19L18.5 5.5"></path>
+            <path d="M13.5 4.5L19.5 10.5"></path>
+            <path d="M6.25 5.5V8.25"></path>
+            <path d="M4.9 6.875H7.6"></path>
+            <path d="M17 14.9V17.6"></path>
+            <path d="M15.65 16.25H18.35"></path>
+          </svg>
+        </button>
+
+        <div
+            v-if="isSettingsPanelOpen"
+            class="settings-popover"
+            role="dialog"
+            aria-labelledby="compare-settings-title"
+        >
+          <div class="settings-popover__header">
+            <span class="settings-popover__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 4l5 5"></path>
+                <path d="M13 6l5 5"></path>
+                <path d="M4 20l10.5-10.5"></path>
+              </svg>
+            </span>
+            <span id="compare-settings-title">{{ i18n.header.compareSettingsAria }}</span>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section__title">{{ i18n.header.diffGranularityLabel }}</div>
+            <div class="granularity-segmented" role="radiogroup" :aria-label="i18n.header.diffGranularityLabel">
+              <button
+                  type="button"
+                  role="radio"
+                  class="granularity-segmented__option"
+                  :class="{ active: diffGranularity === 'semantic' }"
+                  :aria-checked="diffGranularity === 'semantic'"
+                  :title="i18n.header.granularityOptions.semantic"
+                  @click="updateGranularity('semantic')"
+              >
+                {{ i18n.header.granularityCompactOptions.semantic }}
+              </button>
+              <button
+                  type="button"
+                  role="radio"
+                  class="granularity-segmented__option"
+                  :class="{ active: diffGranularity === 'word' }"
+                  :aria-checked="diffGranularity === 'word'"
+                  :title="i18n.header.granularityOptions.word"
+                  @click="updateGranularity('word')"
+              >
+                {{ i18n.header.granularityCompactOptions.word }}
+              </button>
+              <button
+                  type="button"
+                  role="radio"
+                  class="granularity-segmented__option"
+                  :class="{ active: diffGranularity === 'char' }"
+                  :aria-checked="diffGranularity === 'char'"
+                  :title="i18n.header.granularityOptions.char"
+                  @click="updateGranularity('char')"
+              >
+                {{ i18n.header.granularityCompactOptions.char }}
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section__title">{{ i18n.header.compareRulesLabel }}</div>
+            <div class="settings-toggle-list settings-toggle-list--primary" :aria-label="i18n.header.compareRulesLabel">
+              <button
+                  type="button"
+                  class="settings-toggle"
+                  :class="{ active: ignoreSpaces }"
+                  :title="i18n.header.ignoreSpacesTitle"
+                  :aria-pressed="ignoreSpaces"
+                  @click="$emit('update:ignoreSpaces', !ignoreSpaces)"
+              >
+                <span class="settings-toggle__label">{{ i18n.header.ignoreSpaces }}</span>
+                <span class="settings-toggle__switch" aria-hidden="true">
+                  <span class="settings-toggle__switch-thumb"></span>
+                </span>
+              </button>
+              <button
+                  type="button"
+                  class="settings-toggle"
+                  :class="{ active: ignoreFullHalfWidth }"
+                  :title="i18n.header.ignoreFullHalfWidthTitle"
+                  :aria-pressed="ignoreFullHalfWidth"
+                  @click="$emit('update:ignoreFullHalfWidth', !ignoreFullHalfWidth)"
+              >
+                <span class="settings-toggle__label">{{ i18n.header.ignoreFullHalfWidth }}</span>
+                <span class="settings-toggle__switch" aria-hidden="true">
+                  <span class="settings-toggle__switch-thumb"></span>
+                </span>
+              </button>
+              <button
+                  type="button"
+                  class="settings-toggle"
+                  :class="{ active: filterLayoutNoise }"
+                  :title="i18n.header.filterLayoutNoiseTitle"
+                  :aria-pressed="filterLayoutNoise"
+                  @click="$emit('update:filterLayoutNoise', !filterLayoutNoise)"
+              >
+                <span class="settings-toggle__label">{{ i18n.header.filterLayoutNoise }}</span>
+                <span class="settings-toggle__switch" aria-hidden="true">
+                  <span class="settings-toggle__switch-thumb"></span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section settings-section--view">
+            <div class="settings-section__title">{{ i18n.header.viewOptionsLabel }}</div>
+            <div class="settings-toggle-list settings-toggle-list--plain" :aria-label="i18n.header.viewOptionsLabel">
+              <button
+                  type="button"
+                  class="settings-toggle"
+                  :class="{ active: syncScroll }"
+                  :title="i18n.header.syncScrollTitle"
+                  :aria-pressed="syncScroll"
+                  @click="$emit('update:syncScroll', !syncScroll)"
+              >
+                <span class="settings-toggle__label">{{ i18n.header.syncScroll }}</span>
+                <span class="settings-toggle__switch" aria-hidden="true">
+                  <span class="settings-toggle__switch-thumb"></span>
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="panel-divider"></div>
-
-      <div class="compare-settings" :aria-label="i18n.header.compareSettingsAria">
-        <button
-            type="button"
-            class="capsule-node"
-            :class="{ active: ignoreSpaces }"
-            :title="i18n.header.ignoreSpacesTitle"
-            :aria-pressed="ignoreSpaces"
-            @click="$emit('update:ignoreSpaces', !ignoreSpaces)"
-        >
-          <span>{{ i18n.header.ignoreSpaces }}</span>
-        </button>
-        <button
-            type="button"
-            class="capsule-node"
-            :class="{ active: ignoreFullHalfWidth }"
-            :title="i18n.header.ignoreFullHalfWidthTitle"
-            :aria-pressed="ignoreFullHalfWidth"
-            @click="$emit('update:ignoreFullHalfWidth', !ignoreFullHalfWidth)"
-        >
-          <span>{{ i18n.header.ignoreFullHalfWidth }}</span>
-        </button>
-        <button
-            type="button"
-            class="capsule-node"
-            :class="{ active: filterLayoutNoise }"
-            :title="i18n.header.filterLayoutNoiseTitle"
-            :aria-pressed="filterLayoutNoise"
-            @click="$emit('update:filterLayoutNoise', !filterLayoutNoise)"
-        >
-          <span>{{ i18n.header.filterLayoutNoise }}</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="language-control" :title="i18n.header.languageLabel">
-      <svg class="language-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"></circle>
-        <path d="M2 12h20"></path>
-        <path d="M12 2a15.3 15.3 0 0 1 0 20"></path>
-        <path d="M12 2a15.3 15.3 0 0 0 0 20"></path>
-      </svg>
-      <div class="lang-switch" role="radiogroup" :aria-label="i18n.header.languageLabel">
-        <span class="lang-switch__thumb" :class="{ 'is-second': locale === 'zh-CN' }" aria-hidden="true"></span>
-        <button
-            type="button"
-            role="radio"
-            class="lang-switch__option"
-            :class="{ active: locale === 'en' }"
-            :aria-checked="locale === 'en'"
-            @click="setLocale('en')"
-        >{{ i18n.header.english }}</button>
-        <button
-            type="button"
-            role="radio"
-            class="lang-switch__option"
-            :class="{ active: locale === 'zh-CN' }"
-            :aria-checked="locale === 'zh-CN'"
-            @click="setLocale('zh-CN')"
-        >{{ i18n.header.chinese }}</button>
-      </div>
+      <a
+          class="toolbar-icon-button github-link"
+          :href="githubRepositoryUrl"
+          :aria-label="i18n.header.githubLabel"
+          :title="i18n.header.githubLabel"
+          target="_blank"
+          rel="noreferrer"
+          @click="closeSettingsPanel"
+      >
+        <svg class="github-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85">
+          <path
+              d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"
+          />
+        </svg>
+      </a>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from '@/i18n';
 import type { DiffGranularity } from '@/types/diff';
 
@@ -109,6 +210,7 @@ defineProps<{
   ignoreSpaces: boolean;
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
+  syncScroll: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -116,13 +218,54 @@ const emit = defineEmits<{
   'update:ignoreSpaces': [value: boolean];
   'update:ignoreFullHalfWidth': [value: boolean];
   'update:filterLayoutNoise': [value: boolean];
+  'update:syncScroll': [value: boolean];
 }>();
 
 const { locale, messages: i18n, setLocale } = useI18n();
+const isSettingsPanelOpen = ref(false);
+const settingsControlRef = ref<HTMLElement | null>(null);
+const githubRepositoryUrl = 'https://github.com/721806280/doc-diff-vision';
 
-function emitGranularity(event: Event): void {
-  emit('update:diffGranularity', (event.target as HTMLSelectElement).value as DiffGranularity);
+function updateGranularity(value: DiffGranularity): void {
+  emit('update:diffGranularity', value);
 }
+
+function toggleLocale(): void {
+  isSettingsPanelOpen.value = false;
+  setLocale(locale.value === 'en' ? 'zh-CN' : 'en');
+}
+
+function toggleSettingsPanel(): void {
+  isSettingsPanelOpen.value = !isSettingsPanelOpen.value;
+}
+
+function closeSettingsPanel(): void {
+  isSettingsPanelOpen.value = false;
+}
+
+function handleDocumentPointerDown(event: PointerEvent): void {
+  if (!isSettingsPanelOpen.value) return;
+  const target = event.target;
+  if (target instanceof Node && !settingsControlRef.value?.contains(target)) {
+    isSettingsPanelOpen.value = false;
+  }
+}
+
+function handleDocumentKeyDown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    isSettingsPanelOpen.value = false;
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', handleDocumentPointerDown);
+  document.addEventListener('keydown', handleDocumentKeyDown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleDocumentPointerDown);
+  document.removeEventListener('keydown', handleDocumentKeyDown);
+});
 </script>
 
 <style scoped>
@@ -184,218 +327,320 @@ function emitGranularity(event: Event): void {
   box-shadow: 0 2px 6px rgba(var(--accent-rgb), 0.22);
 }
 
-.control-core {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1 1 auto;
-  justify-content: flex-end;
-  min-width: 0;
-}
-
-.granularity-panel {
-  display: flex;
-  align-items: center;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.panel-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  clip-path: inset(50%);
-  border: 0;
-  white-space: nowrap;
-}
-
-.premium-select-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.premium-select-wrapper::after {
-  content: '';
-  position: absolute;
-  right: 12px;
-  pointer-events: none;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 5px solid var(--text-secondary);
-  transition: border-top-color 0.18s ease;
-}
-
-.premium-select-wrapper:hover::after {
-  border-top-color: var(--accent);
-}
-
-.classic-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background: rgba(248, 250, 252, 0.8);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  height: 30px;
-  padding: 0 26px 0 10px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  outline: none;
-  cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
-  min-width: 130px;
-  max-width: 200px;
-}
-
-.classic-select:hover, .classic-select:focus {
-  border-color: var(--accent);
-  background: #ffffff;
-}
-
-.classic-select:focus {
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
-.compare-settings {
-  display: flex;
-  background: rgba(241, 245, 249, 0.8);
-  border-radius: 7px;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--border-subtle);
-  min-width: 0;
-}
-
-.capsule-node {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
-  user-select: none;
-  min-height: 26px;
-  padding: 0 10px;
-  border-radius: 5px;
-  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
-  white-space: nowrap;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.capsule-node span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.capsule-node:hover:not(.active) {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.6);
-  border-color: rgba(148, 163, 184, 0.26);
-}
-
-.capsule-node:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
-.capsule-node.active {
-  background: #ffffff;
-  color: var(--accent);
-  border-color: rgba(var(--accent-rgb), 0.14);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(var(--accent-rgb), 0.1);
-}
-
-.panel-divider {
-  height: 14px;
-  width: 1px;
-  background: linear-gradient(180deg, transparent, var(--border-strong), transparent);
-  margin: 0 6px;
-}
-
-.language-control {
+.header-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   flex: 0 0 auto;
+  margin-left: auto;
+  position: relative;
+}
+
+.settings-control {
+  position: relative;
+}
+
+.toolbar-icon-button {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.toolbar-icon-button::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.45);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.toolbar-icon-button:hover,
+.settings-trigger.active {
+  color: var(--accent);
+}
+
+.toolbar-icon-button:hover {
+  transform: translateY(-1px);
+}
+
+.settings-trigger.active::after {
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
+}
+
+.toolbar-icon-button:focus-visible,
+.granularity-segmented__option:focus-visible,
+.settings-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.toolbar-icon-button > svg {
+  position: relative;
+  z-index: 1;
 }
 
 .language-icon {
-  width: 14px;
-  height: 14px;
-  color: var(--text-tertiary);
-  transition: color 0.2s ease;
+  display: block;
+  width: 21px;
+  height: 21px;
+  color: currentColor;
+  overflow: visible;
 }
 
-.language-control:hover .language-icon {
+.language-icon__corner {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.82;
+}
+
+.language-icon__corner--top {
+  transform: translate(-2px, 0);
+}
+
+.language-icon__symbol {
+  fill: currentColor;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.language-icon__symbol--zh {
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+.language-icon__symbol--en {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  transform: translate(0, -1px);
+}
+
+.language-icon.is-en .language-icon__symbol--zh {
+  transform: translate(8.9587px, 7.2597px);
+}
+
+.language-icon.is-en .language-icon__symbol--en {
+  transform: translate(-9.5125px, -10.9448px);
+}
+
+.magic-wand-icon {
+  width: 17px;
+  height: 17px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: rotate(-8deg);
+}
+
+.github-icon {
+  width: 17px;
+  height: 17px;
+  display: block;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: translateY(0.2px) scale(1.02);
+}
+
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  width: min(286px, calc(100vw - 24px));
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(5, 5, 5, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.99);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+.settings-popover__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 4px;
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.settings-popover__mark {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(var(--accent-rgb), 0.08);
   color: var(--accent);
 }
 
-.lang-switch {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 8px;
-  background: rgba(241, 245, 249, 0.85);
-  box-shadow: inset 0 0 0 1px var(--border-subtle);
-  min-height: 30px;
+.settings-popover__mark svg {
+  width: 12px;
+  height: 12px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.granularity-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
   padding: 2px;
-}
-
-.lang-switch__thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: calc(50% - 2px);
-  height: calc(100% - 4px);
-  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(var(--accent-rgb), 0.12);
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.lang-switch__thumb.is-second {
-  transform: translateX(100%);
-}
-
-.lang-switch__option {
-  position: relative;
-  z-index: 1;
-  min-width: 38px;
-  min-height: 26px;
+.granularity-segmented__option {
+  min-width: 0;
+  height: 28px;
+  padding: 0 4px;
   border: 0;
+  border-radius: 5px;
   background: transparent;
-  cursor: pointer;
-  font-size: 0.7rem;
-  font-weight: 650;
   color: var(--text-secondary);
-  padding: 0 6px;
-  border-radius: 6px;
-  transition: color 0.2s ease;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.lang-switch__option:hover:not(.active) {
+.granularity-segmented__option:hover {
   color: var(--text-primary);
 }
 
-.lang-switch__option.active {
+.granularity-segmented__option.active {
+  background: rgba(var(--accent-rgb), 0.08);
   color: var(--accent);
 }
 
-.lang-switch__option:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent-glow);
+.settings-section {
+  display: grid;
+  gap: 5px;
+}
+
+.settings-section--view {
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.settings-section__title {
+  padding: 0 2px;
+  color: var(--text-tertiary);
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.settings-toggle-list {
+  display: grid;
+  gap: 1px;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.settings-toggle-list--primary {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.settings-toggle-list--plain {
+  gap: 1px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.settings-toggle {
+  width: 100%;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 6px 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.settings-toggle:hover {
+  background: rgba(248, 250, 252, 0.96);
+  color: var(--text-primary);
+}
+
+.settings-toggle.active {
+  color: var(--text-primary);
+}
+
+.settings-toggle__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-toggle__switch {
+  width: 30px;
+  height: 17px;
+  flex: 0 0 30px;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: background 0.18s ease;
+}
+
+.settings-toggle.active .settings-toggle__switch {
+  background: var(--accent);
+}
+
+.settings-toggle__switch-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.22);
+  transform: translateX(0);
+  transition: transform 0.18s ease;
+}
+
+.settings-toggle.active .settings-toggle__switch-thumb {
+  transform: translateX(13px);
 }
 
 @media (max-width: 820px) {
@@ -406,64 +651,36 @@ function emitGranularity(event: Event): void {
     gap: 8px;
   }
 
-  .control-core {
-    grid-column: 1 / -1;
-    order: 3;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    width: 100%;
-    gap: 6px;
-  }
-
-  .panel-divider {
-    display: none;
-  }
-
-  .granularity-panel {
-    width: 100%;
-  }
-
-  .classic-select {
-    width: 100%;
-    max-width: none;
-    font-size: 0.65rem;
-  }
-
-  .compare-settings {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
-  }
-
-  .capsule-node {
-    font-size: 0.65rem;
-    padding: 0 4px;
-    min-height: 30px;
-  }
-
-  .language-control {
+  .header-actions {
     order: 2;
     margin-left: auto;
+  }
+
+  .settings-popover {
+    right: 0;
+    width: min(286px, calc(100vw - 16px));
   }
 }
 
 @media (max-width: 400px) {
-  .brand-logo-glow, .language-icon {
+  .brand-logo-glow {
     display: none;
   }
 
   .brand-text h1 {
     font-size: 0.8rem;
   }
-
-  .capsule-node {
-    font-size: 0.58rem;
-    padding: 0 2px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-logo-glow svg, .classic-select, .lang-switch__thumb, .capsule-node {
+  .brand-logo-glow svg,
+  .toolbar-icon-button,
+  .toolbar-icon-button::after,
+  .language-icon__symbol,
+  .granularity-segmented__option,
+  .settings-toggle,
+  .settings-toggle__switch,
+  .settings-toggle__switch-thumb {
     transition: none !important;
   }
 }

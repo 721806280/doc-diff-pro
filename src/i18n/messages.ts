@@ -52,13 +52,23 @@ const en = {
       word: 'Word - content check',
       char: 'Character - detailed proofing'
     },
+    granularityCompactOptions: {
+      semantic: 'Semantic',
+      word: 'Word',
+      char: 'Char'
+    },
     compareSettingsAria: 'Compare settings',
+    compareRulesLabel: 'Compare rules',
     ignoreSpacesTitle: 'Ignore spacing differences, including regular spaces, full-width spaces, and tabs.',
     ignoreSpaces: 'Ignore spaces',
     ignoreFullHalfWidthTitle: 'Treat full-width and half-width letters, numbers, and common symbols as equivalent.',
     ignoreFullHalfWidth: 'Normalize width',
     filterLayoutNoiseTitle: 'Filter page headers, footers, page numbers, and repeated layout text before comparing.',
     filterLayoutNoise: 'Layout filter',
+    viewOptionsLabel: 'View options',
+    syncScrollTitle: 'Scroll both documents together by difference position.',
+    syncScroll: 'Sync scrolling',
+    githubLabel: 'Open GitHub repository',
     languageLabel: 'Interface language',
     english: 'EN',
     chinese: '中文'
@@ -139,9 +149,7 @@ const en = {
     difference: 'Difference',
     closeDetails: 'Close',
     previous: 'Previous',
-    next: 'Next',
-    syncScrollTitle: 'Scroll both documents together by difference position.',
-    syncScroll: 'Sync scrolling'
+    next: 'Next'
   }
 };
 
@@ -197,13 +205,23 @@ const zhCN: I18nMessages = {
       word: '词组级 - 适合内容核对',
       char: '字符级 - 适合精细校对'
     },
+    granularityCompactOptions: {
+      semantic: '语义',
+      word: '词组',
+      char: '字符'
+    },
     compareSettingsAria: '比对设置',
+    compareRulesLabel: '比对规则',
     ignoreSpacesTitle: '忽略普通空格、全角空格、制表符等版式差异',
     ignoreSpaces: '忽略空白',
     ignoreFullHalfWidthTitle: '统一全角与半角字母、数字和常见符号后再比对',
     ignoreFullHalfWidth: '统一全半角',
     filterLayoutNoiseTitle: '比对前过滤正文里的页眉、页脚、页码和重复版面文字',
     filterLayoutNoise: '版面过滤',
+    viewOptionsLabel: '查看方式',
+    syncScrollTitle: '开启后，两侧文档会按差异位置同步滚动，便于长文对照',
+    syncScroll: '同步滚动',
+    githubLabel: '打开 GitHub 仓库',
     languageLabel: '界面语言',
     english: 'EN',
     chinese: '中文'
@@ -284,9 +302,7 @@ const zhCN: I18nMessages = {
     difference: '差异',
     closeDetails: '关闭',
     previous: '上一处',
-    next: '下一处',
-    syncScrollTitle: '开启后，两侧文档会按差异位置同步滚动，便于长文对照',
-    syncScroll: '同步滚动'
+    next: '下一处'
   }
 };
 

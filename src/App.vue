@@ -5,6 +5,7 @@
         v-model:ignore-spaces="ignoreSpaces"
         v-model:ignore-full-half-width="ignoreFullHalfWidth"
         v-model:filter-layout-noise="filterLayoutNoise"
+        v-model:sync-scroll="syncScroll"
     />
 
     <CompareToast :message="compareNotice" :comparing="comparing" />
@@ -18,10 +19,8 @@
         v-if="hasResult"
         :summary="diffSummary"
         :current-diff-index="currentDiffIndex"
-        :sync-scroll="syncScroll"
         @previous="prevDiff"
         @next="nextDiff"
-        @toggle-sync="toggleSyncLock"
     />
 
     <div class="workspace-container">
@@ -332,6 +331,13 @@ watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise], (
 
   showCompareNotice(i18n.value.app.notices.settingsUpdated);
   scheduleSettingsCompare();
+});
+
+watch(syncScroll, (enabled) => {
+  if (!enabled || !hasResult.value) return;
+
+  buildViewportLockMatrix();
+  executeViewportSync('A');
 });
 
 watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll], (
@@ -715,14 +721,6 @@ function buildViewportLockMatrix(): void {
 
 function rebuildDiffElementIndex(): void {
   diffElementIndex = buildDiffElementIndex(getPaneViewport('A'), getPaneViewport('B'));
-}
-
-function toggleSyncLock(): void {
-  syncScroll.value = !syncScroll.value;
-  if (!syncScroll.value) return;
-
-  buildViewportLockMatrix();
-  executeViewportSync('A');
 }
 
 function onScrollA(): void {
