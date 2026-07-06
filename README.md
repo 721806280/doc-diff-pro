@@ -77,3 +77,7 @@ npm run build
 - 🎯 Diff markers are mapped back to the DOM through the original text nodes, so normalization logic never leaks into the rendering layer.
 - 🌐 Interface strings live in a typed message catalog under `src/i18n/`.
 - 📐 Only `.docx` files are supported, up to 25 MB per file.
+
+## 📜 License
+
+Released under the [MIT License](./LICENSE).
