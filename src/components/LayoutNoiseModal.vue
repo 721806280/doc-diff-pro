@@ -99,6 +99,7 @@ onUnmounted(() => {
   inset: 0;
   z-index: 5000;
   display: flex;
+  height: 100dvh;
   align-items: center;
   justify-content: center;
   overflow-y: auto;
@@ -115,17 +116,37 @@ onUnmounted(() => {
   --noise-line: rgba(203, 213, 225, 0.8);
 
   position: relative;
-  width: min(660px, calc(100vw - 32px));
+  width: min(760px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--popup-border);
   border-radius: var(--popup-radius);
   background: var(--popup-surface);
   box-shadow: var(--popup-shadow);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.48) transparent;
+}
+
+.layout-noise-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.layout-noise-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.layout-noise-panel::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.48);
+  background-clip: padding-box;
 }
 
 .layout-noise-panel__head {
@@ -133,7 +154,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 1;
   min-height: 48px;
   padding: 12px 14px;
@@ -197,25 +219,24 @@ onUnmounted(() => {
   margin: 0;
   padding: 12px;
   list-style: none;
-  display: grid;
-  gap: 8px;
-  min-height: 0;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   background: rgba(248, 250, 252, 0.5);
 }
 
 .layout-noise-list li {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 72px;
+  padding: 12px 14px 14px;
   border: 1px solid rgba(15, 23, 42, 0.06);
   border-radius: var(--popup-control-radius);
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
-  overflow: hidden;
+  overflow: visible;
   transition: all 0.16s ease;
 }
 
@@ -240,6 +261,7 @@ onUnmounted(() => {
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 6px;
+  min-width: 0;
 }
 
 .layout-noise-badge {
@@ -264,8 +286,9 @@ onUnmounted(() => {
 
 .layout-noise-text {
   margin: 0;
-  color: var(--noise-text);
-  font-size: 0.78rem;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 500;
   line-height: 1.6;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -303,11 +326,17 @@ onUnmounted(() => {
   }
 }
 
+@media (max-height: 720px) {
+  .layout-noise-overlay {
+    align-items: flex-start;
+  }
+}
+
 @media (max-width: 440px) {
   .layout-noise-list { padding: 8px; }
-  .layout-noise-list li { padding: 10px 12px; }
+  .layout-noise-list li { min-height: 64px; padding: 10px 12px 12px; }
   .layout-noise-meta { gap: 4px; }
-  .layout-noise-text { font-size: 0.76rem; }
+  .layout-noise-text { font-size: 0.77rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -190,37 +190,58 @@ button.summary-chip {
   cursor: pointer;
 }
 
-.summary-chip.total.alert, .summary-chip.deleted { color: var(--del-text); border-color: var(--del-border); background: rgba(var(--del-rgb), 0.08); }
+.summary-chip.total.alert { color: #1d4ed8; border-color: rgba(37, 99, 235, 0.24); background: rgba(37, 99, 235, 0.08); }
 .summary-chip.total.clean, .summary-chip.inserted { color: var(--ins-text); border-color: var(--ins-border); background: rgba(var(--ins-rgb), 0.08); }
-.summary-chip.modified { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.2); background: rgba(var(--accent-rgb), 0.08); }
+.summary-chip.modified { color: #6d28d9; border-color: rgba(109, 40, 217, 0.2); background: rgba(109, 40, 217, 0.08); }
+.summary-chip.deleted { color: var(--del-text); border-color: var(--del-border); background: rgba(var(--del-rgb), 0.08); }
 .summary-chip.similarity { color: #0f766e; border-color: rgba(15, 118, 110, 0.22); background: rgba(15, 118, 110, 0.08); }
 .summary-chip.layout-noise { color: #a16207; border-color: rgba(217, 119, 6, 0.24); background: rgba(245, 158, 11, 0.1); }
 .summary-chip.layout-noise.active { color: #92400e; border-color: rgba(217, 119, 6, 0.34); background: rgba(245, 158, 11, 0.16); }
 
 .diff-progress {
-  width: 120px;
+  width: 112px;
   display: grid;
   gap: 4px;
+  flex: 0 0 112px;
+  min-width: 0;
 }
 
 .diff-progress-meta {
   display: flex;
   justify-content: space-between;
+  gap: 6px;
   color: var(--text-secondary);
   font-size: 0.7rem;
   font-weight: 700;
+  min-width: 0;
 }
 
 .diff-progress-index {
   display: flex;
   gap: 4px;
+  min-width: 0;
+}
+
+.diff-progress-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-progress-count {
+  flex: 0 0 auto;
 }
 
 .diff-progress-count, .diff-progress-meta strong {
   font-family: 'SF Mono', 'Monaco', monospace;
 }
 
-.diff-progress-meta strong { color: var(--accent); font-size: 0.66rem; }
+.diff-progress-meta strong {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 0.66rem;
+}
 .slash { color: var(--text-tertiary); margin: 0 1px; font-weight: 400; }
 
 .diff-progress-track {
@@ -351,6 +372,7 @@ button.summary-chip {
 
   .diff-progress {
     width: 100%;
+    flex-basis: auto;
   }
 }
 

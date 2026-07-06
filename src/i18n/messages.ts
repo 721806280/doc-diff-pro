@@ -98,7 +98,7 @@ const en = {
   diffNavigator: {
     noDiffsTag: 'No differences',
     differenceCount(count: number): string {
-      return count === 1 ? '1 difference' : `${count} differences`;
+      return count === 1 ? '1 diff' : `${count} diffs`;
     },
     similarity: 'Similarity',
     similarityTitle: 'Calculated from edit distance after applying the current normalization settings.',
@@ -146,7 +146,7 @@ const en = {
     currentPositionAria(current: number, total: number): string {
       return `Current difference: ${current} / ${total}`;
     },
-    difference: 'Difference',
+    difference: 'Diff',
     closeDetails: 'Close',
     previous: 'Previous',
     next: 'Next'
