@@ -123,6 +123,9 @@ const en = {
       'page-number': 'Page number',
       'repeated-layout-text': 'Repeated layout text'
     },
+    layoutNoiseSource: {
+      native: 'Outside body'
+    },
     tableHintSides: {
       original: 'Baseline document',
       revised: 'Revised document'
@@ -276,6 +279,9 @@ const zhCN: I18nMessages = {
       hint: '页眉页脚',
       'page-number': '页码',
       'repeated-layout-text': '重复版面文字'
+    },
+    layoutNoiseSource: {
+      native: '正文外'
     },
     tableHintSides: {
       original: '基准文档',

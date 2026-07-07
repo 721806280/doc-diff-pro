@@ -123,7 +123,7 @@ import { readSavedAppSettings, writeSavedAppSettings } from './utils/appSettings
 import { compareDocuments } from './utils/diffEngine';
 import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
 import { parseDocx, type ParsedDocx } from './utils/docxParser';
-import type { LayoutNoiseHints } from './utils/layoutNoise';
+import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
 import { diffId, parseDiffId } from './utils/textDiffCore';
 
@@ -148,7 +148,7 @@ type DocumentState = {
   textLength: number;
   imageCount: number;
   warnings: string[];
-  layoutNoiseHints: LayoutNoiseHints;
+  layoutNoise: LayoutNoiseData;
   status: DocumentStatus;
   error: string;
 };
@@ -220,7 +220,7 @@ function createEmptyDocumentState(): DocumentState {
     textLength: 0,
     imageCount: 0,
     warnings: [],
-    layoutNoiseHints: createEmptyLayoutNoiseHints(),
+    layoutNoise: createEmptyLayoutNoise(),
     status: 'idle',
     error: ''
   };
@@ -309,7 +309,7 @@ function applyParsedDocument(documentState: DocumentState, parsed: ParsedDocx): 
   documentState.textLength = parsed.textLength;
   documentState.imageCount = parsed.imageCount;
   documentState.warnings = parsed.warnings;
-  documentState.layoutNoiseHints = parsed.layoutNoiseHints;
+  documentState.layoutNoise = parsed.layoutNoise;
   documentState.status = 'ready';
 }
 
@@ -319,11 +319,7 @@ function resetDocumentContent(documentState: DocumentState): void {
   documentState.textLength = 0;
   documentState.imageCount = 0;
   documentState.warnings = [];
-  documentState.layoutNoiseHints = createEmptyLayoutNoiseHints();
-}
-
-function createEmptyLayoutNoiseHints(): LayoutNoiseHints {
-  return { exact: [], fragments: [] };
+  documentState.layoutNoise = createEmptyLayoutNoise();
 }
 
 watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise], () => {
@@ -432,7 +428,10 @@ async function compare(showDoneNotice = false): Promise<void> {
       ignoreSpaces: ignoreSpaces.value,
       ignoreFullHalfWidth: ignoreFullHalfWidth.value,
       filterLayoutNoise: filterLayoutNoise.value,
-      layoutNoiseHints: mergeLayoutNoiseHints(documents.A.layoutNoiseHints, documents.B.layoutNoiseHints)
+      layoutNoise: {
+        original: documents.A.layoutNoise,
+        revised: documents.B.layoutNoise
+      }
     });
 
     if (runId !== compareRunId) return;
@@ -463,13 +462,6 @@ async function compare(showDoneNotice = false): Promise<void> {
       if (showDoneNotice) showCompareNotice(i18n.value.app.notices.compareRefreshed);
     }
   }
-}
-
-function mergeLayoutNoiseHints(...hints: LayoutNoiseHints[]): LayoutNoiseHints {
-  return {
-    exact: hints.flatMap((hint) => hint.exact),
-    fragments: hints.flatMap((hint) => hint.fragments)
-  };
 }
 
 function retryCompare(): void {

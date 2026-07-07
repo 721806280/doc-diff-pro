@@ -1,6 +1,6 @@
-export type LayoutNoiseExtraction = {
+export type LayoutNoiseResult = {
   html: string;
-  hints: LayoutNoiseHints;
+  layoutNoise: LayoutNoiseData;
 };
 
 export type LayoutNoiseHints = {
@@ -8,19 +8,24 @@ export type LayoutNoiseHints = {
   fragments: string[];
 };
 
+export type LayoutNoiseData = {
+  hints: LayoutNoiseHints;
+  nativeItems: LayoutNoiseEntry[];
+};
+
 export type LayoutNoiseFilterOptions = {
   hints: LayoutNoiseHints;
   enabled: boolean;
 };
 
-export type LayoutNoiseFilterResult = {
+export type LayoutNoiseRemoval = {
   filteredCount: number;
-  items: LayoutNoiseFilterItem[];
+  removedItems: LayoutNoiseEntry[];
 };
 
 export type LayoutNoiseFilterReason = 'hint' | 'page-number' | 'repeated-layout-text';
 
-export type LayoutNoiseFilterItem = {
+export type LayoutNoiseEntry = {
   reason: LayoutNoiseFilterReason;
   text: string;
 };
@@ -48,35 +53,47 @@ const HINT_SPLIT_PATTERN = /[;；,，|｜]/;
 const LEADING_PAGE_TEXT_PATTERN =
   /^\s*(?:[-_–—]*\s*)?(?:(?:page|p)\s*)?(?:第\s*)?[0-9０-９一二三四五六七八九十百千万]+\s*(?:页|pages?|page)?(?:\s*(?:\/|of|共)\s*[0-9０-９一二三四五六七八九十百千万]+\s*(?:页|pages?)?)?\s*(?:[-_–—]*\s*)?/i;
 
-export function extractLayoutNoiseHints(html: string): LayoutNoiseExtraction {
+export function extractLayoutNoise(html: string): LayoutNoiseResult {
   const body = new DOMParser().parseFromString(html, 'text/html').body;
   const exactHints = new Set<string>();
   const fragmentHints = new Set<string>();
+  const nativeItems: LayoutNoiseEntry[] = [];
 
   body.querySelectorAll<HTMLElement>('header, footer').forEach((element) => {
     collectHintText(element, exactHints, fragmentHints);
+    collectNativeItems(element, nativeItems);
     element.remove();
   });
 
   return {
     html: body.innerHTML,
-    hints: {
-      exact: Array.from(exactHints),
-      fragments: Array.from(fragmentHints)
+    layoutNoise: {
+      hints: {
+        exact: Array.from(exactHints),
+        fragments: Array.from(fragmentHints)
+      },
+      nativeItems
     }
+  };
+}
+
+export function createEmptyLayoutNoise(): LayoutNoiseData {
+  return {
+    hints: { exact: [], fragments: [] },
+    nativeItems: []
   };
 }
 
 export function removeLayoutNoise(
   root: HTMLElement,
   options: LayoutNoiseFilterOptions
-): LayoutNoiseFilterResult {
-  if (!options.enabled) return { filteredCount: 0, items: [] };
+): LayoutNoiseRemoval {
+  if (!options.enabled) return { filteredCount: 0, removedItems: [] };
 
   const normalizedHints = normalizeHints(options.hints);
   const candidates = collectCandidateBlocks(root);
   const frequencies = countNormalizedText(candidates);
-  const items: LayoutNoiseFilterItem[] = [];
+  const removedItems: LayoutNoiseEntry[] = [];
   let filteredCount = 0;
 
   for (const element of candidates) {
@@ -88,13 +105,13 @@ export function removeLayoutNoise(
 
     const reason = classifyLayoutArtifact(rawText, normalized, normalizedHints, frequencies);
     if (reason) {
-      items.push({ reason, text: normalizeDisplayText(rawText) });
+      removedItems.push({ reason, text: normalizeDisplayText(rawText) });
       element.remove();
       filteredCount++;
     }
   }
 
-  return { filteredCount, items };
+  return { filteredCount, removedItems };
 }
 
 export function normalizeLayoutText(text: string): string {
@@ -119,6 +136,23 @@ function collectHintText(
   element.querySelectorAll<HTMLElement>(CANDIDATE_BLOCK_SELECTOR).forEach((child) => {
     collectExactHintsFromText(child.textContent ?? '', exactHints);
     collectFragmentHintsFromText(child.textContent ?? '', fragmentHints);
+  });
+}
+
+function collectNativeItems(
+  element: HTMLElement,
+  items: LayoutNoiseEntry[]
+): void {
+  const candidateBlocks = Array.from(element.querySelectorAll<HTMLElement>(CANDIDATE_BLOCK_SELECTOR))
+    .filter((child) => !hasCandidateBlockChild(child));
+  const textSources = candidateBlocks.length > 0 ? candidateBlocks : [element];
+
+  textSources.forEach((source) => {
+    const text = normalizeDisplayText(source.textContent ?? '');
+    const normalized = normalizeLayoutText(text);
+    if (!isUsableHint(normalized)) return;
+
+    items.push({ reason: 'hint', text });
   });
 }
 

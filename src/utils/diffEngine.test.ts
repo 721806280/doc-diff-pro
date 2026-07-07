@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { compareDocuments, type CompareOptions } from './diffEngine';
+import {
+  compareDocuments,
+  createEmptyLayoutNoiseBySide,
+  type LayoutNoiseBySide,
+  type CompareOptions
+} from './diffEngine';
+import type { LayoutNoiseHints } from './layoutNoise';
 
 const DEFAULT_OPTIONS: CompareOptions = {
   granularity: 'char',
   ignoreSpaces: true,
   ignoreFullHalfWidth: true,
   filterLayoutNoise: false,
-  layoutNoiseHints: { exact: [], fragments: [] }
+  layoutNoise: createEmptyLayoutNoiseBySide()
 };
 
 describe('compareDocuments', () => {
@@ -40,7 +46,7 @@ describe('compareDocuments', () => {
       {
         ...DEFAULT_OPTIONS,
         filterLayoutNoise: true,
-        layoutNoiseHints: { exact: ['示例公司保密页脚'], fragments: [] }
+        layoutNoise: createLayoutNoiseWithHints({ exact: ['示例公司保密页脚'], fragments: [] })
       }
     );
 
@@ -50,11 +56,65 @@ describe('compareDocuments', () => {
       {
         side: 'revised',
         reason: 'hint',
+        source: 'body',
         text: '示例公司保密页脚',
         count: 1
       }
     ]);
     expect(result.revisedHtml).not.toContain('公司保密页脚');
+  });
+
+  it('retains native header and footer hints from both documents in filter details', async () => {
+    const layoutNoise = createEmptyLayoutNoiseBySide();
+    layoutNoise.original.nativeItems = [
+      { reason: 'hint', text: '基准保密页眉' },
+      { reason: 'hint', text: '基准保密页眉' },
+      { reason: 'hint', text: '第 1 页' }
+    ];
+    layoutNoise.revised.nativeItems = [
+      { reason: 'hint', text: '修订保密页脚' }
+    ];
+
+    const result = await compareDocuments(
+      '<p>正文内容</p>',
+      '<p>正文内容</p>',
+      {
+        ...DEFAULT_OPTIONS,
+        filterLayoutNoise: true,
+        layoutNoise
+      }
+    );
+
+    expect(result.summary.total).toBe(0);
+    expect(result.summary.layoutNoiseFiltered).toBe(4);
+    expect(result.summary.layoutNoiseItems).toEqual([
+      { side: 'original', reason: 'hint', source: 'native', text: '基准保密页眉', count: 2 },
+      { side: 'original', reason: 'hint', source: 'native', text: '第 1 页', count: 1 },
+      { side: 'revised', reason: 'hint', source: 'native', text: '修订保密页脚', count: 1 }
+    ]);
+  });
+
+  it('keeps native header and footer details out of the summary when layout filtering is disabled', async () => {
+    const layoutNoise = createEmptyLayoutNoiseBySide();
+    layoutNoise.original.nativeItems = [
+      { reason: 'hint', text: '基准保密页眉' }
+    ];
+    layoutNoise.revised.nativeItems = [
+      { reason: 'hint', text: '修订保密页脚' }
+    ];
+
+    const result = await compareDocuments(
+      '<p>正文内容</p>',
+      '<p>正文内容</p>',
+      {
+        ...DEFAULT_OPTIONS,
+        layoutNoise
+      }
+    );
+
+    expect(result.summary.total).toBe(0);
+    expect(result.summary.layoutNoiseFiltered).toBe(0);
+    expect(result.summary.layoutNoiseItems).toEqual([]);
   });
 
   it('filters converted footer lines by stable hint fragments', async () => {
@@ -64,10 +124,10 @@ describe('compareDocuments', () => {
       {
         ...DEFAULT_OPTIONS,
         filterLayoutNoise: true,
-        layoutNoiseHints: {
+        layoutNoise: createLayoutNoiseWithHints({
           exact: ['第3/5页示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'],
           fragments: ['示例联系人：张三', '联系电话：13800000000', '邮箱：review@example.com']
-        }
+        })
       }
     );
 
@@ -75,7 +135,8 @@ describe('compareDocuments', () => {
     expect(result.summary.layoutNoiseFiltered).toBe(1);
     expect(result.summary.layoutNoiseItems[0]).toMatchObject({
       side: 'revised',
-      reason: 'hint'
+      reason: 'hint',
+      source: 'body'
     });
   });
 
@@ -87,10 +148,10 @@ describe('compareDocuments', () => {
       {
         ...DEFAULT_OPTIONS,
         filterLayoutNoise: true,
-        layoutNoiseHints: {
+        layoutNoise: createLayoutNoiseWithHints({
           exact: ['第3/5页示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'],
           fragments: ['示例联系人：张三', '联系电话：13800000000', '邮箱：review@example.com']
-        }
+        })
       }
     );
 
@@ -105,10 +166,10 @@ describe('compareDocuments', () => {
       '<p>正文内容</p><p>第4/5页示例联系人:张三；联系电话:13800000000；邮箱:review@examp1e.com</p>',
       {
         ...DEFAULT_OPTIONS,
-        layoutNoiseHints: {
+        layoutNoise: createLayoutNoiseWithHints({
           exact: ['第3/5页示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'],
           fragments: ['示例联系人：张三', '联系电话：13800000000', '邮箱：review@example.com']
-        }
+        })
       }
     );
 
@@ -129,7 +190,14 @@ describe('compareDocuments', () => {
     expect(result.summary.total).toBe(0);
     expect(result.summary.layoutNoiseFiltered).toBe(2);
     expect(result.summary.layoutNoiseItems).toEqual([
-      { side: 'revised', reason: 'repeated-layout-text', text: '内部资料', count: 2 }
+      { side: 'revised', reason: 'repeated-layout-text', source: 'body', text: '内部资料', count: 2 }
     ]);
   });
 });
+
+function createLayoutNoiseWithHints(hints: LayoutNoiseHints): LayoutNoiseBySide {
+  const layoutNoise = createEmptyLayoutNoiseBySide();
+  layoutNoise.original.hints = hints;
+
+  return layoutNoise;
+}

@@ -18,9 +18,12 @@ export type LayoutNoiseReason = 'hint' | 'page-number' | 'repeated-layout-text';
 
 export type LayoutNoiseSide = 'original' | 'revised';
 
+export type LayoutNoiseSource = 'native' | 'body';
+
 export type LayoutNoiseItem = {
   side: LayoutNoiseSide;
   reason: LayoutNoiseReason;
+  source: LayoutNoiseSource;
   text: string;
   count: number;
 };

@@ -1,16 +1,24 @@
-import type { DiffGranularity, DiffSummary, LayoutNoiseItem, LayoutNoiseSide } from '@/types/diff';
+import type { DiffGranularity, DiffSummary, LayoutNoiseItem, LayoutNoiseSide, LayoutNoiseSource } from '@/types/diff';
 import { applyDiffMarkup } from './diffMarkup';
 import { createTextDiffsAsync } from './diffWorkerClient';
 import { buildTextMapping, collapseWhitespace, normalizeText, type TextMapping } from './documentText';
-import { removeLayoutNoise, type LayoutNoiseHints } from './layoutNoise';
+import {
+  createEmptyLayoutNoise,
+  removeLayoutNoise,
+  type LayoutNoiseData,
+  type LayoutNoiseEntry,
+  type LayoutNoiseHints
+} from './layoutNoise';
 import { DIFF_DELETE, DIFF_INSERT, summarizeDiffs } from './textDiffCore';
+
+export type LayoutNoiseBySide = Record<LayoutNoiseSide, LayoutNoiseData>;
 
 export type CompareOptions = {
   granularity: DiffGranularity;
   ignoreSpaces: boolean;
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
-  layoutNoiseHints: LayoutNoiseHints;
+  layoutNoise: LayoutNoiseBySide;
 };
 
 export type CompareResult = {
@@ -27,12 +35,13 @@ export async function compareDocuments(
   const parser = new DOMParser();
   const originalDom = parser.parseFromString(originalHtml, 'text/html').body;
   const revisedDom = parser.parseFromString(revisedHtml, 'text/html').body;
-  const filteredOriginal = removeLayoutNoise(originalDom, {
-    hints: options.layoutNoiseHints,
+  const hints = mergeHints(options.layoutNoise);
+  const originalRemoval = removeLayoutNoise(originalDom, {
+    hints,
     enabled: options.filterLayoutNoise
   });
-  const filteredRevised = removeLayoutNoise(revisedDom, {
-    hints: options.layoutNoiseHints,
+  const revisedRemoval = removeLayoutNoise(revisedDom, {
+    hints,
     enabled: options.filterLayoutNoise
   });
   const originalTrack = prepareDocumentText(originalDom, options);
@@ -44,11 +53,15 @@ export async function compareDocuments(
     originalTrack.text.length,
     revisedTrack.text.length
   );
-  summary.layoutNoiseFiltered = filteredOriginal.filteredCount + filteredRevised.filteredCount;
-  summary.layoutNoiseItems = [
-    ...toLayoutNoiseItems(filteredOriginal.items, 'original'),
-    ...toLayoutNoiseItems(filteredRevised.items, 'revised')
-  ];
+  summary.layoutNoiseItems = options.filterLayoutNoise
+    ? groupItems([
+        ...withSide(options.layoutNoise.original.nativeItems, 'original', 'native'),
+        ...withSide(options.layoutNoise.revised.nativeItems, 'revised', 'native'),
+        ...withSide(originalRemoval.removedItems, 'original', 'body'),
+        ...withSide(revisedRemoval.removedItems, 'revised', 'body')
+      ])
+    : [];
+  summary.layoutNoiseFiltered = summary.layoutNoiseItems.reduce((total, item) => total + item.count, 0);
 
   return {
     originalHtml: applyDiffMarkup(originalDom, originalTrack.mapping, diffs, DIFF_DELETE, 'del'),
@@ -57,14 +70,41 @@ export async function compareDocuments(
   };
 }
 
-function toLayoutNoiseItems(
-  items: Array<{ reason: LayoutNoiseItem['reason']; text: string }>,
-  side: LayoutNoiseSide
-): LayoutNoiseItem[] {
+export function createEmptyLayoutNoiseBySide(): LayoutNoiseBySide {
+  return {
+    original: createEmptyLayoutNoise(),
+    revised: createEmptyLayoutNoise()
+  };
+}
+
+function mergeHints(layoutNoise: LayoutNoiseBySide): LayoutNoiseHints {
+  return {
+    exact: [
+      ...layoutNoise.original.hints.exact,
+      ...layoutNoise.revised.hints.exact
+    ],
+    fragments: [
+      ...layoutNoise.original.hints.fragments,
+      ...layoutNoise.revised.hints.fragments
+    ]
+  };
+}
+
+type SidedNoiseItem = Omit<LayoutNoiseItem, 'count'>;
+
+function withSide(
+  items: LayoutNoiseEntry[],
+  side: LayoutNoiseSide,
+  source: LayoutNoiseSource
+): SidedNoiseItem[] {
+  return items.map((item) => ({ ...item, side, source }));
+}
+
+function groupItems(items: SidedNoiseItem[]): LayoutNoiseItem[] {
   const groupedItems = new Map<string, LayoutNoiseItem>();
 
   items.forEach((item) => {
-    const key = `${item.reason}\u0000${item.text}`;
+    const key = `${item.side}\u0000${item.source}\u0000${item.reason}\u0000${item.text}`;
     const existingItem = groupedItems.get(key);
 
     if (existingItem) {
@@ -72,7 +112,7 @@ function toLayoutNoiseItems(
       return;
     }
 
-    groupedItems.set(key, { ...item, side, count: 1 });
+    groupedItems.set(key, { ...item, count: 1 });
   });
 
   return Array.from(groupedItems.values());

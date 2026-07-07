@@ -46,6 +46,9 @@
                 <span class="layout-noise-badge layout-noise-reason" :class="`reason-${item.reason}`">
                   {{ i18n.diffNavigator.layoutNoiseReason[item.reason] }}
                 </span>
+                <span v-if="item.source === 'native'" class="layout-noise-badge layout-noise-source">
+                  {{ i18n.diffNavigator.layoutNoiseSource.native }}
+                </span>
                 <span v-if="item.count > 1" class="layout-noise-badge layout-noise-count">x{{ item.count }}</span>
               </div>
               <p class="layout-noise-text">{{ item.text }}</p>
@@ -282,6 +285,7 @@ onUnmounted(() => {
 .layout-noise-side.side-revised { color: #15803d; background: rgba(34, 197, 94, 0.08); border-color: rgba(34, 197, 94, 0.12); }
 .layout-noise-reason.reason-hint { color: #4f46e5; background: rgba(79, 70, 229, 0.07); border-color: rgba(79, 70, 229, 0.16); }
 .layout-noise-reason.reason-page-number, .layout-noise-reason.reason-repeated-layout-text { color: #475569; }
+.layout-noise-source { color: #0f766e; background: rgba(20, 184, 166, 0.08); border-color: rgba(20, 184, 166, 0.16); }
 .layout-noise-count { font-family: 'SF Mono', 'Monaco', monospace; font-weight: 700; }
 
 .layout-noise-text {
