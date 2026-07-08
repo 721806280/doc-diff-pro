@@ -49,7 +49,8 @@ describe('appSettings', () => {
       ignoreSpaces: false,
       ignoreFullHalfWidth: false,
       filterLayoutNoise: true,
-      syncScroll: false
+      syncScroll: false,
+      showTableHints: true
     }));
 
     expect(readSavedAppSettings()).toEqual({
@@ -57,7 +58,8 @@ describe('appSettings', () => {
       ignoreSpaces: false,
       ignoreFullHalfWidth: false,
       filterLayoutNoise: true,
-      syncScroll: false
+      syncScroll: false,
+      showTableHints: true
     });
   });
 
@@ -67,7 +69,8 @@ describe('appSettings', () => {
       ignoreSpaces: 'nope',
       ignoreFullHalfWidth: false,
       filterLayoutNoise: null,
-      syncScroll: true
+      syncScroll: true,
+      showTableHints: 'yes'
     }));
 
     expect(readSavedAppSettings()).toEqual({
@@ -75,7 +78,8 @@ describe('appSettings', () => {
       ignoreSpaces: true,
       ignoreFullHalfWidth: false,
       filterLayoutNoise: false,
-      syncScroll: true
+      syncScroll: true,
+      showTableHints: false
     });
   });
 
@@ -85,7 +89,8 @@ describe('appSettings', () => {
       ignoreSpaces: false,
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,
-      syncScroll: false
+      syncScroll: false,
+      showTableHints: true
     });
 
     expect(JSON.parse(storage.getItem('doc-diff-settings') ?? 'null')).toEqual({
@@ -93,7 +98,8 @@ describe('appSettings', () => {
       ignoreSpaces: false,
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,
-      syncScroll: false
+      syncScroll: false,
+      showTableHints: true
     });
   });
 

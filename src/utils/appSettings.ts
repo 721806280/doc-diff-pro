@@ -9,6 +9,7 @@ export type AppSettings = {
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
   syncScroll: boolean;
+  showTableHints: boolean;
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -16,7 +17,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   ignoreSpaces: true,
   ignoreFullHalfWidth: true,
   filterLayoutNoise: false,
-  syncScroll: true
+  syncScroll: true,
+  showTableHints: false
 };
 
 export function readSavedAppSettings(): AppSettings {
@@ -62,7 +64,10 @@ function normalizeAppSettings(value: unknown): AppSettings {
       : DEFAULT_APP_SETTINGS.filterLayoutNoise,
     syncScroll: typeof value.syncScroll === 'boolean'
       ? value.syncScroll
-      : DEFAULT_APP_SETTINGS.syncScroll
+      : DEFAULT_APP_SETTINGS.syncScroll,
+    showTableHints: typeof value.showTableHints === 'boolean'
+      ? value.showTableHints
+      : DEFAULT_APP_SETTINGS.showTableHints
   };
 }
 

@@ -6,6 +6,7 @@
         v-model:ignore-full-half-width="ignoreFullHalfWidth"
         v-model:filter-layout-noise="filterLayoutNoise"
         v-model:sync-scroll="syncScroll"
+        v-model:show-table-hints="showTableHints"
     />
 
     <CompareToast :message="compareNotice" :comparing="comparing" />
@@ -180,6 +181,7 @@ const activeTableHint = ref<DiffTableContextHint | null>(null);
 const tableHintPanelOpen = ref(false);
 const initialSettings = readSavedAppSettings();
 const syncScroll = ref(initialSettings.syncScroll);
+const showTableHints = ref(initialSettings.showTableHints);
 
 const ignoreSpaces = ref(initialSettings.ignoreSpaces);
 const ignoreFullHalfWidth = ref(initialSettings.ignoreFullHalfWidth);
@@ -336,15 +338,28 @@ watch(syncScroll, (enabled) => {
   executeViewportSync('A');
 });
 
-watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll], (
-    [nextDiffGranularity, nextIgnoreSpaces, nextIgnoreFullHalfWidth, nextFilterLayoutNoise, nextSyncScroll]
+watch(showTableHints, () => {
+  clearTableHintMarkers();
+  syncActiveTableHint(resolveFocusedTableHint());
+});
+
+watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showTableHints], (
+    [
+      nextDiffGranularity,
+      nextIgnoreSpaces,
+      nextIgnoreFullHalfWidth,
+      nextFilterLayoutNoise,
+      nextSyncScroll,
+      nextShowTableHints
+    ]
 ) => {
   writeSavedAppSettings({
     diffGranularity: nextDiffGranularity,
     ignoreSpaces: nextIgnoreSpaces,
     ignoreFullHalfWidth: nextIgnoreFullHalfWidth,
     filterLayoutNoise: nextFilterLayoutNoise,
-    syncScroll: nextSyncScroll
+    syncScroll: nextSyncScroll,
+    showTableHints: nextShowTableHints
   });
 });
 
@@ -494,7 +509,7 @@ function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
 
   focusedDiffElements = [...group.A, ...group.B];
   focusedDiffElements.forEach((element) => element.classList.add('focus-diff'));
-  syncActiveTableHint(updateTableStructureHint(group));
+  syncActiveTableHint(resolveFocusedTableHint(group));
   const containerA = getPaneViewport('A');
   const containerB = getPaneViewport('B');
   const targetA = firstDiffElement(group, 'A');
@@ -517,11 +532,17 @@ function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
 function clearFocusedDiffElements(): void {
   focusedDiffElements.forEach((element) => {
     if (element) {
-      element.classList.remove('focus-diff', 'table-structure-diff');
-      restoreTableHintElementAttributes(element);
+      element.classList.remove('focus-diff');
     }
   });
+  clearTableHintMarkers();
   focusedDiffElements = [];
+}
+
+function resolveFocusedTableHint(group = diffElementIndex.get(diffId(currentDiffIndex.value))): DiffTableContextHint | null {
+  if (!showTableHints.value || !hasResult.value || !group) return null;
+
+  return updateTableStructureHint(group);
 }
 
 function updateTableStructureHint(group: DiffElementGroup): DiffTableContextHint | null {
@@ -542,6 +563,14 @@ function updateTableStructureHint(group: DiffElementGroup): DiffTableContextHint
 
   applyTableStructureDiffMarkers(hintElements);
   return resolution.hint;
+}
+
+function clearTableHintMarkers(): void {
+  focusedDiffElements.forEach((element) => {
+    if (!element) return;
+    element.classList.remove('table-structure-diff');
+    restoreTableHintElementAttributes(element);
+  });
 }
 
 function resolveTableHintElements(

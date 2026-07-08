@@ -192,6 +192,19 @@
                   <span class="settings-toggle__switch-thumb"></span>
                 </span>
               </button>
+              <button
+                  type="button"
+                  class="settings-toggle"
+                  :class="{ active: showTableHints }"
+                  :title="i18n.header.showTableHintsTitle"
+                  :aria-pressed="showTableHints"
+                  @click="$emit('update:showTableHints', !showTableHints)"
+              >
+                <span class="settings-toggle__label">{{ i18n.header.showTableHints }}</span>
+                <span class="settings-toggle__switch" aria-hidden="true">
+                  <span class="settings-toggle__switch-thumb"></span>
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -228,6 +241,7 @@ const props = defineProps<{
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
   syncScroll: boolean;
+  showTableHints: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -236,6 +250,7 @@ const emit = defineEmits<{
   'update:ignoreFullHalfWidth': [value: boolean];
   'update:filterLayoutNoise': [value: boolean];
   'update:syncScroll': [value: boolean];
+  'update:showTableHints': [value: boolean];
 }>();
 
 const { locale, messages: i18n, setLocale } = useI18n();
@@ -247,7 +262,8 @@ const isUsingDefaultSettings = computed(() =>
   props.ignoreSpaces === DEFAULT_APP_SETTINGS.ignoreSpaces &&
   props.ignoreFullHalfWidth === DEFAULT_APP_SETTINGS.ignoreFullHalfWidth &&
   props.filterLayoutNoise === DEFAULT_APP_SETTINGS.filterLayoutNoise &&
-  props.syncScroll === DEFAULT_APP_SETTINGS.syncScroll
+  props.syncScroll === DEFAULT_APP_SETTINGS.syncScroll &&
+  props.showTableHints === DEFAULT_APP_SETTINGS.showTableHints
 );
 
 function updateGranularity(value: DiffGranularity): void {
@@ -262,6 +278,7 @@ function resetSettings(): void {
   emit('update:ignoreFullHalfWidth', DEFAULT_APP_SETTINGS.ignoreFullHalfWidth);
   emit('update:filterLayoutNoise', DEFAULT_APP_SETTINGS.filterLayoutNoise);
   emit('update:syncScroll', DEFAULT_APP_SETTINGS.syncScroll);
+  emit('update:showTableHints', DEFAULT_APP_SETTINGS.showTableHints);
 }
 
 function toggleLocale(): void {
