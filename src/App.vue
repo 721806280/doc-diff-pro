@@ -78,7 +78,7 @@
     </div>
 
     <transition name="table-hint-tip">
-      <aside
+      <div
           v-if="tableHintPanelOpen && activeTableHint"
           id="table-hint-panel"
           class="table-hint-tip"
@@ -100,7 +100,7 @@
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-      </aside>
+      </div>
     </transition>
   </div>
 </template>
