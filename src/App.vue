@@ -161,6 +161,7 @@ import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
 import { parseDocx, type ParsedDocx } from './utils/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
+import { resolveSyncScrollTop, type ScrollAnchor } from './utils/scrollSync';
 import {
   activeReviewCount,
   activeReviewPosition,
@@ -179,11 +180,6 @@ type PaneKey = 'A' | 'B';
 
 type DocumentPaneExpose = {
   viewport: HTMLElement | null;
-};
-
-type AlignmentAnchor = {
-  topA: number;
-  topB: number;
 };
 
 type DocumentStatus = 'idle' | 'parsing' | 'ready' | 'error';
@@ -252,15 +248,17 @@ const paneB = ref<DocumentPaneExpose | null>(null);
 const { locale, messages: i18n } = useI18n();
 
 let activeDriver: PaneKey | null = null;
-let alignmentAnchors: AlignmentAnchor[] = [];
+let alignmentAnchors: ScrollAnchor[] = [];
 let diffElementIndex: DiffElementIndex = new Map();
 let focusedDiffElements: HTMLElement[] = [];
 let compareNoticeTimer: number | null = null;
 let tableHintTimer: number | null = null;
 let resizeTimer: number | null = null;
+let layoutTimer: number | null = null;
 let settingsCompareTimer: number | null = null;
 let scrollRaf: number | null = null;
 let diffActionRaf: number | null = null;
+let layoutObserver: ResizeObserver | null = null;
 let compareRunId = 0;
 const fileLoadIds: Record<PaneKey, number> = { A: 0, B: 0 };
 const documentErrors = reactive<Partial<Record<PaneKey, { kind: ErrorKind; detail?: string }>>>({});
@@ -534,6 +532,7 @@ function clearCompareResult(): void {
 }
 
 function resetCompareState(): void {
+  stopLayoutObserver();
   compareError.value = '';
   compareErrorDetail.value = '';
   hasResult.value = false;
@@ -600,6 +599,7 @@ async function compare(showDoneNotice = false): Promise<void> {
 
     rebuildDiffElementIndex();
     buildViewportLockMatrix();
+    observeResultLayout();
     if (totalDiffs.value > 0) focusOnDiff(1, 'auto');
   } catch (error) {
     if (runId !== compareRunId) return;
@@ -837,7 +837,25 @@ function clearFocusedDiffElements(): void {
   diffActionPosition.value = null;
 }
 
+function shouldTrackDiffActionPosition(): boolean {
+  return enableDiffIgnore.value &&
+      !settingsPanelOpen.value &&
+      hasResult.value &&
+      currentDiffIndex.value > 0 &&
+      focusedDiffElements.length > 0 &&
+      (canIgnoreCurrentDiff.value || currentDiffIgnored.value);
+}
+
 function scheduleDiffActionPositionUpdate(): void {
+  if (!shouldTrackDiffActionPosition()) {
+    if (diffActionRaf !== null) {
+      cancelAnimationFrame(diffActionRaf);
+      diffActionRaf = null;
+    }
+    diffActionPosition.value = null;
+    return;
+  }
+
   if (diffActionRaf !== null) cancelAnimationFrame(diffActionRaf);
   diffActionRaf = requestAnimationFrame(() => {
     diffActionRaf = null;
@@ -846,7 +864,7 @@ function scheduleDiffActionPositionUpdate(): void {
 }
 
 function updateDiffActionPosition(): void {
-  if (currentDiffIndex.value <= 0 || focusedDiffElements.length === 0) {
+  if (!shouldTrackDiffActionPosition()) {
     diffActionPosition.value = null;
     return;
   }
@@ -1074,7 +1092,10 @@ function buildViewportLockMatrix(): void {
     const elementB = firstReviewElement(group, 'B');
 
     if (elementA && elementB) {
-      alignmentAnchors.push({ topA: elementA.offsetTop, topB: elementB.offsetTop });
+      alignmentAnchors.push({
+        topA: getElementScrollTop(containerA, elementA),
+        topB: getElementScrollTop(containerB, elementB)
+      });
     }
   }
 }
@@ -1083,30 +1104,90 @@ function rebuildDiffElementIndex(): void {
   diffElementIndex = buildDiffElementIndex(getPaneViewport('A'), getPaneViewport('B'));
 }
 
-function onScrollA(): void {
+function refreshResultLayout(): void {
+  if (!hasResult.value) return;
+
+  rebuildDiffElementIndex();
+  buildViewportLockMatrix();
   scheduleDiffActionPositionUpdate();
-  if (!syncScroll.value || activeDriver !== 'A') return;
-  if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
-  scrollRaf = requestAnimationFrame(() => {
-    if (!syncScroll.value || activeDriver !== 'A') {
-      scrollRaf = null;
-      return;
-    }
-    executeViewportSync('A');
-    scrollRaf = null;
+
+  if (syncScroll.value && activeDriver) {
+    executeViewportSync(activeDriver);
+  }
+}
+
+function scheduleResultLayoutRefresh(): void {
+  if (!hasResult.value) return;
+
+  if (layoutTimer !== null) window.clearTimeout(layoutTimer);
+  layoutTimer = window.setTimeout(() => {
+    layoutTimer = null;
+    refreshResultLayout();
+  }, 120);
+}
+
+function observeResultLayout(): void {
+  stopLayoutObserver();
+
+  if (!hasResult.value || typeof ResizeObserver === 'undefined') return;
+
+  layoutObserver = new ResizeObserver(() => {
+    scheduleResultLayoutRefresh();
+  });
+  getResultLayoutTargets().forEach((target) => layoutObserver?.observe(target));
+}
+
+function stopLayoutObserver(): void {
+  if (layoutObserver) {
+    layoutObserver.disconnect();
+    layoutObserver = null;
+  }
+
+  if (layoutTimer !== null) {
+    window.clearTimeout(layoutTimer);
+    layoutTimer = null;
+  }
+}
+
+function getResultLayoutTargets(): HTMLElement[] {
+  return (['A', 'B'] as PaneKey[]).flatMap((key) => {
+    const viewport = getPaneViewport(key);
+    if (!viewport) return [];
+
+    const content = viewport.querySelector<HTMLElement>('.docx-render-content');
+    return content ? [viewport, content] : [viewport];
   });
 }
 
+function getElementScrollTop(container: HTMLElement, element: HTMLElement): number {
+  const containerRect = container.getBoundingClientRect();
+  const elementRect = element.getBoundingClientRect();
+  return elementRect.top - containerRect.top + container.scrollTop;
+}
+
+function onScrollA(): void {
+  onPaneScroll('A');
+}
+
 function onScrollB(): void {
-  scheduleDiffActionPositionUpdate();
-  if (!syncScroll.value || activeDriver !== 'B') return;
+  onPaneScroll('B');
+}
+
+function onPaneScroll(key: PaneKey): void {
+  if (shouldTrackDiffActionPosition()) scheduleDiffActionPositionUpdate();
+  scheduleViewportSync(key);
+}
+
+function scheduleViewportSync(key: PaneKey): void {
+  if (!syncScroll.value || activeDriver !== key) return;
+
   if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
   scrollRaf = requestAnimationFrame(() => {
-    if (!syncScroll.value || activeDriver !== 'B') {
+    if (!syncScroll.value || activeDriver !== key) {
       scrollRaf = null;
       return;
     }
-    executeViewportSync('B');
+    executeViewportSync(key);
     scrollRaf = null;
   });
 }
@@ -1124,66 +1205,15 @@ function executeViewportSync(sourceKey: PaneKey, sourceTop?: number): void {
 
   const maxSourceScroll = getMaxScrollTop(sourceContainer);
   const maxTargetScroll = getMaxScrollTop(targetContainer);
-  const currentSourceTop = clampScrollTop(sourceTop ?? sourceContainer.scrollTop, maxSourceScroll);
+  const targetTop = resolveSyncScrollTop({
+    sourceKey,
+    sourceTop: sourceTop ?? sourceContainer.scrollTop,
+    maxSourceTop: maxSourceScroll,
+    maxTargetTop: maxTargetScroll,
+    anchors: alignmentAnchors
+  });
 
-  if (currentSourceTop <= 4) {
-    targetContainer.scrollTop = 0;
-    return;
-  }
-
-  if (currentSourceTop >= maxSourceScroll - 4) {
-    targetContainer.scrollTop = maxTargetScroll;
-    return;
-  }
-
-  if (alignmentAnchors.length === 0) {
-    targetContainer.scrollTop = maxSourceScroll > 0
-        ? Math.round((currentSourceTop / maxSourceScroll) * maxTargetScroll)
-        : 0;
-    return;
-  }
-
-  syncByAnchors(sourceKey, currentSourceTop, maxSourceScroll, maxTargetScroll, targetContainer);
-}
-
-function syncByAnchors(
-    sourceKey: PaneKey,
-    currentSourceTop: number,
-    maxSourceScroll: number,
-    maxTargetScroll: number,
-    targetContainer: HTMLElement
-): void {
-  const sourceTopKey = sourceKey === 'A' ? 'topA' : 'topB';
-  const targetTopKey = sourceKey === 'A' ? 'topB' : 'topA';
-  const nextIndex = alignmentAnchors.findIndex((anchor) => anchor[sourceTopKey] >= currentSourceTop);
-
-  if (nextIndex === 0) {
-    const first = alignmentAnchors[0];
-    targetContainer.scrollTop = interpolateScrollTop(currentSourceTop, 0, first[sourceTopKey], 0, first[targetTopKey]);
-    return;
-  }
-
-  if (nextIndex === -1) {
-    const last = alignmentAnchors[alignmentAnchors.length - 1];
-    targetContainer.scrollTop = interpolateScrollTop(
-        currentSourceTop,
-        last[sourceTopKey],
-        maxSourceScroll,
-        last[targetTopKey],
-        maxTargetScroll
-    );
-    return;
-  }
-
-  const previous = alignmentAnchors[nextIndex - 1];
-  const next = alignmentAnchors[nextIndex];
-  targetContainer.scrollTop = interpolateScrollTop(
-      currentSourceTop,
-      previous[sourceTopKey],
-      next[sourceTopKey],
-      previous[targetTopKey],
-      next[targetTopKey]
-  );
+  setSyncedScrollTop(targetContainer, targetTop, maxTargetScroll);
 }
 
 function getPaneViewport(key: PaneKey): HTMLElement | null {
@@ -1194,32 +1224,18 @@ function getMaxScrollTop(container: HTMLElement): number {
   return Math.max(0, container.scrollHeight - container.clientHeight);
 }
 
-function clampScrollTop(value: number, maxScrollTop: number): number {
-  return Math.min(Math.max(value, 0), maxScrollTop);
-}
+function setSyncedScrollTop(container: HTMLElement, scrollTop: number, maxScrollTop: number): void {
+  const nextTop = Math.round(Math.min(Math.max(scrollTop, 0), maxScrollTop));
+  if (Math.abs(container.scrollTop - nextTop) < 1) return;
 
-function interpolateScrollTop(
-    sourceTop: number,
-    sourceStart: number,
-    sourceEnd: number,
-    targetStart: number,
-    targetEnd: number
-): number {
-  const sourceDistance = sourceEnd - sourceStart;
-  if (sourceDistance <= 0) return targetStart;
-
-  const ratio = (sourceTop - sourceStart) / sourceDistance;
-  return targetStart + (ratio * (targetEnd - targetStart));
+  container.scrollTop = nextTop;
 }
 
 function handleResize(): void {
   if (resizeTimer !== null) window.clearTimeout(resizeTimer);
   resizeTimer = window.setTimeout(() => {
     resizeTimer = null;
-    if (hasResult.value) {
-      buildViewportLockMatrix();
-      scheduleDiffActionPositionUpdate();
-    }
+    refreshResultLayout();
   }, 150);
 }
 
@@ -1256,6 +1272,7 @@ onUnmounted(() => {
   if (compareNoticeTimer !== null) window.clearTimeout(compareNoticeTimer);
   clearTableHintTimer();
   if (resizeTimer !== null) window.clearTimeout(resizeTimer);
+  stopLayoutObserver();
   if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
   if (diffActionRaf !== null) cancelAnimationFrame(diffActionRaf);
 });
