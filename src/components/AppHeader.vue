@@ -178,6 +178,30 @@
 
           <div class="settings-section settings-section--view">
             <div class="settings-section__title">{{ i18n.header.viewOptionsLabel }}</div>
+            <div
+                class="theme-color-control"
+                role="radiogroup"
+                :aria-label="i18n.header.themeColorLabel"
+            >
+              <span>{{ i18n.header.themeColorLabel }}</span>
+              <div class="theme-color-swatches">
+                <button
+                    v-for="option in themeColorOptions"
+                    :key="option"
+                    type="button"
+                    role="radio"
+                    class="theme-color-swatch"
+                    :class="{ active: themeColor === option }"
+                    :style="getThemeSwatchStyle(option)"
+                    :aria-checked="themeColor === option"
+                    :aria-label="i18n.header.themeColorOptions[option]"
+                    :title="i18n.header.themeColorOptions[option]"
+                    @click="updateThemeColor(option)"
+                >
+                  <span class="theme-color-swatch__dot" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
             <div class="settings-toggle-list settings-toggle-list--plain" :aria-label="i18n.header.viewOptionsLabel">
               <button
                   type="button"
@@ -284,9 +308,11 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { DiffGranularity, SimilarDiffLevel } from '@/types/diff';
 import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
+import { getThemeSwatchStyle, THEME_COLORS, type ThemeColor } from '@/utils/themeColor';
 
 const props = defineProps<{
   diffGranularity: DiffGranularity;
+  themeColor: ThemeColor;
   ignoreSpaces: boolean;
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
@@ -299,6 +325,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:diffGranularity': [value: DiffGranularity];
+  'update:themeColor': [value: ThemeColor];
   'update:ignoreSpaces': [value: boolean];
   'update:ignoreFullHalfWidth': [value: boolean];
   'update:filterLayoutNoise': [value: boolean];
@@ -315,8 +342,10 @@ const isSettingsPanelOpen = ref(false);
 const settingsControlRef = ref<HTMLElement | null>(null);
 const githubRepositoryUrl = 'https://github.com/721806280/doc-diff-vision';
 const similarDiffLevelOptions: SimilarDiffLevel[] = ['strict', 'balanced', 'loose'];
+const themeColorOptions: ThemeColor[] = [...THEME_COLORS];
 const isUsingDefaultSettings = computed(() =>
   props.diffGranularity === DEFAULT_APP_SETTINGS.diffGranularity &&
+  props.themeColor === DEFAULT_APP_SETTINGS.themeColor &&
   props.ignoreSpaces === DEFAULT_APP_SETTINGS.ignoreSpaces &&
   props.ignoreFullHalfWidth === DEFAULT_APP_SETTINGS.ignoreFullHalfWidth &&
   props.filterLayoutNoise === DEFAULT_APP_SETTINGS.filterLayoutNoise &&
@@ -335,6 +364,10 @@ function updateGranularity(value: DiffGranularity): void {
   emit('update:diffGranularity', value);
 }
 
+function updateThemeColor(value: ThemeColor): void {
+  emit('update:themeColor', value);
+}
+
 function updateSimilarDiffLevel(value: SimilarDiffLevel): void {
   emit('update:similarDiffLevel', value);
 }
@@ -343,6 +376,7 @@ function resetSettings(): void {
   if (isUsingDefaultSettings.value) return;
 
   emit('update:diffGranularity', DEFAULT_APP_SETTINGS.diffGranularity);
+  emit('update:themeColor', DEFAULT_APP_SETTINGS.themeColor);
   emit('update:ignoreSpaces', DEFAULT_APP_SETTINGS.ignoreSpaces);
   emit('update:ignoreFullHalfWidth', DEFAULT_APP_SETTINGS.ignoreFullHalfWidth);
   emit('update:filterLayoutNoise', DEFAULT_APP_SETTINGS.filterLayoutNoise);
@@ -517,6 +551,7 @@ onBeforeUnmount(() => {
 .toolbar-icon-button:focus-visible,
 .granularity-segmented__option:focus-visible,
 .settings-toggle:focus-visible,
+.theme-color-swatch:focus-visible,
 .similar-level-segmented button:focus-visible,
 .settings-reset-button:focus-visible {
   outline: none;
@@ -811,6 +846,99 @@ onBeforeUnmount(() => {
   transform: translateX(13px);
 }
 
+.theme-color-control {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 6px 0 8px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+}
+
+.theme-color-control > span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-color-swatches {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.theme-color-swatch {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.theme-color-swatch:hover {
+  border-color: rgba(var(--theme-rgb), 0.34);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 2px 5px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.theme-color-swatch.active {
+  border-color: rgba(var(--theme-rgb), 0.54);
+  background: rgba(var(--theme-rgb), 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.82), 0 0 0 2px rgba(var(--theme-rgb), 0.12);
+}
+
+.theme-color-swatch::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 4px;
+  border-left: 1.7px solid #ffffff;
+  border-bottom: 1.7px solid #ffffff;
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.32));
+  opacity: 0;
+  transform: translate(-50%, -58%) rotate(-45deg) scale(0.72);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.theme-color-swatch.active::after {
+  opacity: 1;
+  transform: translate(-50%, -58%) rotate(-45deg) scale(1);
+}
+
+.theme-color-swatch__dot {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 4px;
+  background: var(--theme-swatch);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.theme-color-swatch.active .theme-color-swatch__dot {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(var(--theme-rgb), 0.2);
+}
+
 .similar-level-control {
   min-height: 34px;
   display: flex;
@@ -904,6 +1032,9 @@ onBeforeUnmount(() => {
   .granularity-segmented__option,
   .settings-reset-button,
   .settings-toggle,
+  .theme-color-swatch,
+  .theme-color-swatch::after,
+  .theme-color-swatch__dot,
   .similar-level-segmented button,
   .settings-toggle__switch,
   .settings-toggle__switch-thumb {

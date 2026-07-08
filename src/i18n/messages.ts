@@ -67,6 +67,14 @@ const en = {
     filterLayoutNoiseTitle: 'Filter page headers, footers, page numbers, and repeated layout text before comparing.',
     filterLayoutNoise: 'Layout filter',
     viewOptionsLabel: 'View options',
+    themeColorLabel: 'Theme color',
+    themeColorOptions: {
+      indigo: 'Indigo',
+      blue: 'Blue',
+      teal: 'Teal',
+      rose: 'Rose',
+      amber: 'Amber'
+    },
     syncScrollTitle: 'Scroll both documents together by difference position.',
     syncScroll: 'Sync scrolling',
     showTableHintsTitle: 'Show question markers for table structure differences that are hard to verify visually.',
@@ -279,6 +287,14 @@ const zhCN: I18nMessages = {
     filterLayoutNoiseTitle: '比对前过滤正文里的页眉、页脚、页码和重复版面文字',
     filterLayoutNoise: '版面过滤',
     viewOptionsLabel: '查看方式',
+    themeColorLabel: '主题色',
+    themeColorOptions: {
+      indigo: '靛蓝',
+      blue: '蓝色',
+      teal: '青绿',
+      rose: '玫红',
+      amber: '琥珀'
+    },
     syncScrollTitle: '开启后，两侧文档会按差异位置同步滚动，便于长文对照',
     syncScroll: '同步滚动',
     showTableHintsTitle: '显示表格结构差异的问号标记，点击后查看辅助判断提示',

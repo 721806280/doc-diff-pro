@@ -1,7 +1,8 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" :style="themeStyle">
     <AppHeader
         v-model:diff-granularity="diffGranularity"
+        v-model:theme-color="themeColor"
         v-model:ignore-spaces="ignoreSpaces"
         v-model:ignore-full-half-width="ignoreFullHalfWidth"
         v-model:filter-layout-noise="filterLayoutNoise"
@@ -162,6 +163,7 @@ import { parseDocx, type ParsedDocx } from './utils/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
 import { resolveSyncScrollTop, type ScrollAnchor } from './utils/scrollSync';
+import { getThemeStyle, type ThemeColor } from './utils/themeColor';
 import {
   activeReviewCount,
   activeReviewPosition,
@@ -231,6 +233,7 @@ const similarDiffPanelOpen = ref(false);
 const activeTableHint = ref<DiffTableContextHint | null>(null);
 const tableHintPanelOpen = ref(false);
 const initialSettings = readSavedAppSettings();
+const themeColor = ref<ThemeColor>(initialSettings.themeColor);
 const syncScroll = ref(initialSettings.syncScroll);
 const showTableHints = ref(initialSettings.showTableHints);
 const enableDiffIgnore = ref(initialSettings.enableDiffIgnore);
@@ -319,6 +322,7 @@ const tableHintMessageText = computed(() => activeTableHint.value
     ? formatTableHintMessage(activeTableHint.value)
     : ''
 );
+const themeStyle = computed(() => getThemeStyle(themeColor.value));
 
 function createEmptyDocumentState(): DocumentState {
   return {
@@ -470,9 +474,10 @@ watch(enableSimilarDiffs, (enabled) => {
   if (!enabled) closeSimilarDiffs();
 });
 
-watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showTableHints, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
+watch([diffGranularity, themeColor, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showTableHints, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
     [
       nextDiffGranularity,
+      nextThemeColor,
       nextIgnoreSpaces,
       nextIgnoreFullHalfWidth,
       nextFilterLayoutNoise,
@@ -485,6 +490,7 @@ watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, sy
 ) => {
   writeSavedAppSettings({
     diffGranularity: nextDiffGranularity,
+    themeColor: nextThemeColor,
     ignoreSpaces: nextIgnoreSpaces,
     ignoreFullHalfWidth: nextIgnoreFullHalfWidth,
     filterLayoutNoise: nextFilterLayoutNoise,
