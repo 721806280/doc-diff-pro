@@ -186,6 +186,7 @@ const en = {
     unignoreHere: 'Unignore',
     unignoreHereTitle: 'Restore this temporarily ignored difference.',
     locateIgnored: 'Locate',
+    similarDiffsLabel: 'Similar',
     similarDiffs(count: number): string {
       return `Similar ${count}`;
     },
@@ -397,6 +398,7 @@ const zhCN: I18nMessages = {
     unignoreHere: '取消忽略',
     unignoreHereTitle: '恢复此处临时忽略的差异',
     locateIgnored: '定位',
+    similarDiffsLabel: '相似项',
     similarDiffs(count: number): string {
       return `相似项 ${count}`;
     },

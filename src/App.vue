@@ -883,8 +883,15 @@ function updateDiffActionPosition(): void {
 
   diffActionPosition.value = {
     top: clampNumber(rect.top, 46, window.innerHeight - 12),
-    left: clampNumber(rect.left + (rect.width / 2), 74, window.innerWidth - 74)
+    left: clampDiffActionLeft(rect.left + (rect.width / 2))
   };
+}
+
+function clampDiffActionLeft(value: number): number {
+  const edgeOffset = window.innerWidth <= 520 ? 96 : 132;
+  if (window.innerWidth <= edgeOffset * 2) return window.innerWidth / 2;
+
+  return clampNumber(value, edgeOffset, window.innerWidth - edgeOffset);
 }
 
 function selectDiffActionTarget(): HTMLElement | null {

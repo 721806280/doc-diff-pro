@@ -7,10 +7,16 @@
           :class="{ ignored }"
           :style="{ top: `${top}px`, left: `${left}px` }"
       >
-        <span class="diff-action-popover__label">{{ label }}</span>
+        <span class="diff-action-popover__rail" aria-hidden="true"></span>
+        <span class="diff-action-popover__label">
+          <span class="diff-action-popover__label-dot" aria-hidden="true"></span>
+          {{ label }}
+        </span>
         <button
             type="button"
+            class="diff-action-popover__button diff-action-popover__button--main"
             :title="ignored ? i18n.diffNavigator.unignoreHereTitle : i18n.diffNavigator.ignoreHereTitle"
+            :aria-label="ignored ? i18n.diffNavigator.unignoreHereTitle : i18n.diffNavigator.ignoreHereTitle"
             @click="handleAction"
         >
           <span class="diff-action-popover__icon" aria-hidden="true">
@@ -25,13 +31,14 @@
               <path d="M7 5l10 14"></path>
             </svg>
           </span>
-          <span>{{ ignored ? i18n.diffNavigator.unignoreHere : i18n.diffNavigator.ignoreHere }}</span>
+          <span class="diff-action-popover__button-text">{{ ignored ? i18n.diffNavigator.unignoreHere : i18n.diffNavigator.ignoreHere }}</span>
         </button>
         <button
             v-if="!ignored && similarCount > 0"
             type="button"
-            class="diff-action-popover__similar"
+            class="diff-action-popover__button diff-action-popover__button--similar"
             :title="i18n.diffNavigator.similarDiffsTitle(similarCount)"
+            :aria-label="i18n.diffNavigator.similarDiffsTitle(similarCount)"
             @click="$emit('showSimilar')"
         >
           <span class="diff-action-popover__icon" aria-hidden="true">
@@ -41,7 +48,8 @@
               <path d="M5 5l14 14"></path>
             </svg>
           </span>
-          <span>{{ i18n.diffNavigator.similarDiffs(similarCount) }}</span>
+          <span class="diff-action-popover__button-text">{{ i18n.diffNavigator.similarDiffsLabel }}</span>
+          <span class="diff-action-popover__count">{{ similarCount }}</span>
         </button>
       </div>
     </transition>
@@ -84,18 +92,18 @@ function handleAction(): void {
   z-index: var(--z-diff-action-popover);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 31px;
-  max-width: calc(100vw - 18px);
-  padding: 4px 5px 4px 9px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  gap: 5px;
+  min-height: 34px;
+  max-width: min(328px, calc(100vw - 18px));
+  padding: 4px 5px;
+  border: 1px solid rgba(203, 213, 225, 0.72);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.97);
-  color: #334155;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  transform: translate(-50%, calc(-100% - 10px));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  color: #1e293b;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.13), 0 1px 2px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: translate(-50%, calc(-100% - 9px));
 }
 
 .diff-action-popover::after {
@@ -105,79 +113,138 @@ function handleAction(): void {
   bottom: -5px;
   width: 8px;
   height: 8px;
-  border-right: 1px solid rgba(148, 163, 184, 0.22);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(255, 255, 255, 0.97);
+  border-right: 1px solid rgba(203, 213, 225, 0.72);
+  border-bottom: 1px solid rgba(203, 213, 225, 0.72);
+  background: rgba(248, 250, 252, 0.98);
   transform: translateX(-50%) rotate(45deg);
 }
 
 .diff-action-popover.ignored {
-  border-color: rgba(100, 116, 139, 0.24);
-  background: rgba(248, 250, 252, 0.98);
+  border-color: rgba(165, 180, 252, 0.62);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(238, 242, 255, 0.96));
+}
+
+.diff-action-popover__rail {
+  align-self: stretch;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f59e0b, #ef4444);
+}
+
+.diff-action-popover.ignored .diff-action-popover__rail {
+  background: linear-gradient(180deg, #6366f1, #0f766e);
 }
 
 .diff-action-popover__label {
-  min-width: 0;
-  color: #64748b;
-  font-family: 'SF Mono', 'Monaco', monospace;
-  font-size: 0.66rem;
-  font-weight: 750;
-  white-space: nowrap;
-}
-
-.diff-action-popover button {
-  position: relative;
-  z-index: 1;
-  min-height: 23px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
+  height: 24px;
   padding: 0 7px;
-  border: 1px solid rgba(217, 119, 6, 0.22);
   border-radius: 6px;
-  background: rgba(255, 251, 235, 0.82);
-  color: #92400e;
+  background: rgba(241, 245, 249, 0.86);
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 760;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.diff-action-popover__label-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.diff-action-popover__button {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   font-family: inherit;
   font-size: 0.68rem;
   font-weight: 750;
+  line-height: 1;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.diff-action-popover__similar {
-  border-color: rgba(79, 70, 229, 0.18) !important;
-  background: rgba(238, 242, 255, 0.82) !important;
-  color: #4338ca !important;
+.diff-action-popover__button--main {
+  border-color: rgba(217, 119, 6, 0.26);
+  background: rgba(255, 247, 237, 0.92);
+  color: #92400e;
 }
 
-.diff-action-popover.ignored button {
+.diff-action-popover__button--similar {
+  gap: 4px;
+  padding-right: 5px;
   border-color: rgba(79, 70, 229, 0.18);
-  background: rgba(238, 242, 255, 0.84);
+  background: rgba(238, 242, 255, 0.68);
   color: #4338ca;
 }
 
-.diff-action-popover button:hover {
-  border-color: rgba(217, 119, 6, 0.34);
-  background: rgba(254, 243, 199, 0.98);
+.diff-action-popover.ignored .diff-action-popover__button--main {
+  border-color: rgba(79, 70, 229, 0.22);
+  background: rgba(238, 242, 255, 0.86);
+  color: #4338ca;
 }
 
-.diff-action-popover__similar:hover {
-  border-color: rgba(79, 70, 229, 0.28) !important;
-  background: rgba(224, 231, 255, 0.92) !important;
+.diff-action-popover__button:hover {
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.02);
 }
 
-.diff-action-popover.ignored button:hover {
+.diff-action-popover__button--main:hover {
+  border-color: rgba(217, 119, 6, 0.38);
+  background: rgba(254, 243, 199, 0.96);
+}
+
+.diff-action-popover__button--similar:hover,
+.diff-action-popover.ignored .diff-action-popover__button--main:hover {
   border-color: rgba(79, 70, 229, 0.28);
   background: rgba(224, 231, 255, 0.92);
 }
 
-.diff-action-popover button:focus-visible {
+.diff-action-popover__button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }
 
-.diff-action-popover.ignored button:focus-visible {
+.diff-action-popover__button--similar:focus-visible,
+.diff-action-popover.ignored .diff-action-popover__button--main:focus-visible {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.16);
+}
+
+.diff-action-popover__button-text {
+  min-width: 0;
+}
+
+.diff-action-popover__count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(79, 70, 229, 0.12);
+  color: #3730a3;
+  font-size: 0.61rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.diff-action-popover__button--similar:hover .diff-action-popover__count {
+  background: rgba(79, 70, 229, 0.18);
 }
 
 .diff-action-popover__icon {
@@ -201,14 +268,15 @@ function handleAction(): void {
 .diff-action-popover-enter-from,
 .diff-action-popover-leave-to {
   opacity: 0;
-  transform: translate(-50%, calc(-100% - 4px));
+  transform: translate(-50%, calc(-100% - 5px));
 }
 
 @media (max-width: 520px) {
   .diff-action-popover {
     gap: 5px;
-    min-height: 30px;
-    padding-left: 7px;
+    min-height: 32px;
+    max-width: calc(100vw - 18px);
+    padding: 4px;
   }
 
   .diff-action-popover__label {
