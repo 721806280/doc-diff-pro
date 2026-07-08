@@ -1,5 +1,5 @@
 <template>
-  <header class="app-toolbar">
+  <header class="app-toolbar" :class="{ 'app-toolbar--settings-open': isSettingsPanelOpen }">
     <div class="brand-zone">
       <div class="brand-logo-glow">
         <svg viewBox="0 0 32 32" fill="none">
@@ -38,7 +38,7 @@
         </svg>
       </button>
 
-      <div class="settings-control">
+      <div class="settings-control" :class="{ 'settings-control--open': isSettingsPanelOpen }">
         <button
             type="button"
             class="toolbar-icon-button settings-trigger"
@@ -205,6 +205,56 @@
                   <span class="settings-toggle__switch-thumb"></span>
                 </span>
               </button>
+              <button
+                  type="button"
+                  class="settings-toggle"
+                  :class="{ active: enableDiffIgnore }"
+                  :title="i18n.header.enableDiffIgnoreTitle"
+                  :aria-pressed="enableDiffIgnore"
+                  @click="$emit('update:enableDiffIgnore', !enableDiffIgnore)"
+              >
+                <span class="settings-toggle__label">{{ i18n.header.enableDiffIgnore }}</span>
+                <span class="settings-toggle__switch" aria-hidden="true">
+                  <span class="settings-toggle__switch-thumb"></span>
+                </span>
+              </button>
+              <template v-if="enableDiffIgnore">
+                <button
+                    type="button"
+                    class="settings-toggle"
+                    :class="{ active: enableSimilarDiffs }"
+                    :title="i18n.header.enableSimilarDiffsTitle"
+                    :aria-pressed="enableSimilarDiffs"
+                    @click="$emit('update:enableSimilarDiffs', !enableSimilarDiffs)"
+                >
+                  <span class="settings-toggle__label">{{ i18n.header.enableSimilarDiffs }}</span>
+                  <span class="settings-toggle__switch" aria-hidden="true">
+                    <span class="settings-toggle__switch-thumb"></span>
+                  </span>
+                </button>
+                <div
+                    v-if="enableSimilarDiffs"
+                    class="similar-level-control"
+                    role="radiogroup"
+                    :aria-label="i18n.header.similarDiffLevelLabel"
+                >
+                  <span>{{ i18n.header.similarDiffLevelLabel }}</span>
+                  <div class="similar-level-segmented">
+                    <button
+                        v-for="option in similarDiffLevelOptions"
+                        :key="option"
+                        type="button"
+                        role="radio"
+                        :aria-checked="similarDiffLevel === option"
+                        :class="{ active: similarDiffLevel === option }"
+                        :title="i18n.header.similarDiffLevelTitle[option]"
+                        @click="updateSimilarDiffLevel(option)"
+                    >
+                      {{ i18n.header.similarDiffLevel[option] }}
+                    </button>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -230,9 +280,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
-import type { DiffGranularity } from '@/types/diff';
+import type { DiffGranularity, SimilarDiffLevel } from '@/types/diff';
 import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
 
 const props = defineProps<{
@@ -242,6 +292,9 @@ const props = defineProps<{
   filterLayoutNoise: boolean;
   syncScroll: boolean;
   showTableHints: boolean;
+  enableDiffIgnore: boolean;
+  enableSimilarDiffs: boolean;
+  similarDiffLevel: SimilarDiffLevel;
 }>();
 
 const emit = defineEmits<{
@@ -251,23 +304,39 @@ const emit = defineEmits<{
   'update:filterLayoutNoise': [value: boolean];
   'update:syncScroll': [value: boolean];
   'update:showTableHints': [value: boolean];
+  'update:enableDiffIgnore': [value: boolean];
+  'update:enableSimilarDiffs': [value: boolean];
+  'update:similarDiffLevel': [value: SimilarDiffLevel];
+  'settings-open-change': [value: boolean];
 }>();
 
 const { locale, messages: i18n, setLocale } = useI18n();
 const isSettingsPanelOpen = ref(false);
 const settingsControlRef = ref<HTMLElement | null>(null);
 const githubRepositoryUrl = 'https://github.com/721806280/doc-diff-vision';
+const similarDiffLevelOptions: SimilarDiffLevel[] = ['strict', 'balanced', 'loose'];
 const isUsingDefaultSettings = computed(() =>
   props.diffGranularity === DEFAULT_APP_SETTINGS.diffGranularity &&
   props.ignoreSpaces === DEFAULT_APP_SETTINGS.ignoreSpaces &&
   props.ignoreFullHalfWidth === DEFAULT_APP_SETTINGS.ignoreFullHalfWidth &&
   props.filterLayoutNoise === DEFAULT_APP_SETTINGS.filterLayoutNoise &&
   props.syncScroll === DEFAULT_APP_SETTINGS.syncScroll &&
-  props.showTableHints === DEFAULT_APP_SETTINGS.showTableHints
+  props.showTableHints === DEFAULT_APP_SETTINGS.showTableHints &&
+  props.enableDiffIgnore === DEFAULT_APP_SETTINGS.enableDiffIgnore &&
+  props.enableSimilarDiffs === DEFAULT_APP_SETTINGS.enableSimilarDiffs &&
+  props.similarDiffLevel === DEFAULT_APP_SETTINGS.similarDiffLevel
 );
+
+watch(isSettingsPanelOpen, (open) => {
+  emit('settings-open-change', open);
+});
 
 function updateGranularity(value: DiffGranularity): void {
   emit('update:diffGranularity', value);
+}
+
+function updateSimilarDiffLevel(value: SimilarDiffLevel): void {
+  emit('update:similarDiffLevel', value);
 }
 
 function resetSettings(): void {
@@ -279,6 +348,9 @@ function resetSettings(): void {
   emit('update:filterLayoutNoise', DEFAULT_APP_SETTINGS.filterLayoutNoise);
   emit('update:syncScroll', DEFAULT_APP_SETTINGS.syncScroll);
   emit('update:showTableHints', DEFAULT_APP_SETTINGS.showTableHints);
+  emit('update:enableDiffIgnore', DEFAULT_APP_SETTINGS.enableDiffIgnore);
+  emit('update:enableSimilarDiffs', DEFAULT_APP_SETTINGS.enableSimilarDiffs);
+  emit('update:similarDiffLevel', DEFAULT_APP_SETTINGS.similarDiffLevel);
 }
 
 function toggleLocale(): void {
@@ -337,6 +409,10 @@ onBeforeUnmount(() => {
   z-index: 10;
 }
 
+.app-toolbar--settings-open {
+  z-index: var(--z-settings-popover);
+}
+
 .brand-zone {
   display: flex;
   align-items: center;
@@ -391,6 +467,10 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
+.settings-control--open {
+  z-index: var(--z-settings-popover);
+}
+
 .toolbar-icon-button {
   position: relative;
   width: 32px;
@@ -437,6 +517,7 @@ onBeforeUnmount(() => {
 .toolbar-icon-button:focus-visible,
 .granularity-segmented__option:focus-visible,
 .settings-toggle:focus-visible,
+.similar-level-segmented button:focus-visible,
 .settings-reset-button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--accent-glow);
@@ -514,7 +595,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  z-index: 40;
+  z-index: var(--z-settings-popover);
   width: min(286px, calc(100vw - 24px));
   display: grid;
   gap: 12px;
@@ -730,6 +811,62 @@ onBeforeUnmount(() => {
   transform: translateX(13px);
 }
 
+.similar-level-control {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 6px 0 8px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+}
+
+.similar-level-control > span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.similar-level-segmented {
+  flex: 0 0 140px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.similar-level-segmented button {
+  min-width: 0;
+  height: 25px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.similar-level-segmented button:hover {
+  color: var(--text-primary);
+}
+
+.similar-level-segmented button.active {
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--accent);
+}
+
 @media (max-width: 820px) {
   .app-toolbar {
     display: grid;
@@ -767,6 +904,7 @@ onBeforeUnmount(() => {
   .granularity-segmented__option,
   .settings-reset-button,
   .settings-toggle,
+  .similar-level-segmented button,
   .settings-toggle__switch,
   .settings-toggle__switch-thumb {
     transition: none !important;

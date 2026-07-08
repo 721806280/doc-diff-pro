@@ -445,6 +445,12 @@ defineExpose({ viewport });
 .docx-render-content :deep(ins.focus-diff), .docx-render-content :deep(del.focus-diff) { font-weight: 600; border-bottom: none; border-radius: 4px; }
 .docx-render-content :deep(ins.focus-diff) { background: rgba(var(--ins-rgb), 0.24) !important; box-shadow: 0 0 0 2px var(--ins-focus), 0 4px 16px rgba(var(--ins-rgb), 0.3); }
 .docx-render-content :deep(del.focus-diff) { background: rgba(var(--del-rgb), 0.22) !important; box-shadow: 0 0 0 2px var(--del-focus), 0 4px 16px rgba(var(--del-rgb), 0.3); }
+.docx-render-content :deep(ins.ignored-diff), .docx-render-content :deep(del.ignored-diff) {
+  opacity: 0.46; color: #64748b !important; background: rgba(241, 245, 249, 0.66) !important; border-bottom-color: rgba(100, 116, 139, 0.22) !important; box-shadow: none !important;
+}
+.docx-render-content :deep(ins.ignored-diff.focus-diff), .docx-render-content :deep(del.ignored-diff.focus-diff) {
+  opacity: 0.76; box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.38), 0 4px 12px rgba(15, 23, 42, 0.1) !important;
+}
 
 .docx-render-content :deep(ins.table-structure-diff), .docx-render-content :deep(del.table-structure-diff) {
   position: relative; background: rgba(255, 251, 235, 0.86) !important; color: #78350f; border-bottom: 2px solid rgba(217, 119, 6, 0.72); cursor: pointer;

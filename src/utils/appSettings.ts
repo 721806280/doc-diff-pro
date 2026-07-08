@@ -1,7 +1,8 @@
-import type { DiffGranularity } from '@/types/diff';
+import type { DiffGranularity, SimilarDiffLevel } from '@/types/diff';
 
 const STORAGE_KEY = 'doc-diff-settings';
 const DIFF_GRANULARITIES: readonly DiffGranularity[] = ['semantic', 'word', 'char'];
+const SIMILAR_DIFF_LEVELS: readonly SimilarDiffLevel[] = ['strict', 'balanced', 'loose'];
 
 export type AppSettings = {
   diffGranularity: DiffGranularity;
@@ -10,6 +11,9 @@ export type AppSettings = {
   filterLayoutNoise: boolean;
   syncScroll: boolean;
   showTableHints: boolean;
+  enableDiffIgnore: boolean;
+  enableSimilarDiffs: boolean;
+  similarDiffLevel: SimilarDiffLevel;
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -18,7 +22,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   ignoreFullHalfWidth: true,
   filterLayoutNoise: false,
   syncScroll: true,
-  showTableHints: false
+  showTableHints: false,
+  enableDiffIgnore: true,
+  enableSimilarDiffs: true,
+  similarDiffLevel: 'balanced'
 };
 
 export function readSavedAppSettings(): AppSettings {
@@ -67,7 +74,16 @@ function normalizeAppSettings(value: unknown): AppSettings {
       : DEFAULT_APP_SETTINGS.syncScroll,
     showTableHints: typeof value.showTableHints === 'boolean'
       ? value.showTableHints
-      : DEFAULT_APP_SETTINGS.showTableHints
+      : DEFAULT_APP_SETTINGS.showTableHints,
+    enableDiffIgnore: typeof value.enableDiffIgnore === 'boolean'
+      ? value.enableDiffIgnore
+      : DEFAULT_APP_SETTINGS.enableDiffIgnore,
+    enableSimilarDiffs: typeof value.enableSimilarDiffs === 'boolean'
+      ? value.enableSimilarDiffs
+      : DEFAULT_APP_SETTINGS.enableSimilarDiffs,
+    similarDiffLevel: isSimilarDiffLevel(value.similarDiffLevel)
+      ? value.similarDiffLevel
+      : DEFAULT_APP_SETTINGS.similarDiffLevel
   };
 }
 
@@ -82,4 +98,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isDiffGranularity(value: unknown): value is DiffGranularity {
   return typeof value === 'string' && DIFF_GRANULARITIES.includes(value as DiffGranularity);
+}
+
+function isSimilarDiffLevel(value: unknown): value is SimilarDiffLevel {
+  return typeof value === 'string' && SIMILAR_DIFF_LEVELS.includes(value as SimilarDiffLevel);
 }

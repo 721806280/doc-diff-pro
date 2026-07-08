@@ -5,8 +5,15 @@
         <span class="summary-chip similarity" :title="i18n.diffNavigator.similarityTitle">
           {{ i18n.diffNavigator.similarity }} <strong>{{ similarityPercent }}</strong>
         </span>
-        <span class="summary-chip total" :class="{ clean: summary.total === 0, alert: summary.total > 0 }">
-          {{ summary.total === 0 ? i18n.diffNavigator.noDiffsTag : i18n.diffNavigator.differenceCount(summary.total) }}
+        <span
+            class="summary-chip total"
+            :class="{
+              clean: summary.total === 0,
+              muted: summary.total > 0 && activeDiffCount === 0,
+              alert: activeDiffCount > 0
+            }"
+        >
+          {{ diffCountLabel }}
         </span>
         <template v-if="summary.total > 0">
           <span class="summary-chip modified">{{ i18n.diffNavigator.modified }} <strong>{{ summary.modified }}</strong></span>
@@ -24,22 +31,34 @@
         >
           {{ i18n.diffNavigator.layoutNoiseFiltered(summary.layoutNoiseFiltered) }}
         </button>
+        <button
+            v-if="ignoredDiffCount > 0"
+            type="button"
+            class="summary-chip ignored"
+            :class="{ active: ignoredListOpen }"
+            :title="i18n.diffNavigator.ignoredDetailsTitle"
+            :aria-expanded="ignoredListOpen"
+            aria-haspopup="dialog"
+            @click="toggleIgnoredList"
+        >
+          {{ i18n.diffNavigator.ignoredDiffs(ignoredDiffCount) }}
+        </button>
       </div>
     </div>
 
-    <div v-if="summary.total > 0" class="navigator-controls">
+    <div v-if="summary.total > 0 && activeDiffCount > 0" class="navigator-controls">
       <div
           class="diff-progress"
           role="progressbar"
-          :aria-label="i18n.diffNavigator.currentPositionAria(currentDiffIndex, summary.total)"
+          :aria-label="i18n.diffNavigator.currentPositionAria(activeDiffIndex, activeDiffCount)"
           :aria-valuemin="1"
-          :aria-valuemax="summary.total"
-          :aria-valuenow="currentDiffIndex"
+          :aria-valuemax="activeDiffCount"
+          :aria-valuenow="activeDiffIndex"
       >
         <div class="diff-progress-meta">
           <span class="diff-progress-index">
             <span class="diff-progress-label">{{ i18n.diffNavigator.difference }}</span>
-            <span class="diff-progress-count">{{ currentDiffIndex }}<span class="slash">/</span>{{ summary.total }}</span>
+            <span class="diff-progress-count">{{ activeDiffIndex }}<span class="slash">/</span>{{ activeDiffCount }}</span>
           </span>
           <strong>{{ progressPercent }}%</strong>
         </div>
@@ -52,7 +71,7 @@
         <button
             class="btn-action-nav btn-action-nav--previous"
             @click="$emit('previous')"
-            :disabled="currentDiffIndex <= 1"
+            :disabled="!canPrevious"
         >
           <span class="btn-action-nav__icon" aria-hidden="true">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
@@ -64,7 +83,7 @@
         <button
             class="btn-action-nav btn-action-nav--next"
             @click="$emit('next')"
-            :disabled="currentDiffIndex >= summary.total"
+            :disabled="!canNext"
         >
           <span class="btn-action-nav__label">{{ i18n.diffNavigator.next }}</span>
           <span class="btn-action-nav__icon" aria-hidden="true">
@@ -75,7 +94,22 @@
         </button>
       </div>
     </div>
+    <div v-else-if="summary.total > 0" class="ignored-empty">
+      <span>{{ i18n.diffNavigator.allDiffsIgnored }}</span>
+      <button type="button" @click="$emit('restoreAllIgnored')">
+        {{ i18n.diffNavigator.restoreIgnored }}
+      </button>
+    </div>
   </div>
+
+  <IgnoredDiffModal
+      :open="ignoredListOpen"
+      :items="ignoredDiffs"
+      @close="closeIgnoredList"
+      @locate="handleLocateIgnored"
+      @restore="handleRestoreIgnored"
+      @restore-all="handleRestoreAll"
+  />
 
   <LayoutNoiseModal
       :open="layoutNoiseOpen"
@@ -87,21 +121,31 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import IgnoredDiffModal from '@/components/IgnoredDiffModal.vue';
 import LayoutNoiseModal from '@/components/LayoutNoiseModal.vue';
 import { useI18n } from '@/i18n';
-import type { DiffSummary } from '@/types/diff';
+import type { DiffSummary, IgnoredDiffItem } from '@/types/diff';
 
 const props = defineProps<{
   summary: DiffSummary;
-  currentDiffIndex: number;
+  activeDiffCount: number;
+  activeDiffIndex: number;
+  ignoredDiffCount: number;
+  ignoredDiffs: IgnoredDiffItem[];
+  canPrevious: boolean;
+  canNext: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   previous: [];
   next: [];
+  locateIgnored: [id: string];
+  restoreIgnored: [id: string];
+  restoreAllIgnored: [];
 }>();
 
 const layoutNoiseOpen = ref(false);
+const ignoredListOpen = ref(false);
 const { locale, messages: i18n } = useI18n();
 
 const percentFormatter = computed(() => new Intl.NumberFormat(locale.value, {
@@ -111,15 +155,25 @@ const percentFormatter = computed(() => new Intl.NumberFormat(locale.value, {
 }));
 
 const progressPercent = computed(() => {
-  if (props.summary.total <= 0) return 0;
-  return Math.round((props.currentDiffIndex / props.summary.total) * 100);
+  if (props.activeDiffCount <= 0) return 0;
+  return Math.round((props.activeDiffIndex / props.activeDiffCount) * 100);
 });
 
 const progressWidth = computed(() => `${progressPercent.value}%`);
 const similarityPercent = computed(() => percentFormatter.value.format(props.summary.similarity));
+const diffCountLabel = computed(() => {
+  if (props.summary.total === 0) return i18n.value.diffNavigator.noDiffsTag;
+  if (props.ignoredDiffCount === 0) return i18n.value.diffNavigator.differenceCount(props.summary.total);
+
+  return i18n.value.diffNavigator.activeDifferenceCount(props.activeDiffCount, props.summary.total);
+});
 
 watch(() => props.summary.layoutNoiseFiltered, (count) => {
   if (count === 0) layoutNoiseOpen.value = false;
+});
+
+watch(() => props.ignoredDiffCount, (count) => {
+  if (count === 0) ignoredListOpen.value = false;
 });
 
 function toggleLayoutNoise(): void {
@@ -128,6 +182,27 @@ function toggleLayoutNoise(): void {
 
 function closeLayoutNoise(): void {
   layoutNoiseOpen.value = false;
+}
+
+function toggleIgnoredList(): void {
+  ignoredListOpen.value = !ignoredListOpen.value;
+}
+
+function closeIgnoredList(): void {
+  ignoredListOpen.value = false;
+}
+
+function handleLocateIgnored(id: string): void {
+  emit('locateIgnored', id);
+  ignoredListOpen.value = false;
+}
+
+function handleRestoreIgnored(id: string): void {
+  emit('restoreIgnored', id);
+}
+
+function handleRestoreAll(): void {
+  emit('restoreAllIgnored');
 }
 </script>
 
@@ -191,12 +266,15 @@ button.summary-chip {
 }
 
 .summary-chip.total.alert { color: #1d4ed8; border-color: rgba(37, 99, 235, 0.24); background: rgba(37, 99, 235, 0.08); }
+.summary-chip.total.muted { color: #64748b; border-color: rgba(100, 116, 139, 0.16); background: rgba(241, 245, 249, 0.8); }
 .summary-chip.total.clean, .summary-chip.inserted { color: var(--ins-text); border-color: var(--ins-border); background: rgba(var(--ins-rgb), 0.08); }
 .summary-chip.modified { color: #6d28d9; border-color: rgba(109, 40, 217, 0.2); background: rgba(109, 40, 217, 0.08); }
 .summary-chip.deleted { color: var(--del-text); border-color: var(--del-border); background: rgba(var(--del-rgb), 0.08); }
 .summary-chip.similarity { color: #0f766e; border-color: rgba(15, 118, 110, 0.22); background: rgba(15, 118, 110, 0.08); }
 .summary-chip.layout-noise { color: #a16207; border-color: rgba(217, 119, 6, 0.24); background: rgba(245, 158, 11, 0.1); }
 .summary-chip.layout-noise.active { color: #92400e; border-color: rgba(217, 119, 6, 0.34); background: rgba(245, 158, 11, 0.16); }
+.summary-chip.ignored { color: #64748b; border-color: rgba(100, 116, 139, 0.18); background: rgba(241, 245, 249, 0.82); }
+.summary-chip.ignored:hover, .summary-chip.ignored.active { color: #334155; border-color: rgba(100, 116, 139, 0.28); background: rgba(226, 232, 240, 0.74); }
 
 .diff-progress {
   width: 112px;
@@ -260,7 +338,8 @@ button.summary-chip {
 }
 
 .nav-triggers {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto;
   gap: 6px;
   align-items: center;
 }
@@ -333,6 +412,47 @@ button.summary-chip {
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+.ignored-empty {
+  min-width: min(320px, 100%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.ignored-empty span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ignored-empty button {
+  min-height: 28px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ignored-empty button:hover {
+  border-color: rgba(var(--accent-rgb), 0.24);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.ignored-empty button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
 @media (max-width: 820px) {
   .floating-navigator {
     grid-template-columns: minmax(0, 1fr);
@@ -351,6 +471,10 @@ button.summary-chip {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
+  }
+
+  .ignored-empty {
+    justify-content: space-between;
   }
 
   .btn-action-nav {

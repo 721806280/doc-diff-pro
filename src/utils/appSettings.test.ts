@@ -50,7 +50,10 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: true,
       syncScroll: false,
-      showTableHints: true
+      showTableHints: true,
+      enableDiffIgnore: false,
+      enableSimilarDiffs: false,
+      similarDiffLevel: 'strict'
     }));
 
     expect(readSavedAppSettings()).toEqual({
@@ -59,7 +62,10 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: true,
       syncScroll: false,
-      showTableHints: true
+      showTableHints: true,
+      enableDiffIgnore: false,
+      enableSimilarDiffs: false,
+      similarDiffLevel: 'strict'
     });
   });
 
@@ -70,7 +76,10 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: null,
       syncScroll: true,
-      showTableHints: 'yes'
+      showTableHints: 'yes',
+      enableDiffIgnore: 'sure',
+      enableSimilarDiffs: 1,
+      similarDiffLevel: 'wide'
     }));
 
     expect(readSavedAppSettings()).toEqual({
@@ -79,7 +88,10 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: false,
       syncScroll: true,
-      showTableHints: false
+      showTableHints: false,
+      enableDiffIgnore: true,
+      enableSimilarDiffs: true,
+      similarDiffLevel: 'balanced'
     });
   });
 
@@ -90,7 +102,10 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,
       syncScroll: false,
-      showTableHints: true
+      showTableHints: true,
+      enableDiffIgnore: true,
+      enableSimilarDiffs: false,
+      similarDiffLevel: 'loose'
     });
 
     expect(JSON.parse(storage.getItem('doc-diff-settings') ?? 'null')).toEqual({
@@ -99,7 +114,10 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,
       syncScroll: false,
-      showTableHints: true
+      showTableHints: true,
+      enableDiffIgnore: true,
+      enableSimilarDiffs: false,
+      similarDiffLevel: 'loose'
     });
   });
 

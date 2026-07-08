@@ -64,6 +64,7 @@
 import { onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { LayoutNoiseItem } from '@/types/diff';
+import { createBodyScrollLock } from '@/utils/bodyScrollLock';
 
 const props = defineProps<{
   open: boolean;
@@ -77,9 +78,14 @@ const emit = defineEmits<{
 
 const { messages: i18n } = useI18n();
 const titleId = 'layout-noise-dialog-title';
+const bodyScrollLock = createBodyScrollLock();
 
 watch(() => props.open, (open) => {
-  document.body.style.overflow = open ? 'hidden' : '';
+  if (open) {
+    bodyScrollLock.lock();
+  } else {
+    bodyScrollLock.release();
+  }
 });
 
 function handleWindowKeydown(event: KeyboardEvent): void {
@@ -92,7 +98,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleWindowKeydown);
-  document.body.style.overflow = '';
+  bodyScrollLock.release();
 });
 </script>
 
@@ -100,7 +106,7 @@ onUnmounted(() => {
 .layout-noise-overlay {
   position: fixed;
   inset: 0;
-  z-index: 5000;
+  z-index: var(--z-modal-overlay);
   display: flex;
   height: 100dvh;
   align-items: center;

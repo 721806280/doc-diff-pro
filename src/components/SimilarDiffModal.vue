@@ -1,0 +1,508 @@
+<template>
+  <Teleport to="body">
+    <transition name="similar-diff-overlay">
+      <div
+          v-if="open && current && items.length > 0"
+          class="similar-diff-overlay"
+          @click.self="emit('close')"
+      >
+        <section
+            class="similar-diff-panel"
+            role="dialog"
+            aria-modal="true"
+            :aria-labelledby="titleId"
+        >
+          <div class="similar-diff-panel__head">
+            <div class="similar-diff-panel__title">
+              <strong :id="titleId">{{ i18n.diffNavigator.similarDetailsTitle }}</strong>
+              <span>{{ i18n.diffNavigator.similarDiffs(items.length) }}</span>
+            </div>
+            <button
+                type="button"
+                class="similar-diff-close"
+                :aria-label="i18n.diffNavigator.closeDetails"
+                :title="i18n.diffNavigator.closeDetails"
+                @click="emit('close')"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="similar-diff-current">
+            <span>{{ i18n.diffNavigator.similarCurrentLabel }}</span>
+            <strong>#{{ current.index }}</strong>
+          </div>
+
+          <ul class="similar-diff-list">
+            <li v-for="item in items" :key="item.id">
+              <label class="similar-diff-check">
+                <input
+                    type="checkbox"
+                    :aria-label="i18n.diffNavigator.selectSimilarDiff(item.index)"
+                    :checked="selectedIds.has(item.id)"
+                    @change="toggleSelected(item.id)"
+                >
+                <span></span>
+              </label>
+              <div class="similar-diff-body">
+                <div class="similar-diff-meta">
+                  <span class="similar-diff-index">#{{ item.index }}</span>
+                  <span class="similar-diff-kind" :class="`kind-${item.kind}`">
+                    {{ i18n.diffNavigator.ignoredDiffKind[item.kind] }}
+                  </span>
+                  <span class="similar-diff-score">{{ percentFormatter.format(item.similarity) }}</span>
+                </div>
+                <div class="similar-diff-preview">
+                  <p>
+                    <span>{{ i18n.diffNavigator.tableHintSides.original }}</span>
+                    <strong>{{ item.originalPreview || i18n.diffNavigator.emptyDiffPreview }}</strong>
+                  </p>
+                  <p>
+                    <span>{{ i18n.diffNavigator.tableHintSides.revised }}</span>
+                    <strong>{{ item.revisedPreview || i18n.diffNavigator.emptyDiffPreview }}</strong>
+                  </p>
+                </div>
+              </div>
+              <button type="button" class="similar-diff-locate" @click="emit('locate', item.id)">
+                {{ i18n.diffNavigator.locateIgnored }}
+              </button>
+            </li>
+          </ul>
+
+          <div class="similar-diff-footer">
+            <button type="button" class="secondary" @click="selectAll">
+              {{ i18n.diffNavigator.selectAllSimilar }}
+            </button>
+            <button type="button" class="secondary" @click="clearSelected">
+              {{ i18n.diffNavigator.clearSimilarSelection }}
+            </button>
+            <button
+                type="button"
+                class="primary"
+                :disabled="selectedIds.size === 0"
+                @click="emit('ignoreSelected', Array.from(selectedIds))"
+            >
+              {{ i18n.diffNavigator.ignoreSelectedSimilar(selectedIds.size) }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </transition>
+  </Teleport>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from '@/i18n';
+import type { IgnoredDiffItem, SimilarDiffItem } from '@/types/diff';
+import { createBodyScrollLock } from '@/utils/bodyScrollLock';
+
+const props = defineProps<{
+  open: boolean;
+  current: IgnoredDiffItem | null;
+  items: SimilarDiffItem[];
+}>();
+
+const emit = defineEmits<{
+  close: [];
+  locate: [id: string];
+  ignoreSelected: [ids: string[]];
+}>();
+
+const { locale, messages: i18n } = useI18n();
+const titleId = 'similar-diff-dialog-title';
+const selectedIds = ref<Set<string>>(new Set());
+const bodyScrollLock = createBodyScrollLock();
+const percentFormatter = computed(() => new Intl.NumberFormat(locale.value, {
+  style: 'percent',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0
+}));
+
+watch(
+  () => [props.open, props.items.map((item) => item.id).join('\u0000')] as const,
+  ([open]) => {
+    selectedIds.value = open ? new Set(props.items.map((item) => item.id)) : new Set();
+  },
+  { immediate: true }
+);
+
+watch(() => props.open, (open) => {
+  if (open) {
+    bodyScrollLock.lock();
+  } else {
+    bodyScrollLock.release();
+  }
+});
+
+function toggleSelected(id: string): void {
+  const nextSelectedIds = new Set(selectedIds.value);
+  if (nextSelectedIds.has(id)) {
+    nextSelectedIds.delete(id);
+  } else {
+    nextSelectedIds.add(id);
+  }
+  selectedIds.value = nextSelectedIds;
+}
+
+function selectAll(): void {
+  selectedIds.value = new Set(props.items.map((item) => item.id));
+}
+
+function clearSelected(): void {
+  selectedIds.value = new Set();
+}
+
+function handleWindowKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && props.open) emit('close');
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleWindowKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleWindowKeydown);
+  bodyScrollLock.release();
+});
+</script>
+
+<style scoped>
+.similar-diff-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  overflow-y: auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  background: var(--popup-backdrop);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+}
+
+.similar-diff-panel {
+  --similar-ink: #1e293b;
+  --similar-muted: #64748b;
+  --similar-line: rgba(203, 213, 225, 0.82);
+
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid var(--popup-border);
+  border-radius: var(--popup-radius);
+  background: var(--popup-surface);
+  box-shadow: var(--popup-shadow);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.similar-diff-panel__head {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--similar-line);
+  background: var(--popup-surface-soft);
+}
+
+.similar-diff-panel__title {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.similar-diff-panel__title strong {
+  color: var(--similar-ink);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.similar-diff-panel__title span,
+.similar-diff-current strong {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: #4338ca;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.similar-diff-close {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--popup-control-radius);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--similar-muted);
+  cursor: pointer;
+}
+
+.similar-diff-close:hover {
+  border-color: rgba(15, 23, 42, 0.18);
+  background: #ffffff;
+  color: var(--similar-ink);
+}
+
+.similar-diff-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 14px;
+  color: var(--similar-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.54);
+  background: rgba(248, 250, 252, 0.64);
+}
+
+.similar-diff-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  overflow-y: auto;
+  list-style: none;
+  background: rgba(248, 250, 252, 0.52);
+}
+
+.similar-diff-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: var(--popup-control-radius);
+  background: #ffffff;
+}
+
+.similar-diff-check {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.similar-diff-check input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.similar-diff-check span {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.similar-diff-check input:checked + span {
+  border-color: rgba(79, 70, 229, 0.72);
+  background: #4f46e5;
+  box-shadow: inset 0 0 0 3px #ffffff;
+}
+
+.similar-diff-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.similar-diff-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.similar-diff-index,
+.similar-diff-kind,
+.similar-diff-score {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 750;
+}
+
+.similar-diff-index,
+.similar-diff-score {
+  color: #475569;
+  background: rgba(241, 245, 249, 0.84);
+  font-family: 'SF Mono', 'Monaco', monospace;
+}
+
+.similar-diff-kind.kind-modified { color: #6d28d9; background: rgba(109, 40, 217, 0.07); border-color: rgba(109, 40, 217, 0.15); }
+.similar-diff-kind.kind-inserted { color: #15803d; background: rgba(22, 163, 74, 0.08); border-color: rgba(22, 163, 74, 0.14); }
+.similar-diff-kind.kind-deleted { color: #b91c1c; background: rgba(220, 38, 38, 0.08); border-color: rgba(220, 38, 38, 0.14); }
+
+.similar-diff-preview {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.similar-diff-preview p {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+
+.similar-diff-preview span {
+  color: var(--similar-muted);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.similar-diff-preview strong {
+  min-width: 0;
+  color: #334155;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.similar-diff-locate,
+.similar-diff-footer button {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 6px;
+  background: rgba(248, 250, 252, 0.9);
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.similar-diff-locate:hover,
+.similar-diff-footer button:hover:not(:disabled) {
+  border-color: rgba(79, 70, 229, 0.22);
+  background: #ffffff;
+  color: #4338ca;
+}
+
+.similar-diff-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--similar-line);
+  background: var(--popup-surface-soft);
+}
+
+.similar-diff-footer .primary {
+  border-color: rgba(217, 119, 6, 0.26);
+  background: rgba(255, 251, 235, 0.9);
+  color: #92400e;
+}
+
+.similar-diff-footer .primary:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.similar-diff-close:focus-visible,
+.similar-diff-check input:focus-visible + span,
+.similar-diff-locate:focus-visible,
+.similar-diff-footer button:focus-visible {
+  outline: none;
+  box-shadow: var(--popup-focus-ring);
+}
+
+.similar-diff-overlay-enter-active,
+.similar-diff-overlay-leave-active {
+  transition: opacity var(--popup-motion);
+}
+
+.similar-diff-overlay-enter-from,
+.similar-diff-overlay-leave-to {
+  opacity: 0;
+}
+
+.similar-diff-overlay-enter-active .similar-diff-panel,
+.similar-diff-overlay-leave-active .similar-diff-panel {
+  transition: transform var(--popup-motion), opacity var(--popup-motion);
+}
+
+.similar-diff-overlay-enter-from .similar-diff-panel,
+.similar-diff-overlay-leave-to .similar-diff-panel {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+}
+
+@media (max-width: 720px) {
+  .similar-diff-overlay {
+    align-items: flex-start;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 8px calc(env(safe-area-inset-bottom, 0px) + 8px);
+  }
+
+  .similar-diff-panel {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+
+  .similar-diff-list li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .similar-diff-locate {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 440px) {
+  .similar-diff-footer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .similar-diff-footer .primary {
+    grid-column: 1 / -1;
+  }
+
+  .similar-diff-preview p {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .similar-diff-overlay-enter-active,
+  .similar-diff-overlay-leave-active,
+  .similar-diff-overlay-enter-active .similar-diff-panel,
+  .similar-diff-overlay-leave-active .similar-diff-panel {
+    transition: none !important;
+  }
+}
+</style>

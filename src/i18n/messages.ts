@@ -71,6 +71,21 @@ const en = {
     syncScroll: 'Sync scrolling',
     showTableHintsTitle: 'Show question markers for table structure differences that are hard to verify visually.',
     showTableHints: 'Table hints',
+    enableDiffIgnoreTitle: 'Show temporary ignore actions near the current difference.',
+    enableDiffIgnore: 'Temporary ignore',
+    enableSimilarDiffsTitle: 'Recommend similar differences for optional batch ignore.',
+    enableSimilarDiffs: 'Similar suggestions',
+    similarDiffLevelLabel: 'Match threshold',
+    similarDiffLevel: {
+      strict: 'Strict',
+      balanced: 'Balanced',
+      loose: 'Loose'
+    },
+    similarDiffLevelTitle: {
+      strict: 'Match at 86% or above. Fewer candidates with lower false positives.',
+      balanced: 'Match at 72% or above. Balanced candidate coverage.',
+      loose: 'Match at 62% or above. More candidates that need closer review.'
+    },
     githubLabel: 'Open GitHub repository',
     languageLabel: 'Interface language',
     english: 'EN',
@@ -102,6 +117,9 @@ const en = {
     noDiffsTag: 'No differences',
     differenceCount(count: number): string {
       return count === 1 ? '1 diff' : `${count} diffs`;
+    },
+    activeDifferenceCount(active: number, total: number): string {
+      return `${active} / ${total} diffs`;
     },
     similarity: 'Similarity',
     similarityTitle: 'Calculated from edit distance after applying the current normalization settings.',
@@ -153,6 +171,40 @@ const en = {
       return `Current difference: ${current} / ${total}`;
     },
     difference: 'Diff',
+    ignoredDiffs(count: number): string {
+      return `Ignored ${count}`;
+    },
+    ignoredDetailsTitle: 'Ignored differences',
+    ignoredDiffKind: {
+      modified: 'Modified',
+      inserted: 'Added',
+      deleted: 'Deleted'
+    },
+    emptyDiffPreview: 'No content',
+    ignoreHere: 'Ignore here',
+    ignoreHereTitle: 'Temporarily hide this difference from navigation.',
+    unignoreHere: 'Unignore',
+    unignoreHereTitle: 'Restore this temporarily ignored difference.',
+    locateIgnored: 'Locate',
+    similarDiffs(count: number): string {
+      return `Similar ${count}`;
+    },
+    similarDiffsTitle(count: number): string {
+      return `Review ${count} similar ${count === 1 ? 'difference' : 'differences'}.`;
+    },
+    similarDetailsTitle: 'Similar differences',
+    similarCurrentLabel: 'Compared with current',
+    selectAllSimilar: 'Select all',
+    clearSimilarSelection: 'Clear',
+    ignoreSelectedSimilar(count: number): string {
+      return count === 0 ? 'Ignore selected' : `Ignore selected ${count}`;
+    },
+    selectSimilarDiff(index: number): string {
+      return `Select similar difference ${index}`;
+    },
+    restoreIgnored: 'Restore all',
+    restoreIgnoredTitle: 'Restore all temporarily ignored differences.',
+    allDiffsIgnored: 'All differences are temporarily ignored.',
     closeDetails: 'Close',
     previous: 'Previous',
     next: 'Next'
@@ -230,6 +282,21 @@ const zhCN: I18nMessages = {
     syncScroll: '同步滚动',
     showTableHintsTitle: '显示表格结构差异的问号标记，点击后查看辅助判断提示',
     showTableHints: '结构标记',
+    enableDiffIgnoreTitle: '在当前差异附近显示临时忽略操作',
+    enableDiffIgnore: '临时忽略',
+    enableSimilarDiffsTitle: '推荐相近差异，确认后可批量临时忽略',
+    enableSimilarDiffs: '相似推荐',
+    similarDiffLevelLabel: '匹配阈值',
+    similarDiffLevel: {
+      strict: '严格',
+      balanced: '均衡',
+      loose: '宽松'
+    },
+    similarDiffLevelTitle: {
+      strict: '匹配度不低于 86%，候选更少，误选风险更低',
+      balanced: '匹配度不低于 72%，候选数量和准确性较均衡',
+      loose: '匹配度不低于 62%，候选更多，需要更仔细确认'
+    },
     githubLabel: '打开 GitHub 仓库',
     languageLabel: '界面语言',
     english: 'EN',
@@ -261,6 +328,9 @@ const zhCN: I18nMessages = {
     noDiffsTag: '无差异',
     differenceCount(count: number): string {
       return `差异 ${count}`;
+    },
+    activeDifferenceCount(active: number, total: number): string {
+      return `差异 ${active}/${total}`;
     },
     similarity: '相似度',
     similarityTitle: '基于当前归一化文本的编辑距离计算',
@@ -312,6 +382,40 @@ const zhCN: I18nMessages = {
       return `当前差异位置：${current} / ${total}`;
     },
     difference: '差异',
+    ignoredDiffs(count: number): string {
+      return `忽略 ${count}`;
+    },
+    ignoredDetailsTitle: '已忽略差异',
+    ignoredDiffKind: {
+      modified: '修改',
+      inserted: '新增',
+      deleted: '删除'
+    },
+    emptyDiffPreview: '无内容',
+    ignoreHere: '忽略此处',
+    ignoreHereTitle: '临时忽略此处差异，不再参与上一处/下一处导航',
+    unignoreHere: '取消忽略',
+    unignoreHereTitle: '恢复此处临时忽略的差异',
+    locateIgnored: '定位',
+    similarDiffs(count: number): string {
+      return `相似项 ${count}`;
+    },
+    similarDiffsTitle(count: number): string {
+      return `查看 ${count} 个相似差异`;
+    },
+    similarDetailsTitle: '相似差异',
+    similarCurrentLabel: '与当前差异对比',
+    selectAllSimilar: '全选',
+    clearSimilarSelection: '清空',
+    ignoreSelectedSimilar(count: number): string {
+      return count === 0 ? '忽略选中' : `忽略选中 ${count}`;
+    },
+    selectSimilarDiff(index: number): string {
+      return `选择相似差异 ${index}`;
+    },
+    restoreIgnored: '恢复全部',
+    restoreIgnoredTitle: '恢复所有临时忽略的差异',
+    allDiffsIgnored: '当前差异已全部临时忽略',
     closeDetails: '关闭',
     previous: '上一处',
     next: '下一处'

@@ -1,5 +1,7 @@
 export type DiffGranularity = 'semantic' | 'word' | 'char';
 
+export type SimilarDiffLevel = 'strict' | 'balanced' | 'loose';
+
 export type DiffOperation = -1 | 0 | 1;
 
 export type DiffTuple = [DiffOperation, string] & { groupId?: string };
@@ -12,6 +14,20 @@ export type DiffSummary = {
   similarity: number;
   layoutNoiseFiltered: number;
   layoutNoiseItems: LayoutNoiseItem[];
+};
+
+export type DiffChangeKind = 'modified' | 'inserted' | 'deleted';
+
+export type IgnoredDiffItem = {
+  id: string;
+  index: number;
+  kind: DiffChangeKind;
+  originalPreview: string;
+  revisedPreview: string;
+};
+
+export type SimilarDiffItem = IgnoredDiffItem & {
+  similarity: number;
 };
 
 export type LayoutNoiseReason = 'hint' | 'page-number' | 'repeated-layout-text';

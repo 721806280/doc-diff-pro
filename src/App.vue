@@ -7,6 +7,10 @@
         v-model:filter-layout-noise="filterLayoutNoise"
         v-model:sync-scroll="syncScroll"
         v-model:show-table-hints="showTableHints"
+        v-model:enable-diff-ignore="enableDiffIgnore"
+        v-model:enable-similar-diffs="enableSimilarDiffs"
+        v-model:similar-diff-level="similarDiffLevel"
+        @settings-open-change="handleSettingsPanelOpenChange"
     />
 
     <CompareToast :message="compareNotice" :comparing="comparing" />
@@ -19,9 +23,17 @@
     <DiffNavigator
         v-if="hasResult"
         :summary="diffSummary"
-        :current-diff-index="currentDiffIndex"
+        :active-diff-count="activeDiffCount"
+        :active-diff-index="activeDiffIndex"
+        :ignored-diff-count="ignoredDiffCount"
+        :ignored-diffs="ignoredDiffList"
+        :can-previous="canPreviousDiff"
+        :can-next="canNextDiff"
         @previous="prevDiff"
         @next="nextDiff"
+        @locate-ignored="locateIgnoredDiff"
+        @restore-ignored="restoreIgnoredDiff"
+        @restore-all-ignored="restoreIgnoredDiffs"
     />
 
     <div class="workspace-container">
@@ -78,6 +90,27 @@
       />
     </div>
 
+    <DiffActionPopover
+        :open="diffActionOpen"
+        :top="diffActionPosition?.top ?? 0"
+        :left="diffActionPosition?.left ?? 0"
+        :label="diffActionLabel"
+        :ignored="currentDiffIgnored"
+        :similar-count="similarDiffs.length"
+        @ignore="ignoreCurrentDiff"
+        @restore="restoreCurrentDiff"
+        @show-similar="openSimilarDiffs"
+    />
+
+    <SimilarDiffModal
+        :open="similarDiffPanelOpen"
+        :current="currentDiffItem"
+        :items="similarDiffs"
+        @close="closeSimilarDiffs"
+        @locate="locateSimilarDiff"
+        @ignore-selected="ignoreSimilarDiffs"
+    />
+
     <transition name="table-hint-tip">
       <div
           v-if="tableHintPanelOpen && activeTableHint"
@@ -111,9 +144,11 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { useI18n } from '@/i18n';
 import AppHeader from './components/AppHeader.vue';
 import CompareToast from './components/CompareToast.vue';
+import DiffActionPopover from './components/DiffActionPopover.vue';
 import DiffNavigator from './components/DiffNavigator.vue';
 import DocumentPane from './components/DocumentPane.vue';
-import type { DiffGranularity, DiffSummary, DiffTableContextHint } from './types/diff';
+import SimilarDiffModal from './components/SimilarDiffModal.vue';
+import type { DiffGranularity, DiffSummary, DiffTableContextHint, IgnoredDiffItem, SimilarDiffLevel } from './types/diff';
 import {
   buildDiffElementIndex,
   DIFF_ELEMENT_SELECTOR,
@@ -126,7 +161,19 @@ import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
 import { parseDocx, type ParsedDocx } from './utils/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
-import { diffId, parseDiffId } from './utils/textDiffCore';
+import {
+  activeReviewCount,
+  activeReviewPosition,
+  clearReviewClass,
+  createReviewItem,
+  diffReviewId,
+  diffReviewIndex,
+  findActiveReviewIndex,
+  findSimilarReviewItems,
+  firstReviewElement,
+  setReviewClass,
+  sortReviewItems
+} from './utils/diffReview';
 
 type PaneKey = 'A' | 'B';
 
@@ -156,6 +203,11 @@ type DocumentState = {
 
 type ErrorKind = 'invalidType' | 'fileTooLarge' | 'emptyFile' | 'parseFailed';
 
+type DiffActionPosition = {
+  top: number;
+  left: number;
+};
+
 const EMPTY_DIFF_SUMMARY: DiffSummary = {
   total: 0,
   inserted: 0,
@@ -177,11 +229,18 @@ const compareError = ref('');
 const hasResult = ref(false);
 const diffSummary = ref<DiffSummary>({ ...EMPTY_DIFF_SUMMARY });
 const currentDiffIndex = ref(0);
+const ignoredDiffs = ref<Map<string, IgnoredDiffItem>>(new Map());
+const diffActionPosition = ref<DiffActionPosition | null>(null);
+const similarDiffPanelOpen = ref(false);
 const activeTableHint = ref<DiffTableContextHint | null>(null);
 const tableHintPanelOpen = ref(false);
 const initialSettings = readSavedAppSettings();
 const syncScroll = ref(initialSettings.syncScroll);
 const showTableHints = ref(initialSettings.showTableHints);
+const enableDiffIgnore = ref(initialSettings.enableDiffIgnore);
+const enableSimilarDiffs = ref(initialSettings.enableSimilarDiffs);
+const similarDiffLevel = ref<SimilarDiffLevel>(initialSettings.similarDiffLevel);
+const settingsPanelOpen = ref(false);
 
 const ignoreSpaces = ref(initialSettings.ignoreSpaces);
 const ignoreFullHalfWidth = ref(initialSettings.ignoreFullHalfWidth);
@@ -201,6 +260,7 @@ let tableHintTimer: number | null = null;
 let resizeTimer: number | null = null;
 let settingsCompareTimer: number | null = null;
 let scrollRaf: number | null = null;
+let diffActionRaf: number | null = null;
 let compareRunId = 0;
 const fileLoadIds: Record<PaneKey, number> = { A: 0, B: 0 };
 const documentErrors = reactive<Partial<Record<PaneKey, { kind: ErrorKind; detail?: string }>>>({});
@@ -208,6 +268,55 @@ const compareErrorDetail = ref('');
 
 const ready = computed(() => documents.A.status === 'ready' && documents.B.status === 'ready');
 const totalDiffs = computed(() => diffSummary.value.total);
+const ignoredDiffIds = computed(() => new Set(ignoredDiffs.value.keys()));
+const ignoredDiffList = computed(() => sortReviewItems(ignoredDiffs.value.values()));
+const ignoredDiffCount = computed(() => ignoredDiffList.value.length);
+const activeDiffCount = computed(() => activeReviewCount(totalDiffs.value, ignoredDiffCount.value));
+const activeDiffIndex = computed(() => activeReviewPosition(currentDiffIndex.value, totalDiffs.value, ignoredDiffIds.value));
+const canPreviousDiff = computed(() => findActiveDiff(currentDiffIndex.value - 1, -1) !== null);
+const canNextDiff = computed(() => findActiveDiff(currentDiffIndex.value + 1, 1) !== null);
+const canIgnoreCurrentDiff = computed(() =>
+  enableDiffIgnore.value &&
+  hasResult.value &&
+  currentDiffIndex.value > 0 &&
+  !isDiffIgnored(currentDiffIndex.value)
+);
+const currentDiffIgnored = computed(() =>
+  enableDiffIgnore.value && currentDiffIndex.value > 0 && isDiffIgnored(currentDiffIndex.value)
+);
+const currentDiffItem = computed(() =>
+  currentDiffIndex.value > 0 ? createIgnoredDiffItem(currentDiffIndex.value) : null
+);
+const similarDiffs = computed(() => {
+  if (
+    !enableDiffIgnore.value ||
+    !enableSimilarDiffs.value ||
+    !hasResult.value ||
+    currentDiffIndex.value <= 0 ||
+    currentDiffIgnored.value
+  ) {
+    return [];
+  }
+
+  return findSimilarReviewItems({
+    currentIndex: currentDiffIndex.value,
+    total: totalDiffs.value,
+    ignoredIds: ignoredDiffIds.value,
+    level: similarDiffLevel.value,
+    getGroup: getDiffGroup
+  });
+});
+const diffActionOpen = computed(() =>
+  enableDiffIgnore.value &&
+  !settingsPanelOpen.value &&
+  hasResult.value &&
+  currentDiffIndex.value > 0 &&
+  diffActionPosition.value !== null &&
+  (canIgnoreCurrentDiff.value || currentDiffIgnored.value)
+);
+const diffActionLabel = computed(() =>
+  `${i18n.value.diffNavigator.difference} #${currentDiffIndex.value}`
+);
 const tableHintMessageText = computed(() => activeTableHint.value
     ? formatTableHintMessage(activeTableHint.value)
     : ''
@@ -343,14 +452,37 @@ watch(showTableHints, () => {
   syncActiveTableHint(resolveFocusedTableHint());
 });
 
-watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showTableHints], (
+watch(enableDiffIgnore, (enabled) => {
+  if (enabled) {
+    scheduleDiffActionPositionUpdate();
+    return;
+  }
+
+  closeSimilarDiffs();
+  resetIgnoredDiffs();
+  diffActionPosition.value = null;
+
+  if (hasResult.value && totalDiffs.value > 0 && currentDiffIndex.value <= 0) {
+    currentDiffIndex.value = 1;
+    focusOnDiff(1, 'auto');
+  }
+});
+
+watch(enableSimilarDiffs, (enabled) => {
+  if (!enabled) closeSimilarDiffs();
+});
+
+watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showTableHints, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
     [
       nextDiffGranularity,
       nextIgnoreSpaces,
       nextIgnoreFullHalfWidth,
       nextFilterLayoutNoise,
       nextSyncScroll,
-      nextShowTableHints
+      nextShowTableHints,
+      nextEnableDiffIgnore,
+      nextEnableSimilarDiffs,
+      nextSimilarDiffLevel
     ]
 ) => {
   writeSavedAppSettings({
@@ -359,7 +491,10 @@ watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, sy
     ignoreFullHalfWidth: nextIgnoreFullHalfWidth,
     filterLayoutNoise: nextFilterLayoutNoise,
     syncScroll: nextSyncScroll,
-    showTableHints: nextShowTableHints
+    showTableHints: nextShowTableHints,
+    enableDiffIgnore: nextEnableDiffIgnore,
+    enableSimilarDiffs: nextEnableSimilarDiffs,
+    similarDiffLevel: nextSimilarDiffLevel
   });
 });
 
@@ -404,6 +539,8 @@ function resetCompareState(): void {
   hasResult.value = false;
   diffSummary.value = { ...EMPTY_DIFF_SUMMARY };
   currentDiffIndex.value = 0;
+  closeSimilarDiffs();
+  resetIgnoredDiffs();
   syncActiveTableHint(null);
   alignmentAnchors = [];
   clearFocusedDiffElements();
@@ -430,6 +567,7 @@ async function compare(showDoneNotice = false): Promise<void> {
 
   const runId = ++compareRunId;
   cancelPendingTextDiffs();
+  resetIgnoredDiffs();
   comparing.value = true;
   compareError.value = '';
   compareErrorDetail.value = '';
@@ -485,24 +623,182 @@ function retryCompare(): void {
   void compare(true);
 }
 
-function prevDiff(): void {
-  if (currentDiffIndex.value <= 1) return;
+function handleSettingsPanelOpenChange(open: boolean): void {
+  settingsPanelOpen.value = open;
 
-  currentDiffIndex.value--;
-  focusOnDiff(currentDiffIndex.value);
+  if (open) {
+    diffActionPosition.value = null;
+    return;
+  }
+
+  scheduleDiffActionPositionUpdate();
+}
+
+function prevDiff(): void {
+  const targetIndex = findActiveDiff(currentDiffIndex.value - 1, -1);
+  if (targetIndex === null) return;
+
+  currentDiffIndex.value = targetIndex;
+  focusOnDiff(targetIndex);
 }
 
 function nextDiff(): void {
-  if (currentDiffIndex.value >= totalDiffs.value) return;
+  const targetIndex = findActiveDiff(currentDiffIndex.value + 1, 1);
+  if (targetIndex === null) return;
 
-  currentDiffIndex.value++;
-  focusOnDiff(currentDiffIndex.value);
+  currentDiffIndex.value = targetIndex;
+  focusOnDiff(targetIndex);
+}
+
+function ignoreCurrentDiff(): void {
+  if (!canIgnoreCurrentDiff.value) return;
+
+  closeSimilarDiffs();
+  const ignoredIndex = currentDiffIndex.value;
+  if (!ignoreDiffByIndex(ignoredIndex)) return;
+
+  const nextIndex = findActiveDiff(ignoredIndex + 1, 1) ?? findActiveDiff(ignoredIndex - 1, -1);
+  if (nextIndex !== null) {
+    currentDiffIndex.value = nextIndex;
+    focusOnDiff(nextIndex);
+    return;
+  }
+
+  currentDiffIndex.value = 0;
+  clearFocusedDiffElements();
+  syncActiveTableHint(null);
+}
+
+function ignoreSimilarDiffs(ids: string[]): void {
+  if (!enableDiffIgnore.value || !enableSimilarDiffs.value || ids.length === 0) return;
+
+  const nextIgnoredDiffs = new Map(ignoredDiffs.value);
+  ids.forEach((id) => {
+    const index = diffReviewIndex(id);
+    if (Number.isNaN(index) || isDiffIgnored(index)) return;
+
+    const item = createIgnoredDiffItem(index);
+    if (!item) return;
+
+    nextIgnoredDiffs.set(id, item);
+    setDiffIgnoredClass(index, true);
+  });
+  ignoredDiffs.value = nextIgnoredDiffs;
+  closeSimilarDiffs();
+  scheduleDiffActionPositionUpdate();
+}
+
+function ignoreDiffByIndex(index: number): boolean {
+  const item = createIgnoredDiffItem(index);
+  if (!item) return false;
+
+  const nextIgnoredDiffs = new Map(ignoredDiffs.value);
+  nextIgnoredDiffs.set(item.id, item);
+  ignoredDiffs.value = nextIgnoredDiffs;
+  setDiffIgnoredClass(index, true);
+  return true;
+}
+
+function restoreCurrentDiff(): void {
+  if (currentDiffIndex.value <= 0) return;
+  restoreIgnoredDiff(diffReviewId(currentDiffIndex.value));
+}
+
+function locateIgnoredDiff(id: string): void {
+  const index = diffReviewIndex(id);
+  if (Number.isNaN(index)) return;
+
+  currentDiffIndex.value = index;
+  focusOnDiff(index);
+}
+
+function restoreIgnoredDiff(id: string): void {
+  const item = ignoredDiffs.value.get(id);
+  if (!item) return;
+
+  const nextIgnoredDiffs = new Map(ignoredDiffs.value);
+  nextIgnoredDiffs.delete(id);
+  ignoredDiffs.value = nextIgnoredDiffs;
+  setDiffIgnoredClass(item.index, false);
+
+  if (currentDiffIndex.value === 0) {
+    currentDiffIndex.value = item.index;
+    focusOnDiff(item.index, 'auto');
+    return;
+  }
+
+  if (currentDiffIndex.value === item.index) {
+    scheduleDiffActionPositionUpdate();
+  }
+}
+
+function openSimilarDiffs(): void {
+  if (!enableSimilarDiffs.value || similarDiffs.value.length === 0) return;
+  similarDiffPanelOpen.value = true;
+}
+
+function closeSimilarDiffs(): void {
+  similarDiffPanelOpen.value = false;
+}
+
+function locateSimilarDiff(id: string): void {
+  closeSimilarDiffs();
+  const index = diffReviewIndex(id);
+  if (Number.isNaN(index)) return;
+
+  currentDiffIndex.value = index;
+  focusOnDiff(index);
+}
+
+function restoreIgnoredDiffs(): void {
+  if (ignoredDiffs.value.size === 0) return;
+
+  resetIgnoredDiffs();
+  if (!hasResult.value || totalDiffs.value === 0) return;
+
+  if (currentDiffIndex.value > 0) {
+    scheduleDiffActionPositionUpdate();
+    return;
+  }
+
+  currentDiffIndex.value = 1;
+  focusOnDiff(1, 'auto');
+}
+
+function findActiveDiff(startIndex: number, direction: 1 | -1): number | null {
+  return findActiveReviewIndex(startIndex, direction, totalDiffs.value, ignoredDiffIds.value);
+}
+
+function isDiffIgnored(index: number): boolean {
+  return ignoredDiffs.value.has(diffReviewId(index));
+}
+
+function resetIgnoredDiffs(): void {
+  ignoredDiffs.value = new Map();
+  clearIgnoredDiffClasses();
+}
+
+function createIgnoredDiffItem(index: number): IgnoredDiffItem | null {
+  return createReviewItem(index, getDiffGroup(index));
+}
+
+function setDiffIgnoredClass(index: number, ignored: boolean): void {
+  setReviewClass(getDiffGroup(index), 'ignored-diff', ignored);
+}
+
+function clearIgnoredDiffClasses(): void {
+  clearReviewClass(diffElementIndex, 'ignored-diff');
+}
+
+function getDiffGroup(index: number): DiffElementGroup | undefined {
+  return diffElementIndex.get(diffReviewId(index));
 }
 
 function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
   clearFocusedDiffElements();
-  const group = diffElementIndex.get(diffId(index));
+  const group = getDiffGroup(index);
   if (!group) {
+    diffActionPosition.value = null;
     syncActiveTableHint(null);
     return;
   }
@@ -512,13 +808,14 @@ function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
   syncActiveTableHint(resolveFocusedTableHint(group));
   const containerA = getPaneViewport('A');
   const containerB = getPaneViewport('B');
-  const targetA = firstDiffElement(group, 'A');
-  const targetB = firstDiffElement(group, 'B');
+  const targetA = firstReviewElement(group, 'A');
+  const targetB = firstReviewElement(group, 'B');
 
   activeDriver = null;
 
   const alignedTopA = containerA && targetA ? smoothViewportAlign(containerA, targetA, behavior) : null;
   const alignedTopB = containerB && targetB ? smoothViewportAlign(containerB, targetB, behavior) : null;
+  scheduleDiffActionPositionUpdate();
 
   if (targetA && targetB) return;
 
@@ -537,9 +834,55 @@ function clearFocusedDiffElements(): void {
   });
   clearTableHintMarkers();
   focusedDiffElements = [];
+  diffActionPosition.value = null;
 }
 
-function resolveFocusedTableHint(group = diffElementIndex.get(diffId(currentDiffIndex.value))): DiffTableContextHint | null {
+function scheduleDiffActionPositionUpdate(): void {
+  if (diffActionRaf !== null) cancelAnimationFrame(diffActionRaf);
+  diffActionRaf = requestAnimationFrame(() => {
+    diffActionRaf = null;
+    updateDiffActionPosition();
+  });
+}
+
+function updateDiffActionPosition(): void {
+  if (currentDiffIndex.value <= 0 || focusedDiffElements.length === 0) {
+    diffActionPosition.value = null;
+    return;
+  }
+
+  const target = selectDiffActionTarget();
+  if (!target) {
+    diffActionPosition.value = null;
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+  if (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) {
+    diffActionPosition.value = null;
+    return;
+  }
+
+  diffActionPosition.value = {
+    top: clampNumber(rect.top, 46, window.innerHeight - 12),
+    left: clampNumber(rect.left + (rect.width / 2), 74, window.innerWidth - 74)
+  };
+}
+
+function selectDiffActionTarget(): HTMLElement | null {
+  return focusedDiffElements.find(isElementInViewport) ?? focusedDiffElements[0] ?? null;
+}
+
+function isElementInViewport(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect();
+  return rect.bottom >= 0 && rect.top <= window.innerHeight && rect.right >= 0 && rect.left <= window.innerWidth;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function resolveFocusedTableHint(group = getDiffGroup(currentDiffIndex.value)): DiffTableContextHint | null {
   if (!showTableHints.value || !hasResult.value || !group) return null;
 
   return updateTableStructureHint(group);
@@ -643,10 +986,6 @@ function formatTableHintRowLabel(row?: number, rowEnd?: number): string {
   return String(row);
 }
 
-function firstDiffElement(group: DiffElementGroup, key: PaneKey): HTMLElement | null {
-  return group[key][0] ?? null;
-}
-
 function smoothViewportAlign(container: HTMLElement, element: Element, behavior: ScrollBehavior): number {
   const containerRect = container.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
@@ -664,7 +1003,7 @@ function handleDiffClick(event: MouseEvent): void {
   const rawId = diffElement?.dataset.diffId;
   if (!rawId) return;
 
-  const index = parseDiffId(rawId);
+  const index = diffReviewIndex(rawId);
   if (Number.isNaN(index)) return;
 
   currentDiffIndex.value = index;
@@ -679,7 +1018,7 @@ function handleDiffActivate(event: KeyboardEvent): void {
   const rawId = diffElement?.dataset.diffId;
   if (!rawId) return;
 
-  const index = parseDiffId(rawId);
+  const index = diffReviewIndex(rawId);
   if (Number.isNaN(index)) return;
 
   currentDiffIndex.value = index;
@@ -730,9 +1069,9 @@ function buildViewportLockMatrix(): void {
   if (!containerA || !containerB) return;
 
   for (let index = 1; index <= totalDiffs.value; index++) {
-    const group = diffElementIndex.get(diffId(index));
-    const elementA = group ? firstDiffElement(group, 'A') : null;
-    const elementB = group ? firstDiffElement(group, 'B') : null;
+    const group = getDiffGroup(index);
+    const elementA = firstReviewElement(group, 'A');
+    const elementB = firstReviewElement(group, 'B');
 
     if (elementA && elementB) {
       alignmentAnchors.push({ topA: elementA.offsetTop, topB: elementB.offsetTop });
@@ -745,6 +1084,7 @@ function rebuildDiffElementIndex(): void {
 }
 
 function onScrollA(): void {
+  scheduleDiffActionPositionUpdate();
   if (!syncScroll.value || activeDriver !== 'A') return;
   if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
   scrollRaf = requestAnimationFrame(() => {
@@ -758,6 +1098,7 @@ function onScrollA(): void {
 }
 
 function onScrollB(): void {
+  scheduleDiffActionPositionUpdate();
   if (!syncScroll.value || activeDriver !== 'B') return;
   if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
   scrollRaf = requestAnimationFrame(() => {
@@ -875,7 +1216,10 @@ function handleResize(): void {
   if (resizeTimer !== null) window.clearTimeout(resizeTimer);
   resizeTimer = window.setTimeout(() => {
     resizeTimer = null;
-    if (hasResult.value) buildViewportLockMatrix();
+    if (hasResult.value) {
+      buildViewportLockMatrix();
+      scheduleDiffActionPositionUpdate();
+    }
   }, 150);
 }
 
@@ -913,6 +1257,7 @@ onUnmounted(() => {
   clearTableHintTimer();
   if (resizeTimer !== null) window.clearTimeout(resizeTimer);
   if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
+  if (diffActionRaf !== null) cancelAnimationFrame(diffActionRaf);
 });
 </script>
 
