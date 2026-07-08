@@ -206,17 +206,18 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: var(--popup-control-radius);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--control-border);
+  background: var(--control-surface);
   color: var(--noise-muted);
   cursor: pointer;
   transition: all 0.16s ease;
 }
 
 .layout-noise-panel__close:hover {
-  border-color: rgba(15, 23, 42, 0.18);
+  border-color: var(--control-border-hover);
   color: var(--noise-ink);
-  background: #ffffff;
+  background: var(--control-surface-hover);
+  box-shadow: var(--control-shadow-hover);
 }
 
 .layout-noise-panel__close:focus-visible {

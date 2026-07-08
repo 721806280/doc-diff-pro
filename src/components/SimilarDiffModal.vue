@@ -246,17 +246,19 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--control-border);
   border-radius: var(--popup-control-radius);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--control-surface);
   color: var(--similar-muted);
   cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .similar-diff-close:hover {
-  border-color: rgba(15, 23, 42, 0.18);
-  background: #ffffff;
+  border-color: var(--control-border-hover);
+  background: var(--control-surface-hover);
   color: var(--similar-ink);
+  box-shadow: var(--control-shadow-hover);
 }
 
 .similar-diff-current {
@@ -393,21 +395,23 @@ onUnmounted(() => {
 .similar-diff-footer button {
   min-height: 28px;
   padding: 0 10px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
-  background: rgba(248, 250, 252, 0.9);
-  color: #475569;
+  background: var(--control-surface);
+  color: var(--similar-muted);
   font-size: 0.68rem;
   font-weight: 750;
   white-space: nowrap;
   cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .similar-diff-locate:hover,
 .similar-diff-footer button:hover:not(:disabled) {
   border-color: var(--accent-border);
-  background: #ffffff;
+  background: var(--control-surface-hover);
   color: var(--accent-strong);
+  box-shadow: var(--control-shadow-hover);
 }
 
 .similar-diff-footer {
@@ -421,9 +425,15 @@ onUnmounted(() => {
 }
 
 .similar-diff-footer .primary {
-  border-color: rgba(217, 119, 6, 0.26);
-  background: rgba(255, 251, 235, 0.9);
-  color: #92400e;
+  border-color: var(--warning-border);
+  background: var(--warning-soft);
+  color: var(--warning-strong);
+}
+
+.similar-diff-footer .primary:hover:not(:disabled) {
+  border-color: var(--warning-border-strong);
+  background: var(--warning-soft-strong);
+  color: var(--warning-ink);
 }
 
 .similar-diff-footer .primary:disabled {

@@ -128,7 +128,7 @@ function handleAction(): void {
   align-self: stretch;
   width: 3px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #f59e0b, #ef4444);
+  background: linear-gradient(180deg, var(--warning), var(--warning-strong));
 }
 
 .diff-action-popover.ignored .diff-action-popover__rail {
@@ -179,9 +179,9 @@ function handleAction(): void {
 }
 
 .diff-action-popover__button--main {
-  border-color: rgba(217, 119, 6, 0.26);
-  background: rgba(255, 247, 237, 0.92);
-  color: #92400e;
+  border-color: var(--warning-border);
+  background: var(--warning-soft);
+  color: var(--warning-strong);
 }
 
 .diff-action-popover__button--similar {
@@ -203,8 +203,8 @@ function handleAction(): void {
 }
 
 .diff-action-popover__button--main:hover {
-  border-color: rgba(217, 119, 6, 0.38);
-  background: rgba(254, 243, 199, 0.96);
+  border-color: var(--warning-border-strong);
+  background: var(--warning-soft-strong);
 }
 
 .diff-action-popover__button--similar:hover,
@@ -215,7 +215,7 @@ function handleAction(): void {
 
 .diff-action-popover__button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 0 3px var(--warning-glow);
 }
 
 .diff-action-popover__button--similar:focus-visible,

@@ -396,21 +396,21 @@ defineExpose({ viewport });
 .status-chip.error { background: rgba(var(--del-rgb), 0.1); color: var(--del-text); border-color: var(--del-border); }
 
 .warning-chip { position: relative; display: inline-flex; outline: none; }
-.status-chip.warning { gap: 3px; background: rgba(245, 158, 11, 0.12); color: #b45309; border-color: rgba(245, 158, 11, 0.3); }
-.warning-chip:focus-visible .status-chip.warning { box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4); }
+.status-chip.warning { gap: 3px; background: var(--warning-soft); color: var(--warning-strong); border-color: var(--warning-border-strong); }
+.warning-chip:focus-visible .status-chip.warning { box-shadow: 0 0 0 2px var(--warning-glow); }
 
 .warning-popover {
   position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; width: max-content; max-width: min(300px, calc(100vw - 28px)); max-height: 200px;
-  overflow-y: auto; padding: 10px 12px; border: 1px solid rgba(245, 158, 11, 0.16); border-radius: var(--popup-radius);
+  overflow-y: auto; padding: 10px 12px; border: 1px solid var(--warning-border); border-radius: var(--popup-radius);
   background: rgba(255, 255, 255, 0.94); box-shadow: var(--popup-shadow-sm); opacity: 0; visibility: hidden; transform: translateY(6px);
   transition: all var(--popup-motion); pointer-events: none; backdrop-filter: blur(16px);
 }
 
 .warning-chip:hover .warning-popover, .warning-chip:focus-within .warning-popover { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
-.warning-popover strong { display: block; margin-bottom: 6px; font-size: 0.76rem; font-weight: 600; color: #b45309; }
+.warning-popover strong { display: block; margin-bottom: 6px; font-size: 0.76rem; font-weight: 600; color: var(--warning-strong); }
 .warning-popover ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .warning-popover li { font-size: 0.72rem; line-height: 1.5; color: var(--text-secondary); word-break: break-word; position: relative; padding-left: 10px; }
-.warning-popover li::before { content: "•"; color: #f59e0b; position: absolute; left: 0; top: 0; font-weight: bold; }
+.warning-popover li::before { content: "•"; color: var(--warning); position: absolute; left: 0; top: 0; font-weight: bold; }
 
 .state-card.error { border-color: var(--del-border); background: rgba(255, 241, 242, 0.92); padding: 16px 18px; max-width: 420px; }
 .state-icon { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--del-focus); color: #ffffff; font-size: 0.8rem; font-weight: 800; }
@@ -453,14 +453,14 @@ defineExpose({ viewport });
 }
 
 .docx-render-content :deep(ins.table-structure-diff), .docx-render-content :deep(del.table-structure-diff) {
-  position: relative; background: rgba(255, 251, 235, 0.86) !important; color: #78350f; border-bottom: 2px solid rgba(217, 119, 6, 0.72); cursor: pointer;
+  position: relative; background: var(--warning-soft) !important; color: var(--warning-ink); border-bottom: 2px solid var(--warning-border-strong); cursor: pointer;
 }
 .docx-render-content :deep(ins.focus-diff.table-structure-diff), .docx-render-content :deep(del.focus-diff.table-structure-diff) {
-  background: rgba(255, 251, 235, 0.95) !important; box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.28), 0 5px 14px rgba(120, 53, 15, 0.12); border-bottom-color: rgba(217, 119, 6, 0.8);
+  background: var(--warning-soft-strong) !important; box-shadow: 0 0 0 2px var(--warning-border), 0 5px 14px rgba(120, 53, 15, 0.12); border-bottom-color: var(--warning-border-strong);
 }
 .docx-render-content :deep(ins.table-structure-diff[data-table-hint])::before, .docx-render-content :deep(del.table-structure-diff[data-table-hint])::before {
   content: '?'; position: absolute; top: -9px; right: -8px; z-index: 22; display: inline-flex; align-items: center; justify-content: center;
-  width: 14px; height: 14px; border-radius: 50%; color: #78350f; background: #fef3c7; border: 1px solid rgba(217, 119, 6, 0.54); font-size: 0.62rem; font-weight: 800;
+  width: 14px; height: 14px; border-radius: 50%; color: var(--warning-ink); background: var(--warning-surface); border: 1px solid var(--warning-border-strong); font-size: 0.62rem; font-weight: 800;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }

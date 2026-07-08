@@ -699,12 +699,12 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: color 0.18s ease, transform 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .settings-reset-button svg {
@@ -715,8 +715,11 @@ onBeforeUnmount(() => {
 }
 
 .settings-reset-button:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
   color: var(--accent);
   transform: rotate(-18deg);
+  box-shadow: 0 1px 3px rgba(var(--accent-rgb), 0.12);
 }
 
 .granularity-segmented {
@@ -750,8 +753,9 @@ onBeforeUnmount(() => {
 }
 
 .granularity-segmented__option.active {
-  background: rgba(var(--accent-rgb), 0.08);
-  color: var(--accent);
+  background: var(--gradient-accent);
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(var(--accent-rgb), 0.2);
 }
 
 .settings-section {
@@ -810,7 +814,7 @@ onBeforeUnmount(() => {
   font-weight: 650;
   text-align: left;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .settings-toggle:hover {
@@ -819,7 +823,13 @@ onBeforeUnmount(() => {
 }
 
 .settings-toggle.active {
-  color: var(--text-primary);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.settings-toggle.active:hover {
+  background: var(--accent-soft-strong);
+  color: var(--accent-strong);
 }
 
 .settings-toggle__label {
@@ -997,6 +1007,7 @@ onBeforeUnmount(() => {
   font-size: 0.64rem;
   font-weight: 750;
   cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .similar-level-segmented button:hover {
@@ -1004,8 +1015,9 @@ onBeforeUnmount(() => {
 }
 
 .similar-level-segmented button.active {
-  background: rgba(var(--accent-rgb), 0.08);
-  color: var(--accent);
+  background: var(--gradient-accent);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(var(--accent-rgb), 0.18);
 }
 
 @media (max-width: 820px) {

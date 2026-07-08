@@ -271,8 +271,8 @@ button.summary-chip {
 .summary-chip.modified { color: #6d28d9; border-color: rgba(109, 40, 217, 0.2); background: rgba(109, 40, 217, 0.08); }
 .summary-chip.deleted { color: var(--del-text); border-color: var(--del-border); background: rgba(var(--del-rgb), 0.08); }
 .summary-chip.similarity { color: #0f766e; border-color: rgba(15, 118, 110, 0.22); background: rgba(15, 118, 110, 0.08); }
-.summary-chip.layout-noise { color: #a16207; border-color: rgba(217, 119, 6, 0.24); background: rgba(245, 158, 11, 0.1); }
-.summary-chip.layout-noise.active { color: #92400e; border-color: rgba(217, 119, 6, 0.34); background: rgba(245, 158, 11, 0.16); }
+.summary-chip.layout-noise { color: var(--warning-strong); border-color: var(--warning-border); background: var(--warning-soft); }
+.summary-chip.layout-noise.active { color: var(--warning-ink); border-color: var(--warning-border-strong); background: var(--warning-soft-strong); }
 .summary-chip.ignored { color: #64748b; border-color: rgba(100, 116, 139, 0.18); background: rgba(241, 245, 249, 0.82); }
 .summary-chip.ignored:hover, .summary-chip.ignored.active { color: #334155; border-color: rgba(100, 116, 139, 0.28); background: rgba(226, 232, 240, 0.74); }
 
@@ -347,8 +347,8 @@ button.summary-chip {
 .btn-action-nav {
   min-height: 30px;
   padding: 0 10px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: var(--control-surface-hover);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   font-size: 0.7rem;
   font-weight: 650;
@@ -393,10 +393,10 @@ button.summary-chip {
 }
 
 .btn-action-nav:hover:not(:disabled) {
-  background: #ffffff;
+  background: var(--control-surface-hover);
   color: var(--accent);
-  border-color: rgba(var(--accent-rgb), 0.22);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border-color: var(--accent-border);
+  box-shadow: var(--control-shadow-hover);
 }
 
 .btn-action-nav:disabled {
@@ -434,18 +434,20 @@ button.summary-chip {
   min-height: 28px;
   flex: 0 0 auto;
   padding: 0 10px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid var(--control-border);
   border-radius: 7px;
   background: #ffffff;
   color: var(--accent);
   font-size: 0.68rem;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .ignored-empty button:hover {
-  border-color: rgba(var(--accent-rgb), 0.24);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  box-shadow: var(--control-shadow-hover);
 }
 
 .ignored-empty button:focus-visible {
