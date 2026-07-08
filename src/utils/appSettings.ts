@@ -26,7 +26,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   filterLayoutNoise: false,
   syncScroll: true,
   showTableHints: false,
-  enableDiffIgnore: true,
+  enableDiffIgnore: false,
   enableSimilarDiffs: true,
   similarDiffLevel: 'balanced'
 };

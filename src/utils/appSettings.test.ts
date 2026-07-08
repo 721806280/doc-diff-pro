@@ -93,7 +93,7 @@ describe('appSettings', () => {
       filterLayoutNoise: false,
       syncScroll: true,
       showTableHints: false,
-      enableDiffIgnore: true,
+      enableDiffIgnore: false,
       enableSimilarDiffs: true,
       similarDiffLevel: 'balanced'
     });
