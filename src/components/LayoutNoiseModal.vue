@@ -289,7 +289,7 @@ onUnmounted(() => {
 
 .layout-noise-side.side-original { color: #c2410c; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.12); }
 .layout-noise-side.side-revised { color: #15803d; background: rgba(34, 197, 94, 0.08); border-color: rgba(34, 197, 94, 0.12); }
-.layout-noise-reason.reason-hint { color: #4f46e5; background: rgba(79, 70, 229, 0.07); border-color: rgba(79, 70, 229, 0.16); }
+.layout-noise-reason.reason-hint { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-border); }
 .layout-noise-reason.reason-page-number, .layout-noise-reason.reason-repeated-layout-text { color: #475569; }
 .layout-noise-source { color: #0f766e; background: rgba(20, 184, 166, 0.08); border-color: rgba(20, 184, 166, 0.16); }
 .layout-noise-count { font-family: 'SF Mono', 'Monaco', monospace; font-weight: 700; }

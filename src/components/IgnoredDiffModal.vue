@@ -336,9 +336,9 @@ onUnmounted(() => {
 }
 
 .ignored-diff-row-actions button:hover {
-  border-color: rgba(79, 70, 229, 0.22);
+  border-color: var(--accent-border);
   background: #ffffff;
-  color: #4338ca;
+  color: var(--accent-strong);
 }
 
 .ignored-diff-row-actions button.restore:hover {

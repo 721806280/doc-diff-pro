@@ -1,4 +1,13 @@
 :root {
+  --accent: #4f46e5;
+  --accent-rgb: 79, 70, 229;
+  --accent-strong: #4338ca;
+  --accent-glow: rgba(var(--accent-rgb), 0.16);
+  --accent-soft: rgba(var(--accent-rgb), 0.08);
+  --accent-soft-strong: rgba(var(--accent-rgb), 0.14);
+  --accent-border: rgba(var(--accent-rgb), 0.22);
+  --accent-border-strong: rgba(var(--accent-rgb), 0.34);
+  --gradient-accent: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
   --popup-backdrop: rgba(15, 23, 42, 0.32);
   --popup-surface: rgba(255, 255, 255, 0.96);
   --popup-surface-soft: rgba(248, 250, 252, 0.94);
@@ -14,7 +23,7 @@
     0 12px 20px -8px rgba(15, 23, 42, 0.12),
     0 4px 10px -6px rgba(15, 23, 42, 0.06),
     0 0 0 1px rgba(15, 23, 42, 0.04);
-  --popup-focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.18);
+  --popup-focus-ring: 0 0 0 3px rgba(var(--accent-rgb), 0.18);
   --popup-motion: 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   --z-diff-action-popover: 4900;
   --z-modal-overlay: 5100;

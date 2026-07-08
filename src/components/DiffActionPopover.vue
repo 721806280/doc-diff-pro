@@ -120,8 +120,8 @@ function handleAction(): void {
 }
 
 .diff-action-popover.ignored {
-  border-color: rgba(165, 180, 252, 0.62);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(238, 242, 255, 0.96));
+  border-color: var(--accent-border-strong);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), var(--accent-soft));
 }
 
 .diff-action-popover__rail {
@@ -132,7 +132,7 @@ function handleAction(): void {
 }
 
 .diff-action-popover.ignored .diff-action-popover__rail {
-  background: linear-gradient(180deg, #6366f1, #0f766e);
+  background: var(--gradient-accent);
 }
 
 .diff-action-popover__label {
@@ -187,15 +187,15 @@ function handleAction(): void {
 .diff-action-popover__button--similar {
   gap: 4px;
   padding-right: 5px;
-  border-color: rgba(79, 70, 229, 0.18);
-  background: rgba(238, 242, 255, 0.68);
-  color: #4338ca;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .diff-action-popover.ignored .diff-action-popover__button--main {
-  border-color: rgba(79, 70, 229, 0.22);
-  background: rgba(238, 242, 255, 0.86);
-  color: #4338ca;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .diff-action-popover__button:hover {
@@ -209,8 +209,8 @@ function handleAction(): void {
 
 .diff-action-popover__button--similar:hover,
 .diff-action-popover.ignored .diff-action-popover__button--main:hover {
-  border-color: rgba(79, 70, 229, 0.28);
-  background: rgba(224, 231, 255, 0.92);
+  border-color: var(--accent-border-strong);
+  background: var(--accent-soft-strong);
 }
 
 .diff-action-popover__button:focus-visible {
@@ -220,7 +220,7 @@ function handleAction(): void {
 
 .diff-action-popover__button--similar:focus-visible,
 .diff-action-popover.ignored .diff-action-popover__button--main:focus-visible {
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.16);
+  box-shadow: var(--popup-focus-ring);
 }
 
 .diff-action-popover__button-text {
@@ -235,8 +235,8 @@ function handleAction(): void {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(79, 70, 229, 0.12);
-  color: #3730a3;
+  background: var(--accent-soft-strong);
+  color: var(--accent-strong);
   font-size: 0.61rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -244,7 +244,7 @@ function handleAction(): void {
 }
 
 .diff-action-popover__button--similar:hover .diff-action-popover__count {
-  background: rgba(79, 70, 229, 0.18);
+  background: rgba(var(--accent-rgb), 0.2);
 }
 
 .diff-action-popover__icon {

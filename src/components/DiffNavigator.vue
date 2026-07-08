@@ -265,7 +265,7 @@ button.summary-chip {
   cursor: pointer;
 }
 
-.summary-chip.total.alert { color: #1d4ed8; border-color: rgba(37, 99, 235, 0.24); background: rgba(37, 99, 235, 0.08); }
+.summary-chip.total.alert { color: var(--accent-strong); border-color: var(--accent-border); background: var(--accent-soft); }
 .summary-chip.total.muted { color: #64748b; border-color: rgba(100, 116, 139, 0.16); background: rgba(241, 245, 249, 0.8); }
 .summary-chip.total.clean, .summary-chip.inserted { color: var(--ins-text); border-color: var(--ins-border); background: rgba(var(--ins-rgb), 0.08); }
 .summary-chip.modified { color: #6d28d9; border-color: rgba(109, 40, 217, 0.2); background: rgba(109, 40, 217, 0.08); }

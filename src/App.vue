@@ -163,7 +163,7 @@ import { parseDocx, type ParsedDocx } from './utils/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
 import { resolveSyncScrollTop, type ScrollAnchor } from './utils/scrollSync';
-import { getThemeStyle, type ThemeColor } from './utils/themeColor';
+import { applyThemeVariables, clearThemeVariables, getThemeStyle, type ThemeColor } from './utils/themeColor';
 import {
   activeReviewCount,
   activeReviewPosition,
@@ -323,6 +323,11 @@ const tableHintMessageText = computed(() => activeTableHint.value
     : ''
 );
 const themeStyle = computed(() => getThemeStyle(themeColor.value));
+
+watch(themeColor, (nextThemeColor) => {
+  if (typeof document === 'undefined') return;
+  applyThemeVariables(document.documentElement.style, nextThemeColor);
+}, { immediate: true });
 
 function createEmptyDocumentState(): DocumentState {
   return {
@@ -1284,6 +1289,7 @@ onUnmounted(() => {
   cancelPendingTextDiffs();
   if (compareNoticeTimer !== null) window.clearTimeout(compareNoticeTimer);
   clearTableHintTimer();
+  if (typeof document !== 'undefined') clearThemeVariables(document.documentElement.style);
   if (resizeTimer !== null) window.clearTimeout(resizeTimer);
   stopLayoutObserver();
   if (scrollRaf !== null) cancelAnimationFrame(scrollRaf);
@@ -1303,7 +1309,12 @@ onUnmounted(() => {
 
   --accent: #4f46e5;
   --accent-rgb: 79, 70, 229;
+  --accent-strong: #4338ca;
   --accent-glow: rgba(var(--accent-rgb), 0.16);
+  --accent-soft: rgba(var(--accent-rgb), 0.08);
+  --accent-soft-strong: rgba(var(--accent-rgb), 0.14);
+  --accent-border: rgba(var(--accent-rgb), 0.22);
+  --accent-border-strong: rgba(var(--accent-rgb), 0.34);
 
   --ins-text: #15803d;
   --ins-border: rgba(22, 163, 74, 0.28);

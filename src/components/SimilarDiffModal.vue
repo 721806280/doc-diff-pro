@@ -233,8 +233,8 @@ onUnmounted(() => {
 .similar-diff-current strong {
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(79, 70, 229, 0.08);
-  color: #4338ca;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
   font-family: 'SF Mono', 'Monaco', monospace;
   font-size: 0.68rem;
   font-weight: 750;
@@ -317,8 +317,8 @@ onUnmounted(() => {
 }
 
 .similar-diff-check input:checked + span {
-  border-color: rgba(79, 70, 229, 0.72);
-  background: #4f46e5;
+  border-color: var(--accent-border-strong);
+  background: var(--accent);
   box-shadow: inset 0 0 0 3px #ffffff;
 }
 
@@ -405,9 +405,9 @@ onUnmounted(() => {
 
 .similar-diff-locate:hover,
 .similar-diff-footer button:hover:not(:disabled) {
-  border-color: rgba(79, 70, 229, 0.22);
+  border-color: var(--accent-border);
   background: #ffffff;
-  color: #4338ca;
+  color: var(--accent-strong);
 }
 
 .similar-diff-footer {

@@ -3,12 +3,12 @@
     <div class="brand-zone">
       <div class="brand-logo-glow">
         <svg viewBox="0 0 32 32" fill="none">
-          <rect x="3" y="3" width="12" height="26" rx="2" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.5"/>
+          <rect class="brand-logo__page brand-logo__page--accent" x="3" y="3" width="12" height="26" rx="2" stroke-width="1.5"/>
           <rect x="17" y="3" width="12" height="26" rx="2" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
-          <path d="M6 9h6M6 13h6M6 17h5" stroke="#a5b4fc" stroke-width="1.5" stroke-linecap="round"/>
+          <path class="brand-logo__line brand-logo__line--accent" d="M6 9h6M6 13h6M6 17h5" stroke-width="1.5" stroke-linecap="round"/>
           <path d="M20 9h6M20 13h6M20 17h5" stroke="#86efac" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M14 16h4" stroke="#4f46e5" stroke-width="2" stroke-linecap="round"/>
-          <path d="M16 14v4" stroke="#4f46e5" stroke-width="2" stroke-linecap="round"/>
+          <path class="brand-logo__plus" d="M14 16h4" stroke-width="2" stroke-linecap="round"/>
+          <path class="brand-logo__plus" d="M16 14v4" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </div>
       <div class="brand-text">
@@ -466,6 +466,19 @@ onBeforeUnmount(() => {
   width: 32px;
   height: 32px;
   filter: drop-shadow(0 2px 4px rgba(var(--accent-rgb), 0.18));
+}
+
+.brand-logo__page--accent {
+  fill: var(--accent-soft-strong);
+  stroke: var(--accent);
+}
+
+.brand-logo__line--accent {
+  stroke: rgba(var(--accent-rgb), 0.48);
+}
+
+.brand-logo__plus {
+  stroke: var(--accent);
 }
 
 .brand-text h1 {
