@@ -17,27 +17,6 @@
     </div>
 
     <div ref="settingsControlRef" class="header-actions">
-      <button
-          type="button"
-          class="toolbar-icon-button language-trigger"
-          :aria-label="`${i18n.header.languageLabel}: ${locale === 'en' ? i18n.header.chinese : i18n.header.english}`"
-          :title="`${i18n.header.languageLabel}: ${locale === 'en' ? i18n.header.chinese : i18n.header.english}`"
-          @click="toggleLocale"
-      >
-        <svg
-            class="language-icon"
-            :class="{ 'is-en': locale === 'en' }"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            fill="none"
-        >
-          <text class="language-icon__symbol language-icon__symbol--zh" x="1.2" y="12">中</text>
-          <path class="language-icon__corner language-icon__corner--top" d="M16 4L19.5 4Q21 4 21 5.5L21 8"></path>
-          <text class="language-icon__symbol language-icon__symbol--en" x="12.2" y="22">A</text>
-          <path class="language-icon__corner" d="M8 20L4.5 20Q3 20 3 18.5L3 16"></path>
-        </svg>
-      </button>
-
       <div class="settings-control" :class="{ 'settings-control--open': isSettingsPanelOpen }">
         <button
             type="button"
@@ -49,13 +28,16 @@
             :title="i18n.header.compareSettingsAria"
             @click="toggleSettingsPanel"
         >
-          <svg class="magic-wand-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85">
-            <path d="M5 19L18.5 5.5"></path>
-            <path d="M13.5 4.5L19.5 10.5"></path>
-            <path d="M6.25 5.5V8.25"></path>
-            <path d="M4.9 6.875H7.6"></path>
-            <path d="M17 14.9V17.6"></path>
-            <path d="M15.65 16.25H18.35"></path>
+          <svg class="settings-sliders-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path d="M4 7h5"></path>
+            <circle cx="12" cy="7" r="2.15"></circle>
+            <path d="M15 7h5"></path>
+            <path d="M4 12h10"></path>
+            <circle cx="16" cy="12" r="2.15"></circle>
+            <path d="M19 12h1"></path>
+            <path d="M4 17h2"></path>
+            <circle cx="9" cy="17" r="2.15"></circle>
+            <path d="M12 17h8"></path>
           </svg>
         </button>
 
@@ -206,19 +188,6 @@
               <button
                   type="button"
                   class="settings-toggle"
-                  :class="{ active: appearanceMode === 'dark' }"
-                  :title="i18n.header.nightModeTitle"
-                  :aria-pressed="appearanceMode === 'dark'"
-                  @click="toggleAppearanceMode"
-              >
-                <span class="settings-toggle__label">{{ i18n.header.nightMode }}</span>
-                <span class="settings-toggle__switch" aria-hidden="true">
-                  <span class="settings-toggle__switch-thumb"></span>
-                </span>
-              </button>
-              <button
-                  type="button"
-                  class="settings-toggle"
                   :class="{ active: syncScroll }"
                   :title="i18n.header.syncScrollTitle"
                   :aria-pressed="syncScroll"
@@ -297,6 +266,60 @@
         </div>
       </div>
 
+      <button
+          type="button"
+          class="toolbar-icon-button appearance-trigger"
+          :class="{ active: appearanceMode === 'dark' }"
+          :aria-label="appearanceToggleLabel"
+          :title="appearanceToggleLabel"
+          @click="toggleAppearanceShortcut"
+      >
+        <svg
+            v-if="appearanceMode === 'dark'"
+            class="appearance-icon appearance-icon--sun"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.85"
+        >
+          <circle cx="12" cy="12" r="4.2"></circle>
+          <path d="M12 3.2v2.1M12 18.7v2.1M4.2 12h2.1M17.7 12h2.1M6.45 6.45l1.5 1.5M16.05 16.05l1.5 1.5M17.55 6.45l-1.5 1.5M7.95 16.05l-1.5 1.5"></path>
+        </svg>
+        <svg
+            v-else
+            class="appearance-icon appearance-icon--moon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.9"
+        >
+          <path d="M20.45 14.65A8.2 8.2 0 0 1 9.35 3.55A8.65 8.65 0 1 0 20.45 14.65z"></path>
+        </svg>
+      </button>
+
+      <button
+          type="button"
+          class="toolbar-icon-button language-trigger"
+          :aria-label="`${i18n.header.languageLabel}: ${locale === 'en' ? i18n.header.chinese : i18n.header.english}`"
+          :title="`${i18n.header.languageLabel}: ${locale === 'en' ? i18n.header.chinese : i18n.header.english}`"
+          @click="toggleLocale"
+      >
+        <svg
+            class="language-icon"
+            :class="{ 'is-en': locale === 'en' }"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            fill="none"
+        >
+          <text class="language-icon__symbol language-icon__symbol--zh" x="1.2" y="12">中</text>
+          <path class="language-icon__corner language-icon__corner--top" d="M16 4L19.5 4Q21 4 21 5.5L21 8"></path>
+          <text class="language-icon__symbol language-icon__symbol--en" x="12.2" y="22">A</text>
+          <path class="language-icon__corner" d="M8 20L4.5 20Q3 20 3 18.5L3 16"></path>
+        </svg>
+      </button>
+
       <a
           class="toolbar-icon-button github-link"
           :href="githubRepositoryUrl"
@@ -358,10 +381,14 @@ const settingsControlRef = ref<HTMLElement | null>(null);
 const githubRepositoryUrl = 'https://github.com/721806280/doc-diff-vision';
 const similarDiffLevelOptions: SimilarDiffLevel[] = ['strict', 'balanced', 'loose'];
 const themeColorOptions: ThemeColor[] = [...THEME_COLORS];
+const appearanceToggleLabel = computed(() =>
+  props.appearanceMode === 'dark'
+    ? i18n.value.header.switchToLightMode
+    : i18n.value.header.switchToNightMode
+);
 const isUsingDefaultSettings = computed(() =>
   props.diffGranularity === DEFAULT_APP_SETTINGS.diffGranularity &&
   props.themeColor === DEFAULT_APP_SETTINGS.themeColor &&
-  props.appearanceMode === DEFAULT_APP_SETTINGS.appearanceMode &&
   props.ignoreSpaces === DEFAULT_APP_SETTINGS.ignoreSpaces &&
   props.ignoreFullHalfWidth === DEFAULT_APP_SETTINGS.ignoreFullHalfWidth &&
   props.filterLayoutNoise === DEFAULT_APP_SETTINGS.filterLayoutNoise &&
@@ -388,6 +415,11 @@ function toggleAppearanceMode(): void {
   emit('update:appearanceMode', props.appearanceMode === 'dark' ? 'light' : 'dark');
 }
 
+function toggleAppearanceShortcut(): void {
+  closeSettingsPanel();
+  toggleAppearanceMode();
+}
+
 function updateSimilarDiffLevel(value: SimilarDiffLevel): void {
   emit('update:similarDiffLevel', value);
 }
@@ -397,7 +429,6 @@ function resetSettings(): void {
 
   emit('update:diffGranularity', DEFAULT_APP_SETTINGS.diffGranularity);
   emit('update:themeColor', DEFAULT_APP_SETTINGS.themeColor);
-  emit('update:appearanceMode', DEFAULT_APP_SETTINGS.appearanceMode);
   emit('update:ignoreSpaces', DEFAULT_APP_SETTINGS.ignoreSpaces);
   emit('update:ignoreFullHalfWidth', DEFAULT_APP_SETTINGS.ignoreFullHalfWidth);
   emit('update:filterLayoutNoise', DEFAULT_APP_SETTINGS.filterLayoutNoise);
@@ -578,6 +609,7 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-icon-button:hover,
+.appearance-trigger.active,
 .settings-trigger.active {
   color: var(--accent);
 }
@@ -652,12 +684,11 @@ onBeforeUnmount(() => {
   transform: translate(-9.5125px, -10.9448px);
 }
 
-.magic-wand-icon {
-  width: 17px;
-  height: 17px;
+.settings-sliders-icon {
+  width: 18px;
+  height: 18px;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transform: rotate(-8deg);
 }
 
 .github-icon {
@@ -667,6 +698,22 @@ onBeforeUnmount(() => {
   stroke-linecap: round;
   stroke-linejoin: round;
   transform: translateY(0.2px) scale(1.02);
+}
+
+.appearance-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.appearance-icon--sun {
+  transform: rotate(8deg);
+}
+
+.appearance-icon--moon {
+  transform: none;
 }
 
 .settings-popover {
@@ -1083,6 +1130,7 @@ onBeforeUnmount(() => {
   .brand-logo-glow svg,
   .toolbar-icon-button,
   .toolbar-icon-button::after,
+  .appearance-icon,
   .language-icon__symbol,
   .granularity-segmented__option,
   .settings-reset-button,

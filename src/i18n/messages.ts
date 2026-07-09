@@ -75,8 +75,6 @@ const en = {
       rose: 'Rose',
       amber: 'Amber'
     },
-    nightModeTitle: 'Use a darker interface for low-light document review.',
-    nightMode: 'Night mode',
     syncScrollTitle: 'Scroll both documents together by difference position.',
     syncScroll: 'Sync scrolling',
     showTableHintsTitle: 'Show question markers for table structure differences that are hard to verify visually.',
@@ -97,6 +95,8 @@ const en = {
       loose: 'Match at 62% or above. More candidates that need closer review.'
     },
     githubLabel: 'Open GitHub repository',
+    switchToLightMode: 'Switch to light mode',
+    switchToNightMode: 'Switch to night mode',
     languageLabel: 'Interface language',
     english: 'EN',
     chinese: '中文'
@@ -297,8 +297,6 @@ const zhCN: I18nMessages = {
       rose: '玫红',
       amber: '琥珀'
     },
-    nightModeTitle: '切换为低亮度暗色界面，适合夜间或低光环境审阅',
-    nightMode: '夜间模式',
     syncScrollTitle: '开启后，两侧文档会按差异位置同步滚动，便于长文对照',
     syncScroll: '同步滚动',
     showTableHintsTitle: '显示表格结构差异的问号标记，点击后查看辅助判断提示',
@@ -319,6 +317,8 @@ const zhCN: I18nMessages = {
       loose: '匹配度不低于 62%，候选更多，需要更仔细确认'
     },
     githubLabel: '打开 GitHub 仓库',
+    switchToLightMode: '切换到日间模式',
+    switchToNightMode: '切换到夜间模式',
     languageLabel: '界面语言',
     english: 'EN',
     chinese: '中文'
