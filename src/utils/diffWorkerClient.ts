@@ -4,6 +4,7 @@ import { createTextDiffs } from './textDiffCore';
 type PendingRequest = {
   resolve: (diffs: DiffTuple[]) => void;
   reject: (error: Error) => void;
+  timeoutId: ReturnType<typeof setTimeout>;
 };
 
 class DiffCanceledError extends Error {
@@ -12,6 +13,16 @@ class DiffCanceledError extends Error {
     this.name = 'DiffCanceledError';
   }
 }
+
+class DiffTimeoutError extends Error {
+  constructor() {
+    super('Diff request timed out');
+    this.name = 'DiffTimeoutError';
+  }
+}
+
+export const DIFF_WORKER_TIMEOUT_MS = 15000;
+export const MAX_MAIN_THREAD_DIFF_CHARS = 300_000;
 
 let worker: Worker | null = null;
 let nextRequestId = 1;
@@ -23,16 +34,16 @@ export async function createTextDiffsAsync(
   granularity: DiffGranularity
 ): Promise<DiffTuple[]> {
   if (!canUseWorker()) {
-    return createTextDiffs(originalText, revisedText, granularity);
+    return createMainThreadDiffs(originalText, revisedText, granularity);
   }
 
   try {
     return await requestWorkerDiff(originalText, revisedText, granularity);
   } catch (error) {
-    if (error instanceof DiffCanceledError) throw error;
+    if (error instanceof DiffCanceledError || error instanceof DiffTimeoutError) throw error;
 
     console.warn('[Document diff worker fallback]', error);
-    return createTextDiffs(originalText, revisedText, granularity);
+    return createMainThreadDiffs(originalText, revisedText, granularity);
   }
 }
 
@@ -57,7 +68,16 @@ function requestWorkerDiff(
   const id = nextRequestId++;
 
   return new Promise((resolve, reject) => {
-    pendingRequests.set(id, { resolve, reject });
+    const timeoutId = setTimeout(() => {
+      if (!pendingRequests.has(id)) return;
+
+      const error = new DiffTimeoutError();
+      rejectPendingRequests(error);
+      currentWorker.terminate();
+      if (worker === currentWorker) worker = null;
+    }, DIFF_WORKER_TIMEOUT_MS);
+
+    pendingRequests.set(id, { resolve, reject, timeoutId });
     currentWorker.postMessage({ id, originalText, revisedText, granularity } satisfies DiffWorkerRequest);
   });
 }
@@ -72,6 +92,7 @@ function getWorker(): Worker {
     if (!pending) return;
 
     pendingRequests.delete(id);
+    clearTimeout(pending.timeoutId);
     if (error) {
       pending.reject(new Error(error));
     } else {
@@ -88,6 +109,21 @@ function getWorker(): Worker {
 }
 
 function rejectPendingRequests(error: Error): void {
-  pendingRequests.forEach(({ reject }) => reject(error));
+  pendingRequests.forEach(({ reject, timeoutId }) => {
+    clearTimeout(timeoutId);
+    reject(error);
+  });
   pendingRequests.clear();
+}
+
+function createMainThreadDiffs(
+  originalText: string,
+  revisedText: string,
+  granularity: DiffGranularity
+): DiffTuple[] {
+  if (originalText.length + revisedText.length > MAX_MAIN_THREAD_DIFF_CHARS) {
+    throw new Error('Document is too large to compare safely without a Web Worker.');
+  }
+
+  return createTextDiffs(originalText, revisedText, granularity);
 }

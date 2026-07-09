@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DiffTuple } from '@/types/diff';
 
 const mocks = vi.hoisted(() => ({
@@ -38,7 +38,12 @@ describe('diffWorkerClient', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     mocks.createTextDiffs.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('does not run the synchronous fallback for canceled worker requests', async () => {
@@ -65,5 +70,29 @@ describe('diffWorkerClient', () => {
     await expect(pendingDiff).resolves.toEqual([[0, 'fallback']]);
     expect(mocks.createTextDiffs).toHaveBeenCalledWith('a', 'b', 'char');
     expect(workers[0].terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not run the synchronous fallback for timed out worker requests', async () => {
+    vi.useFakeTimers();
+    const workers = installFakeWorker();
+    const { createTextDiffsAsync, DIFF_WORKER_TIMEOUT_MS } = await import('./diffWorkerClient');
+
+    const pendingDiff = createTextDiffsAsync('a', 'b', 'char');
+    const expectation = expect(pendingDiff).rejects.toThrow('Diff request timed out');
+    await vi.advanceTimersByTimeAsync(DIFF_WORKER_TIMEOUT_MS);
+
+    await expectation;
+    expect(mocks.createTextDiffs).not.toHaveBeenCalled();
+    expect(workers[0].terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects large synchronous fallback requests when workers are unavailable', async () => {
+    vi.stubGlobal('Worker', undefined);
+    const { createTextDiffsAsync, MAX_MAIN_THREAD_DIFF_CHARS } = await import('./diffWorkerClient');
+
+    await expect(
+      createTextDiffsAsync('a'.repeat(MAX_MAIN_THREAD_DIFF_CHARS), 'b', 'char')
+    ).rejects.toThrow('too large');
+    expect(mocks.createTextDiffs).not.toHaveBeenCalled();
   });
 });
