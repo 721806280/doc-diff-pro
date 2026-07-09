@@ -47,6 +47,7 @@ describe('appSettings', () => {
     storage.setItem('doc-diff-settings', JSON.stringify({
       diffGranularity: 'word',
       themeColor: 'teal',
+      appearanceMode: 'dark',
       ignoreSpaces: false,
       ignoreFullHalfWidth: false,
       filterLayoutNoise: true,
@@ -60,6 +61,7 @@ describe('appSettings', () => {
     expect(readSavedAppSettings()).toEqual({
       diffGranularity: 'word',
       themeColor: 'teal',
+      appearanceMode: 'dark',
       ignoreSpaces: false,
       ignoreFullHalfWidth: false,
       filterLayoutNoise: true,
@@ -75,6 +77,7 @@ describe('appSettings', () => {
     storage.setItem('doc-diff-settings', JSON.stringify({
       diffGranularity: 'line',
       themeColor: 'purple',
+      appearanceMode: 'midnight',
       ignoreSpaces: 'nope',
       ignoreFullHalfWidth: false,
       filterLayoutNoise: null,
@@ -88,6 +91,7 @@ describe('appSettings', () => {
     expect(readSavedAppSettings()).toEqual({
       diffGranularity: 'char',
       themeColor: 'indigo',
+      appearanceMode: 'light',
       ignoreSpaces: true,
       ignoreFullHalfWidth: false,
       filterLayoutNoise: false,
@@ -103,6 +107,7 @@ describe('appSettings', () => {
     writeSavedAppSettings({
       diffGranularity: 'char',
       themeColor: 'rose',
+      appearanceMode: 'dark',
       ignoreSpaces: false,
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,
@@ -116,6 +121,7 @@ describe('appSettings', () => {
     expect(JSON.parse(storage.getItem('doc-diff-settings') ?? 'null')).toEqual({
       diffGranularity: 'char',
       themeColor: 'rose',
+      appearanceMode: 'dark',
       ignoreSpaces: false,
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,

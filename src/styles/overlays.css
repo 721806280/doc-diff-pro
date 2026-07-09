@@ -1,4 +1,55 @@
 :root {
+  --color-scheme: light;
+  --body-bg: #edf1f5;
+  --bg-app: transparent;
+  --bg-panel: rgba(255, 255, 255, 0.95);
+  --bg-panel-solid: #ffffff;
+  --bg-panel-muted: #fafbfc;
+  --bg-document: #ffffff;
+  --bg-document-muted: #fafbfc;
+  --bg-empty: rgba(241, 245, 249, 0.94);
+  --bg-transparent: rgba(255, 255, 255, 0);
+  --surface-card: rgba(255, 255, 255, 0.95);
+  --surface-card-muted: rgba(248, 250, 252, 0.98);
+  --surface-card-solid: #ffffff;
+  --surface-chip: rgba(248, 250, 252, 0.9);
+  --surface-chip-hover: rgba(248, 250, 252, 0.96);
+  --surface-translucent: rgba(255, 255, 255, 0.72);
+  --surface-disabled: rgba(248, 250, 252, 0.78);
+  --border-subtle: rgba(229, 231, 235, 0.82);
+  --border-strong: #d1d5db;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-tertiary: #9ca3af;
+  --document-text: #1e293b;
+  --document-muted: #64748b;
+  --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.02), 0 4px 16px rgba(15, 23, 42, 0.04);
+  --shadow-panel-hover: 0 2px 6px rgba(15, 23, 42, 0.04), 0 12px 32px rgba(15, 23, 42, 0.06);
+  --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.03), 0 8px 24px rgba(15, 23, 42, 0.04);
+  --shadow-floating: 0 10px 28px rgba(15, 23, 42, 0.13), 0 1px 2px rgba(15, 23, 42, 0.08);
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --inset-control: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-thumb-hover: #64748b;
+  --scrollbar-track: transparent;
+  --muted-chip-text: #64748b;
+  --muted-chip-strong: #334155;
+  --muted-chip-bg: rgba(241, 245, 249, 0.82);
+  --muted-chip-bg-hover: rgba(226, 232, 240, 0.74);
+  --muted-chip-border: rgba(100, 116, 139, 0.18);
+  --modified-text: #6d28d9;
+  --modified-rgb: 109, 40, 217;
+  --similarity-text: #0f766e;
+  --similarity-rgb: 15, 118, 110;
+  --source-text: #0f766e;
+  --source-rgb: 20, 184, 166;
+  --ignored-text: #64748b;
+  --ignored-bg: rgba(241, 245, 249, 0.66);
+  --ignored-border: rgba(100, 116, 139, 0.22);
+  --ignored-focus-ring: 0 0 0 2px rgba(100, 116, 139, 0.38), 0 4px 12px rgba(15, 23, 42, 0.1);
+  --brand-revision-fill: #dcfce7;
+  --brand-revision-stroke: #16a34a;
+  --brand-revision-line: #86efac;
   --accent: #4f46e5;
   --accent-rgb: 79, 70, 229;
   --accent-strong: #4338ca;
@@ -43,6 +94,7 @@
   --z-diff-action-popover: 4900;
   --z-modal-overlay: 5100;
   --z-settings-popover: 5600;
+  color-scheme: var(--color-scheme);
 }
 
 /* Elegant Custom Scrollbars for All Overlay Scroll Containers */
@@ -62,7 +114,7 @@
 .layout-noise-list::-webkit-scrollbar-thumb,
 .table-hint-panel__body::-webkit-scrollbar-thumb,
 .warning-popover::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.14);
+  background: var(--scrollbar-thumb);
   border-radius: 99px;
   transition: background 0.15s ease;
 }
@@ -70,5 +122,5 @@
 .layout-noise-list::-webkit-scrollbar-thumb:hover,
 .table-hint-panel__body::-webkit-scrollbar-thumb:hover,
 .warning-popover::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 23, 42, 0.28);
+  background: var(--scrollbar-thumb-hover);
 }

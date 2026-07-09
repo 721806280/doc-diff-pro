@@ -96,11 +96,11 @@ function handleAction(): void {
   min-height: 34px;
   max-width: min(328px, calc(100vw - 18px));
   padding: 4px 5px;
-  border: 1px solid rgba(203, 213, 225, 0.72);
+  border: 1px solid var(--popup-border);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
-  color: #1e293b;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.13), 0 1px 2px rgba(15, 23, 42, 0.08);
+  background: linear-gradient(180deg, var(--popup-surface), var(--popup-surface-soft));
+  color: var(--text-primary);
+  box-shadow: var(--shadow-floating);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   transform: translate(-50%, calc(-100% - 9px));
@@ -113,15 +113,15 @@ function handleAction(): void {
   bottom: -5px;
   width: 8px;
   height: 8px;
-  border-right: 1px solid rgba(203, 213, 225, 0.72);
-  border-bottom: 1px solid rgba(203, 213, 225, 0.72);
-  background: rgba(248, 250, 252, 0.98);
+  border-right: 1px solid var(--popup-border);
+  border-bottom: 1px solid var(--popup-border);
+  background: var(--popup-surface-soft);
   transform: translateX(-50%) rotate(45deg);
 }
 
 .diff-action-popover.ignored {
   border-color: var(--accent-border-strong);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), var(--accent-soft));
+  background: linear-gradient(180deg, var(--popup-surface), var(--accent-soft));
 }
 
 .diff-action-popover__rail {
@@ -143,8 +143,8 @@ function handleAction(): void {
   height: 24px;
   padding: 0 7px;
   border-radius: 6px;
-  background: rgba(241, 245, 249, 0.86);
-  color: #475569;
+  background: var(--muted-chip-bg);
+  color: var(--muted-chip-text);
   font-size: 0.68rem;
   font-weight: 760;
   line-height: 1;

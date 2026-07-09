@@ -4,9 +4,9 @@
       <div class="brand-logo-glow">
         <svg viewBox="0 0 32 32" fill="none">
           <rect class="brand-logo__page brand-logo__page--accent" x="3" y="3" width="12" height="26" rx="2" stroke-width="1.5"/>
-          <rect x="17" y="3" width="12" height="26" rx="2" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+          <rect class="brand-logo__page brand-logo__page--revision" x="17" y="3" width="12" height="26" rx="2" stroke-width="1.5"/>
           <path class="brand-logo__line brand-logo__line--accent" d="M6 9h6M6 13h6M6 17h5" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M20 9h6M20 13h6M20 17h5" stroke="#86efac" stroke-width="1.5" stroke-linecap="round"/>
+          <path class="brand-logo__line brand-logo__line--revision" d="M20 9h6M20 13h6M20 17h5" stroke-width="1.5" stroke-linecap="round"/>
           <path class="brand-logo__plus" d="M14 16h4" stroke-width="2" stroke-linecap="round"/>
           <path class="brand-logo__plus" d="M16 14v4" stroke-width="2" stroke-linecap="round"/>
         </svg>
@@ -206,6 +206,19 @@
               <button
                   type="button"
                   class="settings-toggle"
+                  :class="{ active: appearanceMode === 'dark' }"
+                  :title="i18n.header.nightModeTitle"
+                  :aria-pressed="appearanceMode === 'dark'"
+                  @click="toggleAppearanceMode"
+              >
+                <span class="settings-toggle__label">{{ i18n.header.nightMode }}</span>
+                <span class="settings-toggle__switch" aria-hidden="true">
+                  <span class="settings-toggle__switch-thumb"></span>
+                </span>
+              </button>
+              <button
+                  type="button"
+                  class="settings-toggle"
                   :class="{ active: syncScroll }"
                   :title="i18n.header.syncScrollTitle"
                   :aria-pressed="syncScroll"
@@ -308,11 +321,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { DiffGranularity, SimilarDiffLevel } from '@/types/diff';
 import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
-import { getThemeSwatchStyle, THEME_COLORS, type ThemeColor } from '@/utils/themeColor';
+import { getThemeSwatchStyle, THEME_COLORS, type AppearanceMode, type ThemeColor } from '@/utils/themeColor';
 
 const props = defineProps<{
   diffGranularity: DiffGranularity;
   themeColor: ThemeColor;
+  appearanceMode: AppearanceMode;
   ignoreSpaces: boolean;
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
@@ -326,6 +340,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:diffGranularity': [value: DiffGranularity];
   'update:themeColor': [value: ThemeColor];
+  'update:appearanceMode': [value: AppearanceMode];
   'update:ignoreSpaces': [value: boolean];
   'update:ignoreFullHalfWidth': [value: boolean];
   'update:filterLayoutNoise': [value: boolean];
@@ -346,6 +361,7 @@ const themeColorOptions: ThemeColor[] = [...THEME_COLORS];
 const isUsingDefaultSettings = computed(() =>
   props.diffGranularity === DEFAULT_APP_SETTINGS.diffGranularity &&
   props.themeColor === DEFAULT_APP_SETTINGS.themeColor &&
+  props.appearanceMode === DEFAULT_APP_SETTINGS.appearanceMode &&
   props.ignoreSpaces === DEFAULT_APP_SETTINGS.ignoreSpaces &&
   props.ignoreFullHalfWidth === DEFAULT_APP_SETTINGS.ignoreFullHalfWidth &&
   props.filterLayoutNoise === DEFAULT_APP_SETTINGS.filterLayoutNoise &&
@@ -368,6 +384,10 @@ function updateThemeColor(value: ThemeColor): void {
   emit('update:themeColor', value);
 }
 
+function toggleAppearanceMode(): void {
+  emit('update:appearanceMode', props.appearanceMode === 'dark' ? 'light' : 'dark');
+}
+
 function updateSimilarDiffLevel(value: SimilarDiffLevel): void {
   emit('update:similarDiffLevel', value);
 }
@@ -377,6 +397,7 @@ function resetSettings(): void {
 
   emit('update:diffGranularity', DEFAULT_APP_SETTINGS.diffGranularity);
   emit('update:themeColor', DEFAULT_APP_SETTINGS.themeColor);
+  emit('update:appearanceMode', DEFAULT_APP_SETTINGS.appearanceMode);
   emit('update:ignoreSpaces', DEFAULT_APP_SETTINGS.ignoreSpaces);
   emit('update:ignoreFullHalfWidth', DEFAULT_APP_SETTINGS.ignoreFullHalfWidth);
   emit('update:filterLayoutNoise', DEFAULT_APP_SETTINGS.filterLayoutNoise);
@@ -437,7 +458,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02), 0 4px 16px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow-panel);
   backdrop-filter: blur(12px);
   position: relative;
   z-index: 10;
@@ -473,8 +494,17 @@ onBeforeUnmount(() => {
   stroke: var(--accent);
 }
 
+.brand-logo__page--revision {
+  fill: var(--brand-revision-fill);
+  stroke: var(--brand-revision-stroke);
+}
+
 .brand-logo__line--accent {
   stroke: rgba(var(--accent-rgb), 0.48);
+}
+
+.brand-logo__line--revision {
+  stroke: var(--brand-revision-line);
 }
 
 .brand-logo__plus {
@@ -648,10 +678,10 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 12px;
   padding: 12px;
-  border: 1px solid rgba(5, 5, 5, 0.08);
+  border: 1px solid var(--popup-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.99);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
+  background: var(--popup-surface);
+  box-shadow: var(--popup-shadow-sm);
   backdrop-filter: blur(12px);
 }
 
@@ -727,10 +757,10 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   padding: 2px;
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  background: var(--surface-card-solid);
+  box-shadow: var(--inset-highlight);
 }
 
 .granularity-segmented__option {
@@ -766,7 +796,7 @@ onBeforeUnmount(() => {
 .settings-section--view {
   gap: 6px;
   padding-top: 10px;
-  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  border-top: 1px solid var(--control-border);
 }
 
 .settings-section__title {
@@ -785,9 +815,9 @@ onBeforeUnmount(() => {
 }
 
 .settings-toggle-list--primary {
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: #ffffff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--control-border);
+  background: var(--surface-card-solid);
+  box-shadow: var(--inset-highlight);
 }
 
 .settings-toggle-list--plain {
@@ -795,7 +825,7 @@ onBeforeUnmount(() => {
   padding: 4px;
   border: 1px solid transparent;
   border-radius: 8px;
-  background: rgba(248, 250, 252, 0.78);
+  background: var(--surface-chip);
 }
 
 .settings-toggle {
@@ -818,7 +848,7 @@ onBeforeUnmount(() => {
 }
 
 .settings-toggle:hover {
-  background: rgba(248, 250, 252, 0.96);
+  background: var(--surface-chip-hover);
   color: var(--text-primary);
 }
 
@@ -847,7 +877,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 2px;
   border-radius: 999px;
-  background: #cbd5e1;
+  background: var(--border-strong);
   transition: background 0.18s ease;
 }
 
@@ -859,7 +889,7 @@ onBeforeUnmount(() => {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--surface-card-solid);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.22);
   transform: translateX(0);
   transition: transform 0.18s ease;
@@ -909,23 +939,23 @@ onBeforeUnmount(() => {
   padding: 2px;
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--surface-card-solid);
   color: var(--text-secondary);
   cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  box-shadow: var(--inset-highlight);
   transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .theme-color-swatch:hover {
   border-color: rgba(var(--theme-rgb), 0.34);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 2px 5px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--inset-highlight), 0 2px 5px rgba(15, 23, 42, 0.08);
   transform: translateY(-1px);
 }
 
 .theme-color-swatch.active {
   border-color: rgba(var(--theme-rgb), 0.54);
   background: rgba(var(--theme-rgb), 0.08);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.82), 0 0 0 2px rgba(var(--theme-rgb), 0.12);
+  box-shadow: var(--inset-highlight), 0 0 0 2px rgba(var(--theme-rgb), 0.12);
 }
 
 .theme-color-swatch::after {
@@ -991,9 +1021,9 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   padding: 2px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  border: 1px solid var(--control-border);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--surface-card-solid);
 }
 
 .similar-level-segmented button {

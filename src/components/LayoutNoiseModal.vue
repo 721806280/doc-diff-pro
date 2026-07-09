@@ -119,10 +119,10 @@ onUnmounted(() => {
 }
 
 .layout-noise-panel {
-  --noise-ink: #1e293b;
-  --noise-text: #475569;
-  --noise-muted: #64748b;
-  --noise-line: rgba(203, 213, 225, 0.8);
+  --noise-ink: var(--text-primary);
+  --noise-text: var(--text-secondary);
+  --noise-muted: var(--text-tertiary);
+  --noise-line: var(--popup-border);
 
   position: relative;
   width: min(760px, calc(100vw - 32px));
@@ -140,7 +140,7 @@ onUnmounted(() => {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.48) transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .layout-noise-panel::-webkit-scrollbar {
@@ -154,7 +154,7 @@ onUnmounted(() => {
 .layout-noise-panel::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.48);
+  background: var(--scrollbar-thumb);
   background-clip: padding-box;
 }
 
@@ -192,7 +192,7 @@ onUnmounted(() => {
   padding: 2px 8px;
   border-radius: 20px;
   color: var(--noise-muted);
-  background: rgba(15, 23, 42, 0.05);
+  background: var(--muted-chip-bg);
   font-family: 'SF Mono', 'Monaco', monospace;
   font-size: 0.68rem;
   font-weight: 600;
@@ -232,7 +232,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: rgba(248, 250, 252, 0.5);
+  background: var(--surface-chip);
 }
 
 .layout-noise-list li {
@@ -242,17 +242,17 @@ onUnmounted(() => {
   gap: 10px;
   min-height: 72px;
   padding: 12px 14px 14px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--control-border);
   border-radius: var(--popup-control-radius);
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  background: var(--surface-card-solid);
+  box-shadow: var(--inset-highlight);
   overflow: visible;
   transition: all 0.16s ease;
 }
 
 .layout-noise-list li:hover {
-  border-color: rgba(15, 23, 42, 0.12);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  border-color: var(--control-border-hover);
+  box-shadow: var(--control-shadow-hover);
 }
 
 .layout-noise-list li::before {
@@ -260,11 +260,11 @@ onUnmounted(() => {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 3px;
-  background: rgba(148, 163, 184, 0.34);
+  background: var(--border-strong);
 }
 
-.layout-noise-list li.is-original::before { background: rgba(220, 38, 38, 0.5); }
-.layout-noise-list li.is-revised::before { background: rgba(22, 163, 74, 0.5); }
+.layout-noise-list li.is-original::before { background: rgba(var(--del-rgb), 0.5); }
+.layout-noise-list li.is-revised::before { background: rgba(var(--ins-rgb), 0.5); }
 
 .layout-noise-meta {
   display: flex;
@@ -284,20 +284,20 @@ onUnmounted(() => {
   line-height: 1.1;
   font-weight: 600;
   color: var(--noise-muted);
-  background: rgba(15, 23, 42, 0.04);
-  border: 1px solid rgba(15, 23, 42, 0.05);
+  background: var(--muted-chip-bg);
+  border: 1px solid var(--muted-chip-border);
 }
 
-.layout-noise-side.side-original { color: #c2410c; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.12); }
-.layout-noise-side.side-revised { color: #15803d; background: rgba(34, 197, 94, 0.08); border-color: rgba(34, 197, 94, 0.12); }
+.layout-noise-side.side-original { color: var(--del-text); background: rgba(var(--del-rgb), 0.08); border-color: rgba(var(--del-rgb), 0.16); }
+.layout-noise-side.side-revised { color: var(--ins-text); background: rgba(var(--ins-rgb), 0.08); border-color: rgba(var(--ins-rgb), 0.16); }
 .layout-noise-reason.reason-hint { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-border); }
-.layout-noise-reason.reason-page-number, .layout-noise-reason.reason-repeated-layout-text { color: #475569; }
-.layout-noise-source { color: #0f766e; background: rgba(20, 184, 166, 0.08); border-color: rgba(20, 184, 166, 0.16); }
+.layout-noise-reason.reason-page-number, .layout-noise-reason.reason-repeated-layout-text { color: var(--noise-text); }
+.layout-noise-source { color: var(--source-text); background: rgba(var(--source-rgb), 0.08); border-color: rgba(var(--source-rgb), 0.16); }
 .layout-noise-count { font-family: 'SF Mono', 'Monaco', monospace; font-weight: 700; }
 
 .layout-noise-text {
   margin: 0;
-  color: #334155;
+  color: var(--document-text);
   font-size: 0.8rem;
   font-weight: 500;
   line-height: 1.6;

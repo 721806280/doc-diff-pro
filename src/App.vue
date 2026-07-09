@@ -3,6 +3,7 @@
     <AppHeader
         v-model:diff-granularity="diffGranularity"
         v-model:theme-color="themeColor"
+        v-model:appearance-mode="appearanceMode"
         v-model:ignore-spaces="ignoreSpaces"
         v-model:ignore-full-half-width="ignoreFullHalfWidth"
         v-model:filter-layout-noise="filterLayoutNoise"
@@ -163,7 +164,7 @@ import { parseDocx, type ParsedDocx } from './utils/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
 import { resolveSyncScrollTop, type ScrollAnchor } from './utils/scrollSync';
-import { applyThemeVariables, clearThemeVariables, getThemeStyle, type ThemeColor } from './utils/themeColor';
+import { applyThemeVariables, clearThemeVariables, getThemeStyle, type AppearanceMode, type ThemeColor } from './utils/themeColor';
 import {
   activeReviewCount,
   activeReviewPosition,
@@ -235,6 +236,7 @@ const activeTableHint = ref<DiffTableContextHint | null>(null);
 const tableHintPanelOpen = ref(false);
 const initialSettings = readSavedAppSettings();
 const themeColor = ref<ThemeColor>(initialSettings.themeColor);
+const appearanceMode = ref<AppearanceMode>(initialSettings.appearanceMode);
 const syncScroll = ref(initialSettings.syncScroll);
 const showTableHints = ref(initialSettings.showTableHints);
 const enableDiffIgnore = ref(initialSettings.enableDiffIgnore);
@@ -323,11 +325,11 @@ const tableHintMessageText = computed(() => activeTableHint.value
     ? formatTableHintMessage(activeTableHint.value)
     : ''
 );
-const themeStyle = computed(() => getThemeStyle(themeColor.value));
+const themeStyle = computed(() => getThemeStyle(themeColor.value, appearanceMode.value));
 
-watch(themeColor, (nextThemeColor) => {
+watch([themeColor, appearanceMode], ([nextThemeColor, nextAppearanceMode]) => {
   if (typeof document === 'undefined') return;
-  applyThemeVariables(document.documentElement.style, nextThemeColor);
+  applyThemeVariables(document.documentElement.style, nextThemeColor, nextAppearanceMode);
 }, { immediate: true });
 
 function createEmptyDocumentState(): DocumentState {
@@ -480,10 +482,11 @@ watch(enableSimilarDiffs, (enabled) => {
   if (!enabled) closeSimilarDiffs();
 });
 
-watch([diffGranularity, themeColor, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showTableHints, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
+watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showTableHints, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
     [
       nextDiffGranularity,
       nextThemeColor,
+      nextAppearanceMode,
       nextIgnoreSpaces,
       nextIgnoreFullHalfWidth,
       nextFilterLayoutNoise,
@@ -497,6 +500,7 @@ watch([diffGranularity, themeColor, ignoreSpaces, ignoreFullHalfWidth, filterLay
   writeSavedAppSettings({
     diffGranularity: nextDiffGranularity,
     themeColor: nextThemeColor,
+    appearanceMode: nextAppearanceMode,
     ignoreSpaces: nextIgnoreSpaces,
     ignoreFullHalfWidth: nextIgnoreFullHalfWidth,
     filterLayoutNoise: nextFilterLayoutNoise,
@@ -1312,13 +1316,54 @@ onUnmounted(() => {
 
 <style scoped>
 .app-container {
+  --color-scheme: light;
+  --body-bg: #edf1f5;
   --bg-app: transparent;
   --bg-panel: rgba(255, 255, 255, 0.95);
+  --bg-panel-solid: #ffffff;
+  --bg-panel-muted: #fafbfc;
+  --bg-document: #ffffff;
+  --bg-document-muted: #fafbfc;
+  --bg-empty: rgba(241, 245, 249, 0.94);
+  --bg-transparent: rgba(255, 255, 255, 0);
+  --surface-card: rgba(255, 255, 255, 0.95);
+  --surface-card-muted: rgba(248, 250, 252, 0.98);
+  --surface-card-solid: #ffffff;
+  --surface-chip: rgba(248, 250, 252, 0.9);
+  --surface-chip-hover: rgba(248, 250, 252, 0.96);
+  --surface-translucent: rgba(255, 255, 255, 0.72);
+  --surface-disabled: rgba(248, 250, 252, 0.78);
   --border-subtle: rgba(229, 231, 235, 0.82);
   --border-strong: #d1d5db;
   --text-primary: #111827;
   --text-secondary: #4b5563;
   --text-tertiary: #9ca3af;
+  --document-text: #1e293b;
+  --document-muted: #64748b;
+  --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.02), 0 4px 16px rgba(15, 23, 42, 0.04);
+  --shadow-panel-hover: 0 2px 6px rgba(15, 23, 42, 0.04), 0 12px 32px rgba(15, 23, 42, 0.06);
+  --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.03), 0 8px 24px rgba(15, 23, 42, 0.04);
+  --shadow-floating: 0 10px 28px rgba(15, 23, 42, 0.13), 0 1px 2px rgba(15, 23, 42, 0.08);
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --inset-control: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-thumb-hover: #64748b;
+  --scrollbar-track: transparent;
+  --muted-chip-text: #64748b;
+  --muted-chip-strong: #334155;
+  --muted-chip-bg: rgba(241, 245, 249, 0.82);
+  --muted-chip-bg-hover: rgba(226, 232, 240, 0.74);
+  --muted-chip-border: rgba(100, 116, 139, 0.18);
+  --modified-text: #6d28d9;
+  --modified-rgb: 109, 40, 217;
+  --similarity-text: #0f766e;
+  --similarity-rgb: 15, 118, 110;
+  --source-text: #0f766e;
+  --source-rgb: 20, 184, 166;
+  --ignored-text: #64748b;
+  --ignored-bg: rgba(241, 245, 249, 0.66);
+  --ignored-border: rgba(100, 116, 139, 0.22);
+  --ignored-focus-ring: 0 0 0 2px rgba(100, 116, 139, 0.38), 0 4px 12px rgba(15, 23, 42, 0.1);
 
   --accent: #4f46e5;
   --accent-rgb: 79, 70, 229;
@@ -1357,7 +1402,11 @@ onUnmounted(() => {
   --gradient-accent: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
   --gradient-ins: linear-gradient(135deg, rgba(var(--ins-rgb), 0.12) 0%, rgba(var(--ins-rgb), 0.06) 100%);
   --gradient-del: linear-gradient(135deg, rgba(var(--del-rgb), 0.12) 0%, rgba(var(--del-rgb), 0.06) 100%);
+  --brand-revision-fill: #dcfce7;
+  --brand-revision-stroke: #16a34a;
+  --brand-revision-line: #86efac;
 
+  color-scheme: var(--color-scheme);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   width: 100%;
   max-width: 100vw;
@@ -1386,7 +1435,7 @@ onUnmounted(() => {
 }
 
 .app-error-banner {
-  background: rgba(255, 241, 242, 0.96);
+  background: rgba(var(--del-rgb), 0.1);
   border: 1px solid var(--del-border);
   color: var(--text-primary);
   border-radius: 8px;
@@ -1402,7 +1451,7 @@ onUnmounted(() => {
 
 .app-error-banner button {
   border: 1px solid var(--del-border);
-  background: #ffffff;
+  background: var(--surface-card-solid);
   color: var(--del-text);
   border-radius: 6px;
   padding: 4px 10px;
@@ -1437,7 +1486,7 @@ onUnmounted(() => {
   padding: 7px 8px 7px 12px;
   border-radius: 8px;
   border: 1px solid var(--warning-border);
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--popup-surface);
   color: var(--warning-ink);
   box-shadow: var(--popup-shadow-sm);
   box-sizing: border-box;

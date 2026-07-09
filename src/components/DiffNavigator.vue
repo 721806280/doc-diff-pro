@@ -217,7 +217,7 @@ function handleRestoreAll(): void {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.03);
+  box-shadow: var(--shadow-panel);
   backdrop-filter: blur(12px);
   position: relative;
   z-index: 5;
@@ -248,7 +248,7 @@ function handleRestoreAll(): void {
   font-weight: 650;
   white-space: nowrap;
   border: 1px solid var(--border-subtle);
-  background: rgba(248, 250, 252, 0.9);
+  background: var(--surface-chip);
   min-height: 24px;
   box-sizing: border-box;
   color: var(--text-secondary);
@@ -266,15 +266,15 @@ button.summary-chip {
 }
 
 .summary-chip.total.alert { color: var(--accent-strong); border-color: var(--accent-border); background: var(--accent-soft); }
-.summary-chip.total.muted { color: #64748b; border-color: rgba(100, 116, 139, 0.16); background: rgba(241, 245, 249, 0.8); }
+.summary-chip.total.muted { color: var(--muted-chip-text); border-color: var(--muted-chip-border); background: var(--muted-chip-bg); }
 .summary-chip.total.clean, .summary-chip.inserted { color: var(--ins-text); border-color: var(--ins-border); background: rgba(var(--ins-rgb), 0.08); }
-.summary-chip.modified { color: #6d28d9; border-color: rgba(109, 40, 217, 0.2); background: rgba(109, 40, 217, 0.08); }
+.summary-chip.modified { color: var(--modified-text); border-color: rgba(var(--modified-rgb), 0.2); background: rgba(var(--modified-rgb), 0.08); }
 .summary-chip.deleted { color: var(--del-text); border-color: var(--del-border); background: rgba(var(--del-rgb), 0.08); }
-.summary-chip.similarity { color: #0f766e; border-color: rgba(15, 118, 110, 0.22); background: rgba(15, 118, 110, 0.08); }
+.summary-chip.similarity { color: var(--similarity-text); border-color: rgba(var(--similarity-rgb), 0.22); background: rgba(var(--similarity-rgb), 0.08); }
 .summary-chip.layout-noise { color: var(--warning-strong); border-color: var(--warning-border); background: var(--warning-soft); }
 .summary-chip.layout-noise.active { color: var(--warning-ink); border-color: var(--warning-border-strong); background: var(--warning-soft-strong); }
-.summary-chip.ignored { color: #64748b; border-color: rgba(100, 116, 139, 0.18); background: rgba(241, 245, 249, 0.82); }
-.summary-chip.ignored:hover, .summary-chip.ignored.active { color: #334155; border-color: rgba(100, 116, 139, 0.28); background: rgba(226, 232, 240, 0.74); }
+.summary-chip.ignored { color: var(--muted-chip-text); border-color: var(--muted-chip-border); background: var(--muted-chip-bg); }
+.summary-chip.ignored:hover, .summary-chip.ignored.active { color: var(--muted-chip-strong); border-color: var(--control-border-hover); background: var(--muted-chip-bg-hover); }
 
 .diff-progress {
   width: 112px;
@@ -326,7 +326,7 @@ button.summary-chip {
   height: 3px;
   width: 100%;
   border-radius: 999px;
-  background: rgba(203, 213, 225, 0.64);
+  background: var(--border-subtle);
   overflow: hidden;
 }
 
@@ -358,7 +358,7 @@ button.summary-chip {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  box-shadow: var(--inset-control);
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   white-space: nowrap;
 }
@@ -400,8 +400,8 @@ button.summary-chip {
 }
 
 .btn-action-nav:disabled {
-  background: rgba(248, 250, 252, 0.78);
-  border-color: rgba(148, 163, 184, 0.12);
+  background: var(--control-surface-disabled);
+  border-color: var(--control-border);
   color: var(--text-tertiary);
   cursor: not-allowed;
   box-shadow: none;
@@ -436,7 +436,7 @@ button.summary-chip {
   padding: 0 10px;
   border: 1px solid var(--control-border);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--surface-card-solid);
   color: var(--accent);
   font-size: 0.68rem;
   font-weight: 700;

@@ -1,5 +1,5 @@
 import type { DiffGranularity, SimilarDiffLevel } from '@/types/diff';
-import { isThemeColor, type ThemeColor } from '@/utils/themeColor';
+import { isAppearanceMode, isThemeColor, type AppearanceMode, type ThemeColor } from '@/utils/themeColor';
 
 const STORAGE_KEY = 'doc-diff-settings';
 const DIFF_GRANULARITIES: readonly DiffGranularity[] = ['semantic', 'word', 'char'];
@@ -8,6 +8,7 @@ const SIMILAR_DIFF_LEVELS: readonly SimilarDiffLevel[] = ['strict', 'balanced', 
 export type AppSettings = {
   diffGranularity: DiffGranularity;
   themeColor: ThemeColor;
+  appearanceMode: AppearanceMode;
   ignoreSpaces: boolean;
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
@@ -21,6 +22,7 @@ export type AppSettings = {
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   diffGranularity: 'char',
   themeColor: 'indigo',
+  appearanceMode: 'light',
   ignoreSpaces: true,
   ignoreFullHalfWidth: true,
   filterLayoutNoise: false,
@@ -66,6 +68,9 @@ function normalizeAppSettings(value: unknown): AppSettings {
     themeColor: isThemeColor(value.themeColor)
       ? value.themeColor
       : DEFAULT_APP_SETTINGS.themeColor,
+    appearanceMode: isAppearanceMode(value.appearanceMode)
+      ? value.appearanceMode
+      : DEFAULT_APP_SETTINGS.appearanceMode,
     ignoreSpaces: typeof value.ignoreSpaces === 'boolean'
       ? value.ignoreSpaces
       : DEFAULT_APP_SETTINGS.ignoreSpaces,

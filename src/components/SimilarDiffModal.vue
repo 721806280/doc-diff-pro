@@ -187,9 +187,9 @@ onUnmounted(() => {
 }
 
 .similar-diff-panel {
-  --similar-ink: #1e293b;
-  --similar-muted: #64748b;
-  --similar-line: rgba(203, 213, 225, 0.82);
+  --similar-ink: var(--text-primary);
+  --similar-muted: var(--text-tertiary);
+  --similar-line: var(--popup-border);
 
   width: min(820px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
@@ -270,8 +270,8 @@ onUnmounted(() => {
   color: var(--similar-muted);
   font-size: 0.72rem;
   font-weight: 700;
-  border-bottom: 1px solid rgba(203, 213, 225, 0.54);
-  background: rgba(248, 250, 252, 0.64);
+  border-bottom: 1px solid var(--popup-border);
+  background: var(--surface-chip);
 }
 
 .similar-diff-list {
@@ -281,7 +281,7 @@ onUnmounted(() => {
   padding: 12px;
   overflow-y: auto;
   list-style: none;
-  background: rgba(248, 250, 252, 0.52);
+  background: var(--surface-chip);
 }
 
 .similar-diff-list li {
@@ -290,9 +290,9 @@ onUnmounted(() => {
   gap: 10px;
   align-items: center;
   padding: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--control-border);
   border-radius: var(--popup-control-radius);
-  background: #ffffff;
+  background: var(--surface-card-solid);
 }
 
 .similar-diff-check {
@@ -313,9 +313,9 @@ onUnmounted(() => {
 .similar-diff-check span {
   width: 16px;
   height: 16px;
-  border: 1px solid rgba(100, 116, 139, 0.3);
+  border: 1px solid var(--control-border-hover);
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--surface-card-solid);
 }
 
 .similar-diff-check input:checked + span {
@@ -345,7 +345,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 2px 7px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--control-border);
   border-radius: 4px;
   font-size: 0.65rem;
   font-weight: 750;
@@ -353,14 +353,14 @@ onUnmounted(() => {
 
 .similar-diff-index,
 .similar-diff-score {
-  color: #475569;
-  background: rgba(241, 245, 249, 0.84);
+  color: var(--text-secondary);
+  background: var(--muted-chip-bg);
   font-family: 'SF Mono', 'Monaco', monospace;
 }
 
-.similar-diff-kind.kind-modified { color: #6d28d9; background: rgba(109, 40, 217, 0.07); border-color: rgba(109, 40, 217, 0.15); }
-.similar-diff-kind.kind-inserted { color: #15803d; background: rgba(22, 163, 74, 0.08); border-color: rgba(22, 163, 74, 0.14); }
-.similar-diff-kind.kind-deleted { color: #b91c1c; background: rgba(220, 38, 38, 0.08); border-color: rgba(220, 38, 38, 0.14); }
+.similar-diff-kind.kind-modified { color: var(--modified-text); background: rgba(var(--modified-rgb), 0.08); border-color: rgba(var(--modified-rgb), 0.18); }
+.similar-diff-kind.kind-inserted { color: var(--ins-text); background: rgba(var(--ins-rgb), 0.08); border-color: rgba(var(--ins-rgb), 0.16); }
+.similar-diff-kind.kind-deleted { color: var(--del-text); background: rgba(var(--del-rgb), 0.08); border-color: rgba(var(--del-rgb), 0.16); }
 
 .similar-diff-preview {
   display: grid;
@@ -384,7 +384,7 @@ onUnmounted(() => {
 
 .similar-diff-preview strong {
   min-width: 0;
-  color: #334155;
+  color: var(--document-text);
   font-size: 0.76rem;
   font-weight: 600;
   line-height: 1.5;
