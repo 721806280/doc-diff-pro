@@ -216,6 +216,7 @@ const EMPTY_DIFF_SUMMARY: DiffSummary = {
   layoutNoiseItems: []
 };
 const MAX_DOCX_SIZE = 25 * 1024 * 1024;
+const DIFF_ACTION_POPOVER_CLEARANCE = 48;
 
 const documents = reactive<Record<PaneKey, DocumentState>>({
   A: createEmptyDocumentState(),
@@ -887,13 +888,13 @@ function updateDiffActionPosition(): void {
   }
 
   const rect = target.getBoundingClientRect();
-  if (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) {
+  if (!isDiffActionTargetVisible(target, rect)) {
     diffActionPosition.value = null;
     return;
   }
 
   diffActionPosition.value = {
-    top: clampNumber(rect.top, 46, window.innerHeight - 12),
+    top: rect.top,
     left: clampDiffActionLeft(rect.left + (rect.width / 2))
   };
 }
@@ -906,12 +907,24 @@ function clampDiffActionLeft(value: number): number {
 }
 
 function selectDiffActionTarget(): HTMLElement | null {
-  return focusedDiffElements.find(isElementInViewport) ?? focusedDiffElements[0] ?? null;
+  return focusedDiffElements.find((element) => isDiffActionTargetVisible(element)) ?? null;
 }
 
-function isElementInViewport(element: HTMLElement): boolean {
-  const rect = element.getBoundingClientRect();
-  return rect.bottom >= 0 && rect.top <= window.innerHeight && rect.right >= 0 && rect.left <= window.innerWidth;
+function isDiffActionTargetVisible(element: HTMLElement, elementRect = element.getBoundingClientRect()): boolean {
+  const viewport = element.closest<HTMLElement>('.render-viewport');
+  if (!viewport) return false;
+
+  const viewportRect = viewport.getBoundingClientRect();
+  const visibleTop = Math.max(viewportRect.top, 0);
+  const visibleBottom = Math.min(viewportRect.bottom, window.innerHeight);
+  const visibleLeft = Math.max(viewportRect.left, 0);
+  const visibleRight = Math.min(viewportRect.right, window.innerWidth);
+
+  return elementRect.bottom > visibleTop &&
+      elementRect.top < visibleBottom &&
+      elementRect.right > visibleLeft &&
+      elementRect.left < visibleRight &&
+      elementRect.top >= visibleTop + DIFF_ACTION_POPOVER_CLEARANCE;
 }
 
 function clampNumber(value: number, min: number, max: number): number {
