@@ -40,12 +40,38 @@ describe('layoutNoise', () => {
     expect(root.innerHTML).toBe('<p>正文</p>');
   });
 
+  it('removes common WPS page number formats', () => {
+    const samples = [
+      '第 1/5 页',
+      '第 1 页，共 5 页',
+      '第1页/共5页',
+      '共5页 第1页',
+      '1 页 / 共 5 页',
+      '1/5',
+      'Page 1 of 5',
+      'P. iv of x',
+      '页码：1',
+      '- 1 -',
+      '— 1/5 —',
+      '（第 1 页 共 5 页）'
+    ];
+    const root = new DOMParser().parseFromString(
+      `<p>正文</p>${samples.map((sample) => `<p>${sample}</p>`).join('')}`,
+      'text/html'
+    ).body;
+    const result = removeLayoutNoise(root, { hints: { exact: [], fragments: [] }, enabled: true });
+
+    expect(result.filteredCount).toBe(samples.length);
+    expect(result.removedItems).toEqual(samples.map((text) => ({ reason: 'page-number', text })));
+    expect(root.innerHTML).toBe('<p>正文</p>');
+  });
+
   it('keeps plain numeric content without a page marker', () => {
-    const root = new DOMParser().parseFromString('<p>1</p><p>正文</p>', 'text/html').body;
+    const root = new DOMParser().parseFromString('<p>1</p><p>I</p><p>正文</p>', 'text/html').body;
     const result = removeLayoutNoise(root, { hints: { exact: [], fragments: [] }, enabled: true });
 
     expect(result.filteredCount).toBe(0);
-    expect(root.innerHTML).toBe('<p>1</p><p>正文</p>');
+    expect(root.innerHTML).toBe('<p>1</p><p>I</p><p>正文</p>');
   });
 
   it('keeps repeated content when layout filtering is disabled', () => {

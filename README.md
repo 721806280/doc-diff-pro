@@ -84,7 +84,7 @@ DocDiff Pro can filter layout text before diffing when `Layout filter` is enable
 
 - Native DOCX headers and footers are read once during parsing, used as layout hints, and removed from the displayed document body.
 - Converted page text in the document body can be filtered when it matches page header/footer hints.
-- Page numbers such as `Page 1 of 5`, `第 1/5 页`, or `- 1 -` can be removed from the comparison input.
+- Page numbers such as `Page 1 of 5`, `P. iv of x`, `第 1 页，共 5 页`, `第1页/共5页`, `共5页 第1页`, `1/5`, `页码：1`, or `— 1/5 —` can be removed from the comparison input.
 - Repeated short layout text such as confidentiality notices, copyright notices, document IDs, phone numbers, or email footer lines can be filtered.
 - Body text is protected from broad fragment matching: extracted footer fragments such as phone numbers or email addresses are only used against page-marked candidates.
 - The `Layout noise` count in the result bar can be clicked to review the filtered items.

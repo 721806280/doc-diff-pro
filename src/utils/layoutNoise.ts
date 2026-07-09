@@ -39,19 +39,38 @@ const MAX_HINT_LENGTH = 160;
 const MIN_FRAGMENT_HINT_LENGTH = 6;
 const MAX_REPEAT_LINE_LENGTH = 80;
 const MIN_REPEAT_COUNT = 2;
-const PAGE_NUMBER_PATTERN =
-  /^(?:(?:page|p)\s*)?(?:第\s*)?[0-9０-９一二三四五六七八九十百千万]+\s*(?:页|pages?|page)?(?:\s*(?:\/|of|共)\s*[0-9０-９一二三四五六七八九十百千万]+\s*(?:页|pages?)?)?$/i;
-const SIMPLE_NUMBER_PATTERN = /^[0-9０-９一二三四五六七八九十百千万]+$/;
-const PAGE_MARKER_PATTERN = /(页|pages?|page|of|共|\/)/i;
-const DECORATED_NUMBER_PATTERN = /^[-_–—]+\s*[0-9０-９一二三四五六七八九十百千万]+\s*[-_–—]+$/;
+const PAGE_VALUE_SOURCE = '[0-9０-９一二三四五六七八九十百千万]+';
+const ROMAN_PAGE_VALUE_SOURCE = '[IVXLCDMivxlcdm]+';
+const PAGE_VALUE_OR_ROMAN_SOURCE = `(?:${PAGE_VALUE_SOURCE}|${ROMAN_PAGE_VALUE_SOURCE})`;
+const SIMPLE_PAGE_VALUE_PATTERN = new RegExp(`^(?:${PAGE_VALUE_OR_ROMAN_SOURCE})$`, 'i');
+const PAGE_NUMBER_PATTERNS = [
+  new RegExp(`^(?:page|p)\\.?\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}(?:\\s*(?:/|of)\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?)?)?$`, 'i'),
+  new RegExp(`^${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?|page|页)$`, 'i'),
+  new RegExp(`^${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:/|of)\\s*(?:共\\s*)?${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?|page|页)?$`, 'i'),
+  new RegExp(`^第\\s*${PAGE_VALUE_SOURCE}(?:\\s*/\\s*(?:共\\s*)?${PAGE_VALUE_SOURCE})?\\s*页(?:\\s*[,，、]?\\s*(?:/\\s*)?(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页?)?$`),
+  new RegExp(`^(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页\\s*[,，、]?\\s*第\\s*${PAGE_VALUE_SOURCE}\\s*页$`),
+  new RegExp(`^${PAGE_VALUE_SOURCE}\\s*页\\s*[,，、/]?\\s*(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页$`),
+  new RegExp(`^(?:页码|页数|page|p)\\s*[:：]\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}$`, 'i')
+];
+const PAGE_DECORATION_EDGE_PATTERN = /^[\s\-_=–—―·•*~|]+|[\s\-_=–—―·•*~|]+$/g;
+const PAGE_BRACKET_PATTERN = /[()[\]{}（）【】〔〕［］]/g;
 const LAYOUT_KEYWORD_PATTERN =
   /(confidential|copyright|all rights reserved|内部资料|保密|版权所有|机密|页眉|页脚)/i;
 const CONTACT_OR_IDENTIFIER_PATTERN =
   /(www\.|https?:\/\/|电话|传真|编号|文件号|版本|tel[:：]|fax[:：]|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i;
 const CANDIDATE_BLOCK_SELECTOR = 'p, div, li, td, th';
 const HINT_SPLIT_PATTERN = /[;；,，|｜]/;
-const LEADING_PAGE_TEXT_PATTERN =
-  /^\s*(?:[-_–—]*\s*)?(?:(?:page|p)\s*)?(?:第\s*)?[0-9０-９一二三四五六七八九十百千万]+\s*(?:页|pages?|page)?(?:\s*(?:\/|of|共)\s*[0-9０-９一二三四五六七八九十百千万]+\s*(?:页|pages?)?)?\s*(?:[-_–—]*\s*)?/i;
+const LEADING_PAGE_TEXT_PATTERN = new RegExp(
+  `^\\s*(?:[\\s\\-_=–—―·•*~|]*\\s*)?(?:` +
+    `(?:page|p)\\.?\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}(?:\\s*(?:/|of)\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?)?)?` +
+    `|第\\s*${PAGE_VALUE_SOURCE}(?:\\s*/\\s*(?:共\\s*)?${PAGE_VALUE_SOURCE})?\\s*页(?:\\s*[,，、]?\\s*(?:/\\s*)?(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页?)?` +
+    `|(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页\\s*[,，、]?\\s*第\\s*${PAGE_VALUE_SOURCE}\\s*页` +
+    `|${PAGE_VALUE_SOURCE}\\s*页\\s*[,，、/]?\\s*(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页` +
+    `|${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:/|of)\\s*(?:共\\s*)?${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?|page|页)?` +
+    `|${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?|page|页)` +
+  `)\\s*(?:[\\s\\-_=–—―·•*~|]*\\s*)?`,
+  'i'
+);
 
 export function extractLayoutNoise(html: string): LayoutNoiseResult {
   const body = new DOMParser().parseFromString(html, 'text/html').body;
@@ -255,21 +274,31 @@ function normalizeDisplayText(text: string): string {
 
 function isPageNumber(text: string): boolean {
   const pageText = normalizePageText(text);
-  if (pageText.length === 0 || pageText.length > 32) return false;
-  if (DECORATED_NUMBER_PATTERN.test(pageText)) return true;
-  if (!PAGE_NUMBER_PATTERN.test(pageText)) return false;
-  if (SIMPLE_NUMBER_PATTERN.test(pageText)) return false;
+  if (pageText.length === 0 || pageText.length > 64) return false;
 
-  return PAGE_MARKER_PATTERN.test(pageText);
+  const strippedText = stripPageDecorations(pageText);
+  if (!strippedText) return false;
+  if (strippedText !== pageText && SIMPLE_PAGE_VALUE_PATTERN.test(strippedText)) return true;
+
+  return PAGE_NUMBER_PATTERNS.some((pattern) => pattern.test(strippedText));
 }
 
 function hasPageMarker(text: string): boolean {
-  const pageText = normalizePageText(text);
-  return DECORATED_NUMBER_PATTERN.test(pageText) || PAGE_MARKER_PATTERN.test(pageText);
+  return isPageNumber(text) ||
+    LEADING_PAGE_TEXT_PATTERN.test(text.normalize('NFKC').replace(PAGE_BRACKET_PATTERN, ' '));
 }
 
 function normalizePageText(text: string): string {
-  return text.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+  return text
+    .normalize('NFKC')
+    .replace(PAGE_BRACKET_PATTERN, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function stripPageDecorations(text: string): string {
+  return text.replace(PAGE_DECORATION_EDGE_PATTERN, '').trim();
 }
 
 function matchesLayoutHint(rawText: string, normalized: string, hints: LayoutHintIndex): boolean {
