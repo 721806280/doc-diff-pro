@@ -38,6 +38,7 @@
 
         <div
             v-if="isSettingsPanelOpen"
+            ref="settingsPopoverRef"
             class="settings-popover"
             role="dialog"
             aria-labelledby="compare-settings-title"
@@ -322,7 +323,7 @@
           :title="i18n.header.githubLabel"
           target="_blank"
           rel="noreferrer"
-          @click="closeSettingsPanel"
+          @click="closeSettingsPanel()"
       >
         <svg class="github-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85">
           <path
@@ -335,10 +336,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { DiffGranularity, SimilarDiffLevel } from '@/types/diff';
 import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
+import { createFocusTrap } from '@/utils/focusTrap';
 import { getThemeSwatchStyle, THEME_COLORS, type AppearanceMode, type ThemeColor } from '@/utils/themeColor';
 
 const props = defineProps<{
@@ -373,9 +375,12 @@ const emit = defineEmits<{
 const { locale, messages: i18n, setLocale } = useI18n();
 const isSettingsPanelOpen = ref(false);
 const settingsControlRef = ref<HTMLElement | null>(null);
+const settingsPopoverRef = ref<HTMLElement | null>(null);
 const githubRepositoryUrl = 'https://github.com/721806280/doc-diff-vision';
 const similarDiffLevelOptions: SimilarDiffLevel[] = ['strict', 'balanced', 'loose'];
 const themeColorOptions: ThemeColor[] = [...THEME_COLORS];
+const settingsFocusTrap = createFocusTrap();
+let restoreSettingsFocus = true;
 const appearanceToggleLabel = computed(() =>
   props.appearanceMode === 'dark'
     ? i18n.value.header.switchToLightMode
@@ -395,8 +400,18 @@ const isUsingDefaultSettings = computed(() =>
   props.similarDiffLevel === DEFAULT_APP_SETTINGS.similarDiffLevel
 );
 
-watch(isSettingsPanelOpen, (open) => {
+watch(isSettingsPanelOpen, async (open) => {
   emit('settings-open-change', open);
+
+  if (open) {
+    restoreSettingsFocus = true;
+    await nextTick();
+    if (isSettingsPanelOpen.value) settingsFocusTrap.activate(settingsPopoverRef.value);
+    return;
+  }
+
+  settingsFocusTrap.deactivate({ restoreFocus: restoreSettingsFocus });
+  restoreSettingsFocus = true;
 });
 
 function updateGranularity(value: DiffGranularity): void {
@@ -412,7 +427,7 @@ function toggleAppearanceMode(): void {
 }
 
 function toggleAppearanceShortcut(): void {
-  closeSettingsPanel();
+  closeSettingsPanel({ restoreFocus: false });
   toggleAppearanceMode();
 }
 
@@ -437,15 +452,21 @@ function resetSettings(): void {
 }
 
 function toggleLocale(): void {
-  isSettingsPanelOpen.value = false;
+  closeSettingsPanel({ restoreFocus: false });
   setLocale(locale.value === 'en' ? 'zh-CN' : 'en');
 }
 
 function toggleSettingsPanel(): void {
-  isSettingsPanelOpen.value = !isSettingsPanelOpen.value;
+  if (isSettingsPanelOpen.value) {
+    closeSettingsPanel();
+    return;
+  }
+
+  isSettingsPanelOpen.value = true;
 }
 
-function closeSettingsPanel(): void {
+function closeSettingsPanel(options: { restoreFocus?: boolean } = {}): void {
+  restoreSettingsFocus = options.restoreFocus !== false;
   isSettingsPanelOpen.value = false;
 }
 
@@ -453,14 +474,19 @@ function handleDocumentPointerDown(event: PointerEvent): void {
   if (!isSettingsPanelOpen.value) return;
   const target = event.target;
   if (target instanceof Node && !settingsControlRef.value?.contains(target)) {
-    isSettingsPanelOpen.value = false;
+    closeSettingsPanel({ restoreFocus: false });
   }
 }
 
 function handleDocumentKeyDown(event: KeyboardEvent): void {
+  if (!isSettingsPanelOpen.value) return;
+
   if (event.key === 'Escape') {
-    isSettingsPanelOpen.value = false;
+    closeSettingsPanel();
+    return;
   }
+
+  settingsFocusTrap.handleKeydown(event);
 }
 
 onMounted(() => {
@@ -471,6 +497,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleDocumentPointerDown);
   document.removeEventListener('keydown', handleDocumentKeyDown);
+  settingsFocusTrap.deactivate({ restoreFocus: false });
 });
 </script>
 

@@ -7,6 +7,7 @@
           @click.self="emit('close')"
       >
         <section
+            ref="panelRef"
             class="layout-noise-panel"
             role="dialog"
             aria-modal="true"
@@ -61,10 +62,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { LayoutNoiseItem } from '@/types/diff';
 import { createBodyScrollLock } from '@/utils/bodyScrollLock';
+import { createFocusTrap } from '@/utils/focusTrap';
 
 const props = defineProps<{
   open: boolean;
@@ -79,17 +81,29 @@ const emit = defineEmits<{
 const { messages: i18n } = useI18n();
 const titleId = 'layout-noise-dialog-title';
 const bodyScrollLock = createBodyScrollLock();
+const focusTrap = createFocusTrap();
+const panelRef = ref<HTMLElement | null>(null);
 
-watch(() => props.open, (open) => {
+watch(() => props.open, async (open) => {
   if (open) {
     bodyScrollLock.lock();
+    await nextTick();
+    if (props.open) focusTrap.activate(panelRef.value);
   } else {
+    focusTrap.deactivate();
     bodyScrollLock.release();
   }
 });
 
 function handleWindowKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && props.open) emit('close');
+  if (!props.open) return;
+
+  if (event.key === 'Escape') {
+    emit('close');
+    return;
+  }
+
+  focusTrap.handleKeydown(event);
 }
 
 onMounted(() => {
@@ -98,6 +112,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleWindowKeydown);
+  focusTrap.deactivate({ restoreFocus: false });
   bodyScrollLock.release();
 });
 </script>

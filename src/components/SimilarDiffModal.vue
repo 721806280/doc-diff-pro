@@ -7,6 +7,7 @@
           @click.self="emit('close')"
       >
         <section
+            ref="panelRef"
             class="similar-diff-panel"
             role="dialog"
             aria-modal="true"
@@ -95,10 +96,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { IgnoredDiffItem, SimilarDiffItem } from '@/types/diff';
 import { createBodyScrollLock } from '@/utils/bodyScrollLock';
+import { createFocusTrap } from '@/utils/focusTrap';
 
 const props = defineProps<{
   open: boolean;
@@ -116,6 +118,8 @@ const { locale, messages: i18n } = useI18n();
 const titleId = 'similar-diff-dialog-title';
 const selectedIds = ref<Set<string>>(new Set());
 const bodyScrollLock = createBodyScrollLock();
+const focusTrap = createFocusTrap();
+const panelRef = ref<HTMLElement | null>(null);
 const percentFormatter = computed(() => new Intl.NumberFormat(locale.value, {
   style: 'percent',
   minimumFractionDigits: 0,
@@ -130,10 +134,13 @@ watch(
   { immediate: true }
 );
 
-watch(() => props.open, (open) => {
+watch(() => props.open, async (open) => {
   if (open) {
     bodyScrollLock.lock();
+    await nextTick();
+    if (props.open) focusTrap.activate(panelRef.value);
   } else {
+    focusTrap.deactivate();
     bodyScrollLock.release();
   }
 });
@@ -157,7 +164,14 @@ function clearSelected(): void {
 }
 
 function handleWindowKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && props.open) emit('close');
+  if (!props.open) return;
+
+  if (event.key === 'Escape') {
+    emit('close');
+    return;
+  }
+
+  focusTrap.handleKeydown(event);
 }
 
 onMounted(() => {
@@ -166,6 +180,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleWindowKeydown);
+  focusTrap.deactivate({ restoreFocus: false });
   bodyScrollLock.release();
 });
 </script>
