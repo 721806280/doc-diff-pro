@@ -28,16 +28,11 @@
             :title="i18n.header.compareSettingsAria"
             @click="toggleSettingsPanel"
         >
-          <svg class="settings-sliders-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9">
-            <path d="M4 7h5"></path>
-            <circle cx="12" cy="7" r="2.15"></circle>
-            <path d="M15 7h5"></path>
-            <path d="M4 12h10"></path>
-            <circle cx="16" cy="12" r="2.15"></circle>
-            <path d="M19 12h1"></path>
-            <path d="M4 17h2"></path>
-            <circle cx="9" cy="17" r="2.15"></circle>
-            <path d="M12 17h8"></path>
+          <svg class="settings-sliders-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.05">
+            <path d="M4.5 8h15"></path>
+            <circle cx="9" cy="8" r="2.4" fill="var(--bg-panel-solid)"></circle>
+            <path d="M4.5 16h15"></path>
+            <circle cx="15" cy="16" r="2.4" fill="var(--bg-panel-solid)"></circle>
           </svg>
         </button>
 
@@ -618,11 +613,6 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
-.settings-trigger.active::after {
-  opacity: 1;
-  transform: translateX(-50%) scaleX(1);
-}
-
 .toolbar-icon-button:focus-visible,
 .granularity-segmented__option:focus-visible,
 .settings-toggle:focus-visible,
@@ -685,8 +675,8 @@ onBeforeUnmount(() => {
 }
 
 .settings-sliders-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
