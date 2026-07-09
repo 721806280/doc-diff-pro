@@ -114,26 +114,26 @@ DocDiff Pro 会在正式比对前把版面内容和正文内容分离。
 
 ## 🛠️ 开发命令
 
-建议使用 Node.js 20.19 或更高版本。
+建议使用当前 Node.js LTS 版本。
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 常用检查：
 
 ```bash
-npm test
-npm run typecheck
-npm run build
+pnpm test
+pnpm typecheck
+pnpm build
 ```
 
 预览生产构建：
 
 ```bash
-npm run build
-npm run preview
+pnpm build
+pnpm preview
 ```
 
 ## 🔧 技术说明

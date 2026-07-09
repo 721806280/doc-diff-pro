@@ -114,26 +114,26 @@ DocDiff Pro separates layout text from body content before diffing.
 
 ## 🛠️ Development
 
-Node.js 20.19+ is recommended.
+The current Node.js LTS release is recommended.
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Common checks:
 
 ```bash
-npm test
-npm run typecheck
-npm run build
+pnpm test
+pnpm typecheck
+pnpm build
 ```
 
 Preview the production build:
 
 ```bash
-npm run build
-npm run preview
+pnpm build
+pnpm preview
 ```
 
 ## 🔧 How It Works
