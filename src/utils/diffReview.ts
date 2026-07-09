@@ -77,6 +77,7 @@ export function findSimilarReviewItems(options: {
   const currentSignature = createReviewSignature(currentItem);
   if (!currentSignature) return [];
 
+  const threshold = SIMILAR_DIFF_THRESHOLDS[options.level];
   const candidates: SimilarDiffItem[] = [];
   for (let candidateIndex = 1; candidateIndex <= options.total; candidateIndex++) {
     if (candidateIndex === options.currentIndex || options.ignoredIds.has(diffId(candidateIndex))) continue;
@@ -84,8 +85,11 @@ export function findSimilarReviewItems(options: {
     const candidateItem = createReviewItem(candidateIndex, options.getGroup(candidateIndex));
     if (!candidateItem || candidateItem.kind !== currentItem.kind) continue;
 
-    const similarity = compareReviewSignature(currentSignature, createReviewSignature(candidateItem));
-    if (similarity < SIMILAR_DIFF_THRESHOLDS[options.level]) continue;
+    const candidateSignature = createReviewSignature(candidateItem);
+    if (!canReachSimilarityThreshold(currentSignature, candidateSignature, threshold)) continue;
+
+    const similarity = compareReviewSignature(currentSignature, candidateSignature);
+    if (similarity < threshold) continue;
 
     candidates.push({ ...candidateItem, similarity });
   }
@@ -156,6 +160,11 @@ function compareReviewSignature(left: string, right: string): number {
   if (left === right) return 1;
 
   return longestCommonSubsequenceLength(left, right) / Math.max(left.length, right.length);
+}
+
+function canReachSimilarityThreshold(left: string, right: string, threshold: number): boolean {
+  if (!left || !right) return false;
+  return Math.min(left.length, right.length) / Math.max(left.length, right.length) >= threshold;
 }
 
 function longestCommonSubsequenceLength(left: string, right: string): number {

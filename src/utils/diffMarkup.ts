@@ -152,21 +152,36 @@ function appendWrappedText(
 }
 
 function mergeNearbyDiffFragments(domElement: HTMLElement, wrapperTag: WrapperTag): void {
-  let merged = true;
+  const fragments = getTopLevelDiffFragments(domElement, wrapperTag);
+  let index = 0;
 
-  while (merged) {
-    merged = false;
-    const fragments = getTopLevelDiffFragments(domElement, wrapperTag);
+  while (index < fragments.length - 1) {
+    const current = fragments[index];
+    const next = fragments[index + 1];
 
-    for (let index = 0; index < fragments.length - 1; index++) {
-      const current = fragments[index];
-      const next = fragments[index + 1];
-      if (!canMergeDiffFragments(domElement, current, next)) continue;
-
-      mergeDiffFragments(current, next, wrapperTag);
-      merged = true;
-      break;
+    if (!current.isConnected) {
+      fragments.splice(index, 1);
+      continue;
     }
+
+    if (!next.isConnected) {
+      fragments.splice(index + 1, 1);
+      continue;
+    }
+
+    if (!canMergeDiffFragments(domElement, current, next)) {
+      index++;
+      continue;
+    }
+
+    const merged = mergeDiffFragments(current, next, wrapperTag);
+    if (!merged) {
+      index++;
+      continue;
+    }
+
+    fragments[index] = merged;
+    fragments.splice(index + 1, 1);
   }
 }
 
@@ -202,9 +217,9 @@ function compactBridgeText(text: string): string {
   return text.replace(/\s+/g, '');
 }
 
-function mergeDiffFragments(current: HTMLElement, next: HTMLElement, wrapperTag: WrapperTag): void {
+function mergeDiffFragments(current: HTMLElement, next: HTMLElement, wrapperTag: WrapperTag): HTMLElement | null {
   const groupId = current.dataset.diffId;
-  if (!groupId) return;
+  if (!groupId) return null;
 
   const ownerDocument = current.ownerDocument;
   const cleanupAncestors = collectCleanupAncestors(current, next);
@@ -220,6 +235,7 @@ function mergeDiffFragments(current: HTMLElement, next: HTMLElement, wrapperTag:
   range.detach();
   mergedWrapper.normalize();
   removeEmptyElements(cleanupAncestors);
+  return mergedWrapper;
 }
 
 function unwrapNestedDiffFragments(container: HTMLElement, wrapperTag: WrapperTag, groupId: string): void {
