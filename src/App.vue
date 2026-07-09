@@ -581,6 +581,7 @@ async function compare(showDoneNotice = false): Promise<void> {
   if (!ready.value) return;
 
   const runId = ++compareRunId;
+  let completed = false;
   cancelPendingTextDiffs();
   resetIgnoredDiffs();
   comparing.value = true;
@@ -617,6 +618,7 @@ async function compare(showDoneNotice = false): Promise<void> {
     buildViewportLockMatrix();
     observeResultLayout();
     if (totalDiffs.value > 0) focusOnDiff(1, 'auto');
+    completed = true;
   } catch (error) {
     if (runId !== compareRunId) return;
 
@@ -628,7 +630,7 @@ async function compare(showDoneNotice = false): Promise<void> {
   } finally {
     if (runId === compareRunId) {
       comparing.value = false;
-      if (showDoneNotice) showCompareNotice(i18n.value.app.notices.compareRefreshed);
+      if (showDoneNotice && completed) showCompareNotice(i18n.value.app.notices.compareRefreshed);
     }
   }
 }
