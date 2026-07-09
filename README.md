@@ -39,11 +39,15 @@ Built with `Vue 3`, `Vite`, `mammoth`, and `diff-match-patch`. Document parsing,
 - 🔍 Three diff granularities: semantic, word, and character, covering quick review through fine-grained proofreading.
 - 📊 Similarity score and change counts derived from the current normalized comparison text.
 - 🧭 Difference navigation for jumping between previous and next changes.
+- 🙈 Temporary ignore actions for the current difference, with an ignored-differences list and one-click restore.
+- 🧠 Similar-difference suggestions for optional batch ignore when repeated review noise appears.
 - 🔗 Synchronized scrolling across both panes to keep long documents aligned.
 - 🧹 Ignore whitespace, normalize full-/half-width characters, and filter layout noise such as page headers, footers, page numbers, and repeated layout text.
 - 📋 Table structure hints for common review cases such as inserted rows, missing rows, adjacent row splits, or mismatched cell counts.
 - 🧩 Preserves the original document structure and maps normalized diffs back to their original DOM text positions.
 - 🖼️ Displays embedded document images and surfaces DOCX conversion warnings when mammoth reports them.
+- 🎨 Theme color presets and light/dark appearance mode, saved with the rest of the compare settings.
+- ⌨️ Keyboard-friendly dialogs with focus containment for details panels and review overlays.
 - 🌐 Bilingual interface (English / 中文) that auto-detects your browser language and remembers your choice.
 
 ## ⚡ Quick Start
@@ -52,7 +56,8 @@ Built with `Vue 3`, `Vite`, `mammoth`, and `diff-match-patch`. Document parsing,
 2. Upload or drop the baseline document on the left and the revised document on the right.
 3. Choose the diff granularity and normalization settings.
 4. Review the summary, then use the navigator to move through each change.
-5. Open layout-noise details or table hints when they appear, and replace either document to compare another version.
+5. Temporarily ignore known noise when needed; restore ignored items from the result bar.
+6. Open layout-noise details, similar-difference suggestions, or table hints when they appear, and replace either document to compare another version.
 
 ## 🧹 Text Normalization
 
@@ -104,6 +109,8 @@ DocDiff Pro can filter layout text before diffing when `Layout filter` is enable
 - 📝 General version comparison: enable `Ignore spaces` / `Normalize width` as needed.
 - 🎯 Strict character-by-character proofreading: choose the character granularity and turn off any normalization toggles you don't need.
 - 🔎 Comparing converted documents: enable `Ignore spaces` and `Layout filter` to reduce whitespace, page header/footer, and page-number noise introduced by conversion.
+- 🙈 Repeated harmless changes: enable `Temporary ignore` and `Similar suggestions`, then review and batch-ignore matching differences.
+- 🌙 Long review sessions: switch to night mode or adjust the theme color from the toolbar; the preference is saved locally.
 
 ## 🛠️ Development
 
@@ -133,11 +140,14 @@ npm run preview
 
 - 📦 `.docx` parsing is handled by mammoth, and the resulting HTML is sanitized with DOMPurify.
 - 🧾 DOCX headers and footers are parsed once with the document, converted into layout hints, and excluded from the final displayed body.
-- 🧮 Text diffing is handled by diff-match-patch, run in a web worker with a synchronous fallback.
+- 🧮 Text diffing is handled by diff-match-patch in a web worker; long-running worker requests time out instead of falling back to the main thread.
+- 🧯 Synchronous diff fallback is guarded by a text-size limit so unsupported worker environments do not freeze on large documents.
 - 📈 Similarity is computed from the edit distance of the current normalized text: `1 - editDistance / max(originalLength, revisedLength)`.
 - 🧱 Text mapping, whitespace collapsing, and normalization rules are centralized in `src/utils/documentText.ts`.
 - 🧹 Layout noise detection is centralized in `src/utils/layoutNoise.ts`.
 - 📋 Table structure diagnosis is centralized in `src/utils/tableStructureHint.ts`.
+- 🙈 Review ignore state and similar-difference scoring live in `src/utils/diffReview.ts`.
+- 🎨 Theme tokens live in `src/utils/themeColor.ts`; teleported overlays receive the same CSS variables through the document root.
 - 🎯 Diff markers are mapped back to the DOM through the original text nodes, so normalization logic never leaks into the rendering layer.
 - 🌐 Interface strings live in a typed message catalog under `src/i18n/`.
 - 📐 Only `.docx` files are supported, up to 25 MB per file.
