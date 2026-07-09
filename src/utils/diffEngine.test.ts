@@ -94,7 +94,7 @@ describe('compareDocuments', () => {
     ]);
   });
 
-  it('keeps native header and footer details out of the summary when layout filtering is disabled', async () => {
+  it('keeps native header and footer details in the summary when layout filtering is disabled', async () => {
     const layoutNoise = createEmptyLayoutNoiseBySide();
     layoutNoise.original.nativeItems = [
       { reason: 'hint', text: '基准保密页眉' }
@@ -113,8 +113,11 @@ describe('compareDocuments', () => {
     );
 
     expect(result.summary.total).toBe(0);
-    expect(result.summary.layoutNoiseFiltered).toBe(0);
-    expect(result.summary.layoutNoiseItems).toEqual([]);
+    expect(result.summary.layoutNoiseFiltered).toBe(2);
+    expect(result.summary.layoutNoiseItems).toEqual([
+      { side: 'original', reason: 'hint', source: 'native', text: '基准保密页眉', count: 1 },
+      { side: 'revised', reason: 'hint', source: 'native', text: '修订保密页脚', count: 1 }
+    ]);
   });
 
   it('filters converted footer lines by stable hint fragments', async () => {

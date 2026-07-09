@@ -53,14 +53,17 @@ export async function compareDocuments(
     originalTrack.text.length,
     revisedTrack.text.length
   );
-  summary.layoutNoiseItems = options.filterLayoutNoise
-    ? groupItems([
-        ...withSide(options.layoutNoise.original.nativeItems, 'original', 'native'),
-        ...withSide(options.layoutNoise.revised.nativeItems, 'revised', 'native'),
+  const nativeNoiseItems = [
+    ...withSide(options.layoutNoise.original.nativeItems, 'original', 'native'),
+    ...withSide(options.layoutNoise.revised.nativeItems, 'revised', 'native')
+  ];
+  const bodyNoiseItems = options.filterLayoutNoise
+    ? [
         ...withSide(originalRemoval.removedItems, 'original', 'body'),
         ...withSide(revisedRemoval.removedItems, 'revised', 'body')
-      ])
+      ]
     : [];
+  summary.layoutNoiseItems = groupItems([...nativeNoiseItems, ...bodyNoiseItems]);
   summary.layoutNoiseFiltered = summary.layoutNoiseItems.reduce((total, item) => total + item.count, 0);
 
   return {
