@@ -384,6 +384,7 @@ const appearanceToggleLabel = computed(() =>
 const isUsingDefaultSettings = computed(() =>
   props.diffGranularity === DEFAULT_APP_SETTINGS.diffGranularity &&
   props.themeColor === DEFAULT_APP_SETTINGS.themeColor &&
+  props.appearanceMode === DEFAULT_APP_SETTINGS.appearanceMode &&
   props.ignoreSpaces === DEFAULT_APP_SETTINGS.ignoreSpaces &&
   props.ignoreFullHalfWidth === DEFAULT_APP_SETTINGS.ignoreFullHalfWidth &&
   props.filterLayoutNoise === DEFAULT_APP_SETTINGS.filterLayoutNoise &&
@@ -424,6 +425,7 @@ function resetSettings(): void {
 
   emit('update:diffGranularity', DEFAULT_APP_SETTINGS.diffGranularity);
   emit('update:themeColor', DEFAULT_APP_SETTINGS.themeColor);
+  emit('update:appearanceMode', DEFAULT_APP_SETTINGS.appearanceMode);
   emit('update:ignoreSpaces', DEFAULT_APP_SETTINGS.ignoreSpaces);
   emit('update:ignoreFullHalfWidth', DEFAULT_APP_SETTINGS.ignoreFullHalfWidth);
   emit('update:filterLayoutNoise', DEFAULT_APP_SETTINGS.filterLayoutNoise);
