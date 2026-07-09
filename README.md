@@ -57,7 +57,7 @@ Built with `Vue 3`, `Vite`, `mammoth`, and `diff-match-patch`. Document parsing,
 3. Choose the diff granularity and normalization settings.
 4. Review the summary, then use the navigator to move through each change.
 5. Temporarily ignore known noise when needed; restore ignored items from the result bar.
-6. Open layout-noise details, similar-difference suggestions, or table hints when they appear, and replace either document to compare another version.
+6. Open layout details, similar-difference suggestions, or table hints when they appear, and replace either document to compare another version.
 
 ## 🧹 Text Normalization
 
@@ -82,12 +82,12 @@ Treats full-width ASCII and half-width ASCII as equivalent, including full-width
 
 DocDiff Pro separates layout text from body content before diffing.
 
-- Native DOCX headers and footers are always read during parsing, used as layout hints, kept in filter details, and removed from the displayed document body.
+- Native DOCX headers and footers are always read during parsing, used as layout hints, kept in layout details, and removed from the displayed document body.
 - When `Layout filter` is enabled, converted page text in the document body can also be filtered when it matches page header/footer hints.
 - Page numbers such as `Page 1 of 5`, `P. iv of x`, `第 1 页，共 5 页`, `第1页/共5页`, `共5页 第1页`, `1/5`, `页码：1`, or `— 1/5 —` can be removed from the comparison input.
 - Repeated short layout text such as confidentiality notices, copyright notices, document IDs, phone numbers, or email footer lines can be filtered.
 - Body text is protected from broad fragment matching: extracted footer fragments such as phone numbers or email addresses are only used against page-marked candidates.
-- The `Layout noise` count in the result bar can be clicked to review the filtered items.
+- The `Layout` count in the result bar can be clicked to review layout details.
 
 ## 🔒 Privacy
 

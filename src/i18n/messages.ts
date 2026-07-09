@@ -140,7 +140,7 @@ const en = {
       return `Layout ${count}`;
     },
     layoutNoiseTitle: 'Headers, footers, page numbers, or repeated layout text excluded from the comparison. Click to view.',
-    layoutNoiseDetailsTitle: 'Filter details',
+    layoutNoiseDetailsTitle: 'Layout details',
     layoutNoiseDetailsCount(count: number): string {
       return `${count} ${count === 1 ? 'item' : 'items'}`;
     },
@@ -362,7 +362,7 @@ const zhCN: I18nMessages = {
       return `版面 ${count}`;
     },
     layoutNoiseTitle: '已从比对中排除的页眉、页脚、页码或重复版面文字。点击查看。',
-    layoutNoiseDetailsTitle: '过滤明细',
+    layoutNoiseDetailsTitle: '版面明细',
     layoutNoiseDetailsCount(count: number): string {
       return `${count} 条`;
     },
