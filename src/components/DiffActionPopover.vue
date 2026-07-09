@@ -98,11 +98,9 @@ function handleAction(): void {
   padding: 4px 5px;
   border: 1px solid var(--popup-border);
   border-radius: 8px;
-  background: linear-gradient(180deg, var(--popup-surface), var(--popup-surface-soft));
+  background: linear-gradient(180deg, var(--popup-surface), var(--popup-surface-soft)), var(--bg-panel-solid);
   color: var(--text-primary);
   box-shadow: var(--shadow-floating);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   transform: translate(-50%, calc(-100% - 9px));
 }
 
@@ -115,13 +113,18 @@ function handleAction(): void {
   height: 8px;
   border-right: 1px solid var(--popup-border);
   border-bottom: 1px solid var(--popup-border);
-  background: var(--popup-surface-soft);
+  background: linear-gradient(135deg, var(--popup-surface-soft), var(--popup-surface-soft)), var(--bg-panel-solid);
   transform: translateX(-50%) rotate(45deg);
 }
 
 .diff-action-popover.ignored {
   border-color: var(--accent-border-strong);
-  background: linear-gradient(180deg, var(--popup-surface), var(--accent-soft));
+  background: linear-gradient(180deg, var(--popup-surface), var(--accent-soft)), var(--bg-panel-solid);
+}
+
+.diff-action-popover.ignored::after {
+  border-color: var(--accent-border-strong);
+  background: linear-gradient(135deg, var(--popup-surface-soft), var(--accent-soft)), var(--bg-panel-solid);
 }
 
 .diff-action-popover__rail {
