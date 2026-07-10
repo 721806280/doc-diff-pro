@@ -57,6 +57,16 @@ describe('AppHeader', () => {
 
     expect(root.querySelector('.settings-reset-button')).toBeNull();
   });
+
+  it('emits document session actions when they are available', () => {
+    const { root, events } = mountHeader({ canSwapDocuments: true, canResetDocuments: true });
+
+    root.querySelector<HTMLButtonElement>('.swap-documents-trigger')?.click();
+    root.querySelector<HTMLButtonElement>('.reset-documents-trigger')?.click();
+
+    expect(events).toContain('swapDocuments');
+    expect(events).toContain('resetDocuments');
+  });
 });
 
 function mountHeader(overrides: Record<string, unknown> = {}): MountedHeader {
@@ -64,6 +74,8 @@ function mountHeader(overrides: Record<string, unknown> = {}): MountedHeader {
   const events: string[] = [];
   const props = {
     ...DEFAULT_APP_SETTINGS,
+    canSwapDocuments: false,
+    canResetDocuments: false,
     ...overrides,
     'onUpdate:diffGranularity': (value: string) => events.push(`diffGranularity:${value}`),
     'onUpdate:themeColor': (value: string) => events.push(`themeColor:${value}`),
@@ -76,6 +88,8 @@ function mountHeader(overrides: Record<string, unknown> = {}): MountedHeader {
     'onUpdate:enableDiffIgnore': (value: boolean) => events.push(`enableDiffIgnore:${value}`),
     'onUpdate:enableSimilarDiffs': (value: boolean) => events.push(`enableSimilarDiffs:${value}`),
     'onUpdate:similarDiffLevel': (value: string) => events.push(`similarDiffLevel:${value}`),
+    onSwapDocuments: () => events.push('swapDocuments'),
+    onResetDocuments: () => events.push('resetDocuments'),
     onSettingsReset: () => events.push('settingsReset'),
     onSettingsOpenChange: (value: boolean) => events.push(`settingsOpen:${value}`)
   };

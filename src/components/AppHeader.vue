@@ -17,6 +17,38 @@
     </div>
 
     <div ref="settingsControlRef" class="header-actions">
+      <button
+          v-if="canSwapDocuments"
+          type="button"
+          class="toolbar-icon-button swap-documents-trigger"
+          :aria-label="i18n.header.swapDocumentsTitle"
+          :title="i18n.header.swapDocumentsTitle"
+          @click="$emit('swap-documents')"
+      >
+        <svg class="session-action-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9">
+          <path d="M7 7h11"></path>
+          <path d="M15 4l3 3-3 3"></path>
+          <path d="M17 17H6"></path>
+          <path d="M9 14l-3 3 3 3"></path>
+        </svg>
+      </button>
+
+      <button
+          v-if="canResetDocuments"
+          type="button"
+          class="toolbar-icon-button reset-documents-trigger"
+          :aria-label="i18n.header.newComparisonTitle"
+          :title="i18n.header.newComparisonTitle"
+          @click="$emit('reset-documents')"
+      >
+        <svg class="session-action-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path>
+          <path d="M14 3v5h5"></path>
+          <path d="M12 12v5"></path>
+          <path d="M9.5 14.5h5"></path>
+        </svg>
+      </button>
+
       <div class="settings-control" :class="{ 'settings-control--open': isSettingsPanelOpen }">
         <button
             type="button"
@@ -345,6 +377,8 @@ import { createFocusTrap } from '@/utils/focusTrap';
 import { getThemeSwatchStyle, THEME_COLORS, type AppearanceMode, type ThemeColor } from '@/utils/themeColor';
 
 const props = defineProps<{
+  canSwapDocuments: boolean;
+  canResetDocuments: boolean;
   diffGranularity: DiffGranularity;
   themeColor: ThemeColor;
   appearanceMode: AppearanceMode;
@@ -370,6 +404,8 @@ const emit = defineEmits<{
   'update:enableDiffIgnore': [value: boolean];
   'update:enableSimilarDiffs': [value: boolean];
   'update:similarDiffLevel': [value: SimilarDiffLevel];
+  'swap-documents': [];
+  'reset-documents': [];
   'settings-reset': [];
   'settings-open-change': [value: boolean];
 }>();
@@ -709,6 +745,13 @@ onBeforeUnmount(() => {
 .settings-sliders-icon {
   width: 20px;
   height: 20px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.session-action-icon {
+  width: 19px;
+  height: 19px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

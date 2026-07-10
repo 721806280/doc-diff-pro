@@ -6,6 +6,7 @@ const en = {
   app: {
     documentTitle: 'DocDiff Pro - DOCX Document Comparison',
     retryCompare: 'Compare again',
+    newComparisonConfirm: 'Clear both documents and start a new comparison?',
     documents: {
       A: {
         title: 'Original document (A)',
@@ -31,6 +32,8 @@ const en = {
       parseFailed: 'Could not parse the document. Check the file and try again.',
       settingsUpdated: 'Settings updated. Comparing again...',
       settingsReset: 'Default compare settings restored.',
+      documentsSwapped: 'Baseline and revised documents swapped.',
+      newComparisonStarted: 'Ready for a new comparison.',
       compareFailed: 'Could not compare the documents. Adjust the files or settings and try again.',
       compareRefreshed: 'Comparison updated with the latest settings.'
     },
@@ -79,6 +82,8 @@ const en = {
       char: 'Char'
     },
     compareSettingsAria: 'Compare settings',
+    swapDocumentsTitle: 'Swap baseline and revised documents',
+    newComparisonTitle: 'Start a new comparison',
     resetSettingsLabel: 'Restore defaults',
     resetSettingsTitle: 'Restore default compare settings',
     compareRulesLabel: 'Compare rules',
@@ -257,6 +262,7 @@ const zhCN: I18nMessages = {
   app: {
     documentTitle: 'DocDiff Pro - DOCX 文档比对',
     retryCompare: '重新比对',
+    newComparisonConfirm: '清空两份文档并开始新的比对吗？',
     documents: {
       A: {
         title: '基准文档 (A)',
@@ -282,6 +288,8 @@ const zhCN: I18nMessages = {
       parseFailed: '文档解析失败，请检查文件后重试',
       settingsUpdated: '设置已更新，正在重新比对...',
       settingsReset: '已恢复默认比对设置',
+      documentsSwapped: '已交换基准文档和修订文档',
+      newComparisonStarted: '可以开始新的文档比对',
       compareFailed: '文档比对失败，请调整文件或设置后重试',
       compareRefreshed: '已根据最新设置刷新比对结果'
     },
@@ -330,6 +338,8 @@ const zhCN: I18nMessages = {
       char: '字符'
     },
     compareSettingsAria: '比对设置',
+    swapDocumentsTitle: '交换基准文档和修订文档',
+    newComparisonTitle: '开始新的文档比对',
     resetSettingsLabel: '恢复默认',
     resetSettingsTitle: '恢复默认比对设置',
     compareRulesLabel: '比对规则',

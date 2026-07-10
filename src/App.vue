@@ -1,6 +1,8 @@
 <template>
   <div class="app-container" :style="themeStyle">
     <AppHeader
+        :can-swap-documents="canSwapDocuments"
+        :can-reset-documents="hasDocuments"
         v-model:diff-granularity="diffGranularity"
         v-model:theme-color="themeColor"
         v-model:appearance-mode="appearanceMode"
@@ -12,6 +14,8 @@
         v-model:enable-diff-ignore="enableDiffIgnore"
         v-model:enable-similar-diffs="enableSimilarDiffs"
         v-model:similar-diff-level="similarDiffLevel"
+        @swap-documents="swapDocuments"
+        @reset-documents="resetDocuments"
         @settings-reset="handleSettingsReset"
         @settings-open-change="handleSettingsPanelOpenChange"
     />
@@ -284,6 +288,8 @@ const documentErrors = reactive<Partial<Record<PaneKey, { kind: ErrorKind; detai
 const compareErrorDetail = ref('');
 
 const ready = computed(() => documents.A.status === 'ready' && documents.B.status === 'ready');
+const hasDocuments = computed(() => Boolean(documents.A.name || documents.B.name));
+const canSwapDocuments = computed(() => ready.value && !comparing.value);
 const totalDiffs = computed(() => diffSummary.value.total);
 const ignoredDiffIds = computed(() => new Set(ignoredDiffs.value.keys()));
 const ignoredDiffList = computed(() => sortReviewItems(ignoredDiffs.value.values()));
@@ -670,6 +676,32 @@ function handleSettingsPanelOpenChange(open: boolean): void {
 
 function handleSettingsReset(): void {
   void nextTick(() => showCompareNotice(i18n.value.app.notices.settingsReset));
+}
+
+function swapDocuments(): void {
+  if (!canSwapDocuments.value) return;
+
+  const original = { ...documents.A };
+  const revised = { ...documents.B };
+  clearCompareResult();
+  fileLoadIds.A++;
+  fileLoadIds.B++;
+  Object.assign(documents.A, revised);
+  Object.assign(documents.B, original);
+  showCompareNotice(i18n.value.app.notices.documentsSwapped);
+  void compare();
+}
+
+function resetDocuments(): void {
+  if (!hasDocuments.value || !window.confirm(i18n.value.app.newComparisonConfirm)) return;
+
+  clearCompareResult();
+  (['A', 'B'] as PaneKey[]).forEach((key) => {
+    fileLoadIds[key]++;
+    Object.assign(documents[key], createEmptyDocumentState());
+    delete documentErrors[key];
+  });
+  showCompareNotice(i18n.value.app.notices.newComparisonStarted);
 }
 
 function exportReviewReport(): void {
