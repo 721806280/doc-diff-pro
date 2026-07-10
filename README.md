@@ -50,7 +50,7 @@ Built with `Vue 3`, `Vite`, `mammoth`, and `diff-match-patch`. Document parsing,
 - 🎨 Theme color presets and light/dark appearance mode, saved with the rest of the compare settings.
 - ⌨️ Keyboard-friendly dialogs with focus containment for details panels and review overlays.
 - 🌐 Bilingual interface (English / 中文) that auto-detects your browser language and remembers your choice.
-- 📲 Installable as a PWA after the first online load, with offline access to the locally processed comparison workspace.
+- 📲 Installable as a PWA after the first online load, with offline document parsing, comparison, and bundled samples.
 - 🛡️ Warns before closing or refreshing an active document session, since uploaded files are never persisted.
 
 ## ⚡ Quick Start

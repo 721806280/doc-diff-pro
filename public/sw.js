@@ -1,4 +1,5 @@
-const CACHE_NAME = 'doc-diff-pro-v1';
+const BUILD_ID = new URL(self.location.href).searchParams.get('v') ?? 'local';
+const CACHE_NAME = `doc-diff-pro-${BUILD_ID}`;
 const APP_SHELL_URL = new URL('./', self.registration.scope).href;
 
 self.addEventListener('install', (event) => {
@@ -33,21 +34,30 @@ async function cacheAppShell() {
   const response = await fetch(APP_SHELL_URL, { cache: 'reload' });
   if (!response.ok) throw new Error(`Could not cache app shell: ${response.status}`);
 
-  const html = await response.clone().text();
   await cache.put(APP_SHELL_URL, response);
 
-  const urls = new Set([
-    new URL('manifest.webmanifest', APP_SHELL_URL).href,
-    new URL('favicon.svg', APP_SHELL_URL).href
-  ]);
-  for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
-    const assetUrl = new URL(match[1], APP_SHELL_URL);
-    if (assetUrl.origin === self.location.origin) urls.add(assetUrl.href);
+  const assetManifestUrl = new URL('asset-manifest.json', APP_SHELL_URL).href;
+  const assetManifestResponse = await fetch(assetManifestUrl, { cache: 'reload' });
+  if (!assetManifestResponse.ok) {
+    throw new Error(`Could not cache asset manifest: ${assetManifestResponse.status}`);
   }
 
-  await Promise.allSettled(Array.from(urls, async (url) => {
+  const assetPaths = await assetManifestResponse.clone().json();
+  if (!Array.isArray(assetPaths)) throw new Error('Invalid asset manifest');
+  await cache.put(assetManifestUrl, assetManifestResponse);
+
+  const urls = [
+    'manifest.webmanifest',
+    'favicon.svg',
+    'samples/baseline.docx',
+    'samples/revised.docx',
+    ...assetPaths.filter((path) => typeof path === 'string')
+  ].map((path) => new URL(path, APP_SHELL_URL).href);
+
+  await Promise.all(urls.map(async (url) => {
     const asset = await fetch(url, { cache: 'reload' });
-    if (asset.ok) await cache.put(url, asset);
+    if (!asset.ok) throw new Error(`Could not cache asset: ${url}`);
+    await cache.put(url, asset);
   }));
 }
 
