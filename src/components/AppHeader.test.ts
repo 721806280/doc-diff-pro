@@ -41,11 +41,21 @@ describe('AppHeader', () => {
 
     const resetButton = root.querySelector<HTMLButtonElement>('.settings-reset-button');
     expect(resetButton).toBeTruthy();
-    expect(resetButton?.getAttribute('aria-disabled')).toBe('false');
+    expect(resetButton?.textContent?.trim()).toBe('恢复默认');
 
     resetButton?.click();
 
     expect(events).toContain(`appearanceMode:${DEFAULT_APP_SETTINGS.appearanceMode}`);
+    expect(events).toContain('settingsReset');
+  });
+
+  it('hides the reset button while using the default settings', async () => {
+    const { root } = mountHeader();
+
+    root.querySelector<HTMLButtonElement>('.settings-trigger')?.click();
+    await nextTick();
+
+    expect(root.querySelector('.settings-reset-button')).toBeNull();
   });
 });
 
@@ -66,6 +76,7 @@ function mountHeader(overrides: Record<string, unknown> = {}): MountedHeader {
     'onUpdate:enableDiffIgnore': (value: boolean) => events.push(`enableDiffIgnore:${value}`),
     'onUpdate:enableSimilarDiffs': (value: boolean) => events.push(`enableSimilarDiffs:${value}`),
     'onUpdate:similarDiffLevel': (value: string) => events.push(`similarDiffLevel:${value}`),
+    onSettingsReset: () => events.push('settingsReset'),
     onSettingsOpenChange: (value: boolean) => events.push(`settingsOpen:${value}`)
   };
 

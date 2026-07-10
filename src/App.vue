@@ -12,6 +12,7 @@
         v-model:enable-diff-ignore="enableDiffIgnore"
         v-model:enable-similar-diffs="enableSimilarDiffs"
         v-model:similar-diff-level="similarDiffLevel"
+        @settings-reset="handleSettingsReset"
         @settings-open-change="handleSettingsPanelOpenChange"
     />
 
@@ -650,6 +651,10 @@ function handleSettingsPanelOpenChange(open: boolean): void {
   }
 
   scheduleDiffActionPositionUpdate();
+}
+
+function handleSettingsReset(): void {
+  void nextTick(() => showCompareNotice(i18n.value.app.notices.settingsReset));
 }
 
 function prevDiff(): void {

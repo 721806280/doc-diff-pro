@@ -55,11 +55,11 @@
               <span id="compare-settings-title">{{ i18n.header.compareSettingsAria }}</span>
             </div>
             <button
+                v-if="!isUsingDefaultSettings"
                 type="button"
                 class="settings-reset-button"
                 :aria-label="i18n.header.resetSettingsTitle"
                 :title="i18n.header.resetSettingsTitle"
-                :aria-disabled="isUsingDefaultSettings"
                 @click="resetSettings"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.25">
@@ -67,6 +67,7 @@
                 <path d="M7.2 4.7v3.2H4"></path>
                 <path d="M12 8.9v3.8l2.5 1.5"></path>
               </svg>
+              <span>{{ i18n.header.resetSettingsLabel }}</span>
             </button>
           </div>
 
@@ -369,6 +370,7 @@ const emit = defineEmits<{
   'update:enableDiffIgnore': [value: boolean];
   'update:enableSimilarDiffs': [value: boolean];
   'update:similarDiffLevel': [value: SimilarDiffLevel];
+  'settings-reset': [];
   'settings-open-change': [value: boolean];
 }>();
 
@@ -449,6 +451,7 @@ function resetSettings(): void {
   emit('update:enableDiffIgnore', DEFAULT_APP_SETTINGS.enableDiffIgnore);
   emit('update:enableSimilarDiffs', DEFAULT_APP_SETTINGS.enableSimilarDiffs);
   emit('update:similarDiffLevel', DEFAULT_APP_SETTINGS.similarDiffLevel);
+  emit('settings-reset');
 }
 
 function toggleLocale(): void {
@@ -789,33 +792,50 @@ onBeforeUnmount(() => {
 }
 
 .settings-reset-button {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
+  height: 26px;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-tertiary);
+  gap: 5px;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--surface-card-solid);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  box-shadow: var(--inset-highlight);
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .settings-reset-button svg {
-  width: 19px;
-  height: 19px;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition: transform 0.22s ease;
 }
 
 .settings-reset-button:hover {
   border-color: var(--accent-border);
   background: var(--accent-soft);
   color: var(--accent);
-  transform: rotate(-18deg);
-  box-shadow: 0 1px 3px rgba(var(--accent-rgb), 0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(var(--accent-rgb), 0.12);
+}
+
+.settings-reset-button:hover svg {
+  transform: rotate(-24deg);
+}
+
+.settings-reset-button:active {
+  transform: translateY(0);
 }
 
 .granularity-segmented {

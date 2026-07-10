@@ -30,6 +30,7 @@ const en = {
       },
       parseFailed: 'Could not parse the document. Check the file and try again.',
       settingsUpdated: 'Settings updated. Comparing again...',
+      settingsReset: 'Default compare settings restored.',
       compareFailed: 'Could not compare the documents. Adjust the files or settings and try again.',
       compareRefreshed: 'Comparison updated with the latest settings.'
     },
@@ -58,6 +59,7 @@ const en = {
       char: 'Char'
     },
     compareSettingsAria: 'Compare settings',
+    resetSettingsLabel: 'Restore defaults',
     resetSettingsTitle: 'Restore default compare settings',
     compareRulesLabel: 'Compare rules',
     ignoreSpacesTitle: 'Ignore spacing differences, including regular spaces, full-width spaces, and tabs.',
@@ -252,6 +254,7 @@ const zhCN: I18nMessages = {
       },
       parseFailed: '文档解析失败，请检查文件后重试',
       settingsUpdated: '设置已更新，正在重新比对...',
+      settingsReset: '已恢复默认比对设置',
       compareFailed: '文档比对失败，请调整文件或设置后重试',
       compareRefreshed: '已根据最新设置刷新比对结果'
     },
@@ -280,6 +283,7 @@ const zhCN: I18nMessages = {
       char: '字符'
     },
     compareSettingsAria: '比对设置',
+    resetSettingsLabel: '恢复默认',
     resetSettingsTitle: '恢复默认比对设置',
     compareRulesLabel: '比对规则',
     ignoreSpacesTitle: '忽略普通空格、全角空格、制表符等版式差异',
