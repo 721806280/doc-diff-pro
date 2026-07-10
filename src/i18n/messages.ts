@@ -46,6 +46,26 @@ const en = {
       }
     }
   },
+  reviewReport: {
+    exportLabel: 'Export report',
+    exportTitle: 'Download a local, printable review report.',
+    title: 'DocDiff review report',
+    generatedAt: 'Generated at',
+    documents: 'Documents',
+    settings: 'Compare settings',
+    summary: 'Result summary',
+    differences: 'Difference details',
+    originalPreview: 'Baseline content',
+    revisedPreview: 'Revised content',
+    statusActive: 'Active',
+    statusIgnored: 'Ignored',
+    enabled: 'On',
+    disabled: 'Off',
+    emptyPreview: 'No content',
+    emptyDifferences: 'No differences were found.',
+    privacyNote: 'This report was generated locally in your browser. Document contents were not uploaded.',
+    exportedNotice: 'Review report downloaded.'
+  },
   header: {
     diffGranularityLabel: 'Diff Level',
     granularityOptions: {
@@ -276,6 +296,26 @@ const zhCN: I18nMessages = {
         return `文档比对失败：${detail}`;
       }
     }
+  },
+  reviewReport: {
+    exportLabel: '导出报告',
+    exportTitle: '下载在浏览器本地生成、可打印的审阅报告',
+    title: 'DocDiff 审阅报告',
+    generatedAt: '生成时间',
+    documents: '文档信息',
+    settings: '比对设置',
+    summary: '结果摘要',
+    differences: '差异明细',
+    originalPreview: '基准内容',
+    revisedPreview: '修订内容',
+    statusActive: '待审阅',
+    statusIgnored: '已忽略',
+    enabled: '开启',
+    disabled: '关闭',
+    emptyPreview: '无内容',
+    emptyDifferences: '未发现差异',
+    privacyNote: '本报告仅在浏览器本地生成，文档内容未上传。',
+    exportedNotice: '审阅报告已下载'
   },
   header: {
     diffGranularityLabel: '比对粒度',

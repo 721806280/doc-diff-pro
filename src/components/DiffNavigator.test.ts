@@ -83,6 +83,14 @@ describe('DiffNavigator', () => {
     expect(buttons[1]?.getAttribute('aria-keyshortcuts')).toBe('Alt+ArrowDown');
     expect(buttons[1]?.title).toContain('Alt+↓');
   });
+
+  it('emits report export from the summary strip', () => {
+    const { root, events } = mountNavigator();
+
+    clickButton(root, '导出报告');
+
+    expect(events).toContain('exportReport');
+  });
 });
 
 function mountNavigator(overrides: Record<string, unknown> = {}): MountedNavigator {
@@ -101,6 +109,7 @@ function mountNavigator(overrides: Record<string, unknown> = {}): MountedNavigat
     onLocateIgnored: (id: string) => events.push(`locateIgnored:${id}`),
     onRestoreIgnored: (id: string) => events.push(`restoreIgnored:${id}`),
     onRestoreAllIgnored: () => events.push('restoreAllIgnored'),
+    onExportReport: () => events.push('exportReport'),
     ...overrides
   };
 

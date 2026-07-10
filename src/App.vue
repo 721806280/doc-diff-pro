@@ -37,6 +37,7 @@
         @locate-ignored="locateIgnoredDiff"
         @restore-ignored="restoreIgnoredDiff"
         @restore-all-ignored="restoreIgnoredDiffs"
+        @export-report="exportReviewReport"
     />
 
     <div class="workspace-container">
@@ -171,6 +172,7 @@ import { compareDocuments } from './utils/diffEngine';
 import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
 import { parseDocx, type ParsedDocx } from './utils/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
+import { buildReviewReportHtml, downloadReviewReport, type ReviewReportChange } from './utils/reviewReport';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
 import { resolveSyncScrollTop, type ScrollAnchor } from './utils/scrollSync';
 import { applyThemeVariables, clearThemeVariables, getThemeStyle, type AppearanceMode, type ThemeColor } from './utils/themeColor';
@@ -668,6 +670,76 @@ function handleSettingsPanelOpenChange(open: boolean): void {
 
 function handleSettingsReset(): void {
   void nextTick(() => showCompareNotice(i18n.value.app.notices.settingsReset));
+}
+
+function exportReviewReport(): void {
+  const generatedAt = new Date();
+  const enabledLabel = (enabled: boolean) => enabled
+    ? i18n.value.reviewReport.enabled
+    : i18n.value.reviewReport.disabled;
+  const changes: ReviewReportChange[] = [];
+
+  for (let index = 1; index <= totalDiffs.value; index++) {
+    const item = createReviewItem(index, getDiffGroup(index));
+    if (!item) continue;
+
+    const ignored = ignoredDiffIds.value.has(item.id);
+    changes.push({
+      index,
+      kind: item.kind,
+      kindLabel: i18n.value.diffNavigator.ignoredDiffKind[item.kind],
+      statusLabel: ignored ? i18n.value.reviewReport.statusIgnored : i18n.value.reviewReport.statusActive,
+      originalPreview: item.originalPreview,
+      revisedPreview: item.revisedPreview,
+      ignored
+    });
+  }
+
+  const html = buildReviewReportHtml({
+    locale: locale.value,
+    title: i18n.value.reviewReport.title,
+    generatedAtLabel: i18n.value.reviewReport.generatedAt,
+    generatedAt: new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(generatedAt),
+    documentsLabel: i18n.value.reviewReport.documents,
+    originalLabel: i18n.value.app.documents.A.title,
+    originalFileName: documents.A.name,
+    revisedLabel: i18n.value.app.documents.B.title,
+    revisedFileName: documents.B.name,
+    settingsLabel: i18n.value.reviewReport.settings,
+    settings: [
+      { label: i18n.value.header.diffGranularityLabel, value: i18n.value.header.granularityOptions[diffGranularity.value] },
+      { label: i18n.value.header.ignoreSpaces, value: enabledLabel(ignoreSpaces.value) },
+      { label: i18n.value.header.ignoreFullHalfWidth, value: enabledLabel(ignoreFullHalfWidth.value) },
+      { label: i18n.value.header.filterLayoutNoise, value: enabledLabel(filterLayoutNoise.value) }
+    ],
+    summaryLabel: i18n.value.reviewReport.summary,
+    summary: [
+      {
+        label: i18n.value.diffNavigator.similarity,
+        value: new Intl.NumberFormat(locale.value, { style: 'percent', maximumFractionDigits: 1 }).format(diffSummary.value.similarity)
+      },
+      { label: i18n.value.diffNavigator.difference, value: String(diffSummary.value.total) },
+      { label: i18n.value.diffNavigator.modified, value: String(diffSummary.value.modified) },
+      { label: i18n.value.diffNavigator.inserted, value: String(diffSummary.value.inserted) },
+      { label: i18n.value.diffNavigator.deleted, value: String(diffSummary.value.deleted) },
+      { label: i18n.value.diffNavigator.ignoredDetailsTitle, value: String(ignoredDiffCount.value) }
+    ],
+    differencesLabel: i18n.value.reviewReport.differences,
+    originalPreviewLabel: i18n.value.reviewReport.originalPreview,
+    revisedPreviewLabel: i18n.value.reviewReport.revisedPreview,
+    emptyPreviewLabel: i18n.value.reviewReport.emptyPreview,
+    emptyDifferencesLabel: i18n.value.reviewReport.emptyDifferences,
+    privacyNote: i18n.value.reviewReport.privacyNote,
+    changes
+  });
+
+  downloadReviewReport(html, createReviewReportFileName(generatedAt));
+  showCompareNotice(i18n.value.reviewReport.exportedNotice);
+}
+
+function createReviewReportFileName(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `docdiff-report-${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.html`;
 }
 
 function prevDiff(): void {

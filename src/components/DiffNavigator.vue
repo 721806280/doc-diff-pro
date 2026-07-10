@@ -43,6 +43,20 @@
         >
           {{ i18n.diffNavigator.ignoredDiffs(ignoredDiffCount) }}
         </button>
+        <button
+            type="button"
+            class="summary-chip export-report"
+            :title="i18n.reviewReport.exportTitle"
+            :aria-label="i18n.reviewReport.exportTitle"
+            @click="$emit('exportReport')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3v11"></path>
+            <path d="M8 10l4 4 4-4"></path>
+            <path d="M5 18h14"></path>
+          </svg>
+          {{ i18n.reviewReport.exportLabel }}
+        </button>
       </div>
     </div>
 
@@ -146,6 +160,7 @@ const emit = defineEmits<{
   locateIgnored: [id: string];
   restoreIgnored: [id: string];
   restoreAllIgnored: [];
+  exportReport: [];
 }>();
 
 const layoutNoiseOpen = ref(false);
@@ -279,6 +294,9 @@ button.summary-chip {
 .summary-chip.layout-noise.active { color: var(--warning-ink); border-color: var(--warning-border-strong); background: var(--warning-soft-strong); }
 .summary-chip.ignored { color: var(--muted-chip-text); border-color: var(--muted-chip-border); background: var(--muted-chip-bg); }
 .summary-chip.ignored:hover, .summary-chip.ignored.active { color: var(--muted-chip-strong); border-color: var(--control-border-hover); background: var(--muted-chip-bg-hover); }
+.summary-chip.export-report { color: var(--accent); border-color: var(--accent-border); background: var(--accent-soft); }
+.summary-chip.export-report:hover { border-color: var(--accent-border-strong); background: var(--accent-soft-strong); }
+.summary-chip.export-report svg { width: 13px; height: 13px; stroke-linecap: round; stroke-linejoin: round; }
 
 .diff-progress {
   width: 112px;
