@@ -127,7 +127,6 @@ const en = {
       balanced: 'Match at 72% or above. Balanced candidate coverage.',
       loose: 'Match at 62% or above. More candidates that need closer review.'
     },
-    installAppTitle: 'Install DocDiff Pro',
     githubLabel: 'Open GitHub repository',
     switchToLightMode: 'Switch to light mode',
     switchToNightMode: 'Switch to night mode',
@@ -393,7 +392,6 @@ const zhCN: I18nMessages = {
       balanced: '匹配度不低于 72%，候选数量和准确性较均衡',
       loose: '匹配度不低于 62%，候选更多，需要更仔细确认'
     },
-    installAppTitle: '安装 DocDiff Pro',
     githubLabel: '打开 GitHub 仓库',
     switchToLightMode: '切换到日间模式',
     switchToNightMode: '切换到夜间模式',

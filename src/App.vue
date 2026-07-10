@@ -201,7 +201,6 @@ import {
 import { readSavedAppSettings, writeSavedAppSettings } from './utils/appSettings';
 import { compareDocuments } from './utils/diffEngine';
 import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
-import { guardDocumentSessionUnload } from './utils/documentSession';
 import { parseDocx, type ParsedDocx } from './utils/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
 import { buildReviewReportHtml, downloadReviewReport, type ReviewReportChange } from './utils/reviewReport';
@@ -1551,7 +1550,10 @@ function syncDocumentLocale(): void {
 }
 
 function handleBeforeUnload(event: BeforeUnloadEvent): void {
-  guardDocumentSessionUnload(event, hasActiveDocumentSession.value);
+  if (!hasActiveDocumentSession.value) return;
+
+  event.preventDefault();
+  event.returnValue = '';
 }
 
 onMounted(() => {
@@ -1606,6 +1608,10 @@ onUnmounted(() => {
   overflow: hidden;
   position: relative;
   z-index: 1;
+}
+
+.workspace-container--result {
+  gap: 1px;
 }
 
 .local-processing-strip {

@@ -1,20 +1,35 @@
 <template>
   <header class="app-toolbar" :class="{ 'app-toolbar--settings-open': isSettingsPanelOpen }">
-    <div class="brand-zone">
-      <div class="brand-logo-glow">
+    <h1 class="visually-hidden">DocDiff Pro</h1>
+    <button
+        type="button"
+        class="brand-zone"
+        :class="{ 'is-resetting': brandResetting }"
+        :disabled="!canResetDocuments"
+        :aria-label="canResetDocuments ? i18n.header.newComparisonTitle : 'DocDiff Pro'"
+        :title="canResetDocuments ? i18n.header.newComparisonTitle : undefined"
+        @click="resetFromBrand"
+    >
+      <span class="brand-logo-glow" aria-hidden="true">
         <svg viewBox="0 0 32 32" fill="none">
-          <rect class="brand-logo__page brand-logo__page--accent" x="3" y="3" width="12" height="26" rx="2" stroke-width="1.5"/>
-          <rect class="brand-logo__page brand-logo__page--revision" x="17" y="3" width="12" height="26" rx="2" stroke-width="1.5"/>
-          <path class="brand-logo__line brand-logo__line--accent" d="M6 9h6M6 13h6M6 17h5" stroke-width="1.5" stroke-linecap="round"/>
-          <path class="brand-logo__line brand-logo__line--revision" d="M20 9h6M20 13h6M20 17h5" stroke-width="1.5" stroke-linecap="round"/>
-          <path class="brand-logo__plus" d="M14 16h4" stroke-width="2" stroke-linecap="round"/>
-          <path class="brand-logo__plus" d="M16 14v4" stroke-width="2" stroke-linecap="round"/>
+          <g class="brand-logo__document brand-logo__document--accent">
+            <rect class="brand-logo__page brand-logo__page--accent" x="3" y="3" width="12" height="26" rx="2" stroke-width="1.5"/>
+            <path class="brand-logo__line brand-logo__line--accent" d="M6 9h6M6 13h6M6 17h5" stroke-width="1.5" stroke-linecap="round"/>
+          </g>
+          <g class="brand-logo__document brand-logo__document--revision">
+            <rect class="brand-logo__page brand-logo__page--revision" x="17" y="3" width="12" height="26" rx="2" stroke-width="1.5"/>
+            <path class="brand-logo__line brand-logo__line--revision" d="M20 9h6M20 13h6M20 17h5" stroke-width="1.5" stroke-linecap="round"/>
+          </g>
+          <g class="brand-logo__plus">
+            <path d="M14 16h4" stroke-width="2" stroke-linecap="round"/>
+            <path d="M16 14v4" stroke-width="2" stroke-linecap="round"/>
+          </g>
         </svg>
-      </div>
-      <div class="brand-text">
-        <h1>DocDiff <span class="badge-pro">Pro</span></h1>
-      </div>
-    </div>
+      </span>
+      <span class="brand-text" aria-hidden="true">
+        <span class="brand-title">DocDiff <span class="badge-pro">Pro</span></span>
+      </span>
+    </button>
 
     <div ref="settingsControlRef" class="header-actions">
       <button
@@ -30,22 +45,6 @@
           <path d="M15 4l3 3-3 3"></path>
           <path d="M17 17H6"></path>
           <path d="M9 14l-3 3 3 3"></path>
-        </svg>
-      </button>
-
-      <button
-          v-if="canResetDocuments"
-          type="button"
-          class="toolbar-icon-button reset-documents-trigger"
-          :aria-label="i18n.header.newComparisonTitle"
-          :title="i18n.header.newComparisonTitle"
-          @click="$emit('reset-documents')"
-      >
-        <svg class="session-action-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9">
-          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path>
-          <path d="M14 3v5h5"></path>
-          <path d="M12 12v5"></path>
-          <path d="M9.5 14.5h5"></path>
         </svg>
       </button>
 
@@ -296,22 +295,6 @@
       </div>
 
       <button
-          v-if="installPrompt"
-          type="button"
-          class="toolbar-icon-button install-app-trigger"
-          :aria-label="i18n.header.installAppTitle"
-          :title="i18n.header.installAppTitle"
-          @click="installApp"
-      >
-        <svg class="session-action-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9">
-          <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3h9A2.5 2.5 0 0 1 19 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 5 18.5z"></path>
-          <path d="M12 6.5v8"></path>
-          <path d="m8.8 11.5 3.2 3.2 3.2-3.2"></path>
-          <path d="M9 18h6"></path>
-        </svg>
-      </button>
-
-      <button
           type="button"
           class="toolbar-icon-button appearance-trigger"
           :class="{ active: appearanceMode === 'dark' }"
@@ -392,11 +375,6 @@ import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
 import { createFocusTrap } from '@/utils/focusTrap';
 import { getThemeSwatchStyle, THEME_COLORS, type AppearanceMode, type ThemeColor } from '@/utils/themeColor';
 
-type BeforeInstallPromptEvent = Event & {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-};
-
 const props = defineProps<{
   canSwapDocuments: boolean;
   canResetDocuments: boolean;
@@ -435,12 +413,13 @@ const { locale, messages: i18n, setLocale } = useI18n();
 const isSettingsPanelOpen = ref(false);
 const settingsControlRef = ref<HTMLElement | null>(null);
 const settingsPopoverRef = ref<HTMLElement | null>(null);
-const installPrompt = ref<BeforeInstallPromptEvent | null>(null);
+const brandResetting = ref(false);
 const githubRepositoryUrl = 'https://github.com/721806280/doc-diff-vision';
 const similarDiffLevelOptions: SimilarDiffLevel[] = ['strict', 'balanced', 'loose'];
 const themeColorOptions: ThemeColor[] = [...THEME_COLORS];
 const settingsFocusTrap = createFocusTrap();
 let restoreSettingsFocus = true;
+let brandResetTimer: number | null = null;
 const appearanceToggleLabel = computed(() =>
   props.appearanceMode === 'dark'
     ? i18n.value.header.switchToLightMode
@@ -550,40 +529,32 @@ function handleDocumentKeyDown(event: KeyboardEvent): void {
   settingsFocusTrap.handleKeydown(event);
 }
 
-function handleBeforeInstallPrompt(event: Event): void {
-  event.preventDefault();
-  installPrompt.value = event as BeforeInstallPromptEvent;
-}
+function resetFromBrand(): void {
+  if (!props.canResetDocuments || brandResetTimer !== null) return;
 
-function handleAppInstalled(): void {
-  installPrompt.value = null;
-}
-
-async function installApp(): Promise<void> {
-  const prompt = installPrompt.value;
-  if (!prompt) return;
-
-  installPrompt.value = null;
-  try {
-    await prompt.prompt();
-    await prompt.userChoice;
-  } catch (error) {
-    console.warn('[App installation failed]', error);
+  closeSettingsPanel({ restoreFocus: false });
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    emit('reset-documents');
+    return;
   }
+
+  brandResetting.value = true;
+  brandResetTimer = window.setTimeout(() => {
+    brandResetting.value = false;
+    brandResetTimer = null;
+    emit('reset-documents');
+  }, 240);
 }
 
 onMounted(() => {
   document.addEventListener('pointerdown', handleDocumentPointerDown);
   document.addEventListener('keydown', handleDocumentKeyDown);
-  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  window.addEventListener('appinstalled', handleAppInstalled);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleDocumentPointerDown);
   document.removeEventListener('keydown', handleDocumentKeyDown);
-  window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  window.removeEventListener('appinstalled', handleAppInstalled);
+  if (brandResetTimer !== null) window.clearTimeout(brandResetTimer);
   settingsFocusTrap.deactivate({ restoreFocus: false });
 });
 </script>
@@ -610,11 +581,39 @@ onBeforeUnmount(() => {
   z-index: var(--z-settings-popover);
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .brand-zone {
   display: flex;
   align-items: center;
   gap: 10px;
   flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.brand-zone:disabled {
+  cursor: default;
+}
+
+.brand-zone:focus-visible {
+  outline: none;
+  border-radius: 7px;
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .brand-logo-glow {
@@ -629,6 +628,40 @@ onBeforeUnmount(() => {
   width: 32px;
   height: 32px;
   filter: drop-shadow(0 2px 4px rgba(var(--accent-rgb), 0.18));
+}
+
+.brand-logo__document,
+.brand-logo__plus {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.brand-zone:not(:disabled):hover .brand-logo-glow {
+  transform: translateY(-1px);
+}
+
+.brand-zone.is-resetting .brand-logo__document--accent {
+  animation: brand-reset-accent 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.brand-zone.is-resetting .brand-logo__document--revision {
+  animation: brand-reset-revision 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.brand-zone.is-resetting .brand-logo__plus {
+  animation: brand-reset-plus 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes brand-reset-accent {
+  50% { transform: translateX(3px); }
+}
+
+@keyframes brand-reset-revision {
+  50% { transform: translateX(-3px); }
+}
+
+@keyframes brand-reset-plus {
+  50% { transform: rotate(90deg) scale(0.84); }
 }
 
 .brand-logo__page--accent {
@@ -653,7 +686,7 @@ onBeforeUnmount(() => {
   stroke: var(--accent);
 }
 
-.brand-text h1 {
+.brand-title {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
@@ -741,16 +774,6 @@ onBeforeUnmount(() => {
 
 .toolbar-icon-button:hover {
   transform: translateY(-1px);
-}
-
-.install-app-trigger {
-  color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--accent-border);
-}
-
-.install-app-trigger:hover {
-  background: var(--accent-soft-strong);
 }
 
 .toolbar-icon-button:focus-visible,
@@ -1275,12 +1298,16 @@ onBeforeUnmount(() => {
     display: none;
   }
 
-  .brand-text h1 {
+  .brand-title {
     font-size: 0.8rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .brand-zone,
+  .brand-logo-glow,
+  .brand-logo__document,
+  .brand-logo__plus,
   .brand-logo-glow svg,
   .toolbar-icon-button,
   .toolbar-icon-button::after,

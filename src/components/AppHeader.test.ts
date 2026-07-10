@@ -27,6 +27,7 @@ const mountedHeaders: MountedHeader[] = [];
 
 describe('AppHeader', () => {
   afterEach(() => {
+    vi.useRealTimers();
     mountedHeaders.splice(0).forEach(({ app, root }) => {
       app.unmount();
       root.remove();
@@ -62,36 +63,30 @@ describe('AppHeader', () => {
     expect(root.querySelector('.settings-reset-button')).toBeNull();
   });
 
-  it('emits document session actions when they are available', () => {
+  it('emits document session actions from swap and the brand', async () => {
+    vi.useFakeTimers();
     const { root, events } = mountHeader({ canSwapDocuments: true, canResetDocuments: true });
 
     root.querySelector<HTMLButtonElement>('.swap-documents-trigger')?.click();
-    root.querySelector<HTMLButtonElement>('.reset-documents-trigger')?.click();
+    const brand = root.querySelector<HTMLButtonElement>('.brand-zone');
+    brand?.click();
+    await nextTick();
 
     expect(events).toContain('swapDocuments');
+    expect(events).not.toContain('resetDocuments');
+    expect(brand?.classList.contains('is-resetting')).toBe(true);
+
+    vi.advanceTimersByTime(240);
+    await nextTick();
+
     expect(events).toContain('resetDocuments');
+    expect(brand?.classList.contains('is-resetting')).toBe(false);
   });
 
-  it('offers the browser install prompt when available', async () => {
+  it('keeps the brand inactive without a document session', () => {
     const { root } = mountHeader();
-    const prompt = vi.fn().mockResolvedValue(undefined);
-    const event = new Event('beforeinstallprompt', { cancelable: true });
-    Object.assign(event, {
-      prompt,
-      userChoice: Promise.resolve({ outcome: 'accepted', platform: 'web' })
-    });
-
-    window.dispatchEvent(event);
-    await nextTick();
-
-    const installButton = root.querySelector<HTMLButtonElement>('.install-app-trigger');
-    expect(event.defaultPrevented).toBe(true);
-    expect(installButton?.title).toBe('安装 DocDiff Pro');
-
-    installButton?.click();
-    await nextTick();
-
-    expect(prompt).toHaveBeenCalledOnce();
+    expect(root.querySelector<HTMLButtonElement>('.brand-zone')?.disabled).toBe(true);
+    expect(root.querySelector('.reset-documents-trigger')).toBeNull();
     expect(root.querySelector('.install-app-trigger')).toBeNull();
   });
 });

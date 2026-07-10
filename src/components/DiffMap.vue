@@ -45,8 +45,8 @@ const { messages: i18n } = useI18n();
 .diff-map {
   position: relative;
   align-self: stretch;
-  width: 14px;
-  flex: 0 0 14px;
+  width: 8px;
+  flex: 0 0 8px;
   min-height: 0;
   margin: 44px 0 5px;
   border-radius: 999px;
@@ -66,7 +66,7 @@ const { messages: i18n } = useI18n();
   position: absolute;
   left: 50%;
   z-index: 1;
-  width: 14px;
+  width: 16px;
   height: 12px;
   padding: 0;
   border: 0;
@@ -100,7 +100,7 @@ const { messages: i18n } = useI18n();
 
 .diff-map__marker:hover span,
 .diff-map__marker.is-active span {
-  width: 12px;
+  width: 10px;
   height: 6px;
   opacity: 1;
   box-shadow: 0 0 0 2px var(--bg-panel-solid), 0 1px 5px rgba(15, 23, 42, 0.24);
