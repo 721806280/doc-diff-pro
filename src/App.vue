@@ -20,6 +20,24 @@
         @settings-open-change="handleSettingsPanelOpenChange"
     />
 
+    <div v-if="!hasDocuments" class="local-processing-strip">
+      <span class="local-processing-strip__status">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3l7 3v5c0 4.6-2.8 8.1-7 10-4.2-1.9-7-5.4-7-10V6z"></path>
+          <path d="M9 12l2 2 4-4"></path>
+        </svg>
+        {{ i18n.app.localProcessingNotice }}
+      </span>
+      <button type="button" :disabled="loadingSampleDocuments" @click="loadBundledSampleDocuments">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path>
+          <path d="M14 3v5h5"></path>
+          <path d="M9 13h6M9 17h4"></path>
+        </svg>
+        {{ loadingSampleDocuments ? i18n.app.loadingSample : i18n.app.loadSample }}
+      </button>
+    </div>
+
     <CompareToast :message="compareNotice" :comparing="comparing" />
 
     <div v-if="compareError" class="app-error-banner" role="alert">
@@ -186,6 +204,7 @@ import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
 import { parseDocx, type ParsedDocx } from './utils/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
 import { buildReviewReportHtml, downloadReviewReport, type ReviewReportChange } from './utils/reviewReport';
+import { loadSampleDocuments } from './utils/sampleDocuments';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
 import { resolveSyncScrollTop, type ScrollAnchor } from './utils/scrollSync';
 import { applyThemeVariables, clearThemeVariables, getThemeStyle, type AppearanceMode, type ThemeColor } from './utils/themeColor';
@@ -296,6 +315,7 @@ let compareRunId = 0;
 const fileLoadIds: Record<PaneKey, number> = { A: 0, B: 0 };
 const documentErrors = reactive<Partial<Record<PaneKey, { kind: ErrorKind; detail?: string }>>>({});
 const compareErrorDetail = ref('');
+const loadingSampleDocuments = ref(false);
 
 const ready = computed(() => documents.A.status === 'ready' && documents.B.status === 'ready');
 const hasDocuments = computed(() => Boolean(documents.A.name || documents.B.name));
@@ -413,6 +433,24 @@ async function handleFile(key: PaneKey, file: File): Promise<void> {
     documentErrors[key] = { kind: 'parseFailed', detail: message };
     documentState.error = resolveDocumentError('parseFailed', message);
     showCompareNotice(i18n.value.app.notices.parseFailed);
+  }
+}
+
+async function loadBundledSampleDocuments(): Promise<void> {
+  if (loadingSampleDocuments.value || hasDocuments.value) return;
+
+  loadingSampleDocuments.value = true;
+  try {
+    const samples = await loadSampleDocuments(import.meta.env.BASE_URL, {
+      A: i18n.value.app.sampleOriginalFileName,
+      B: i18n.value.app.sampleRevisedFileName
+    });
+    await Promise.all([handleFile('A', samples.A), handleFile('B', samples.B)]);
+  } catch (error) {
+    showCompareNotice(i18n.value.app.notices.sampleLoadFailed);
+    console.error(error);
+  } finally {
+    loadingSampleDocuments.value = false;
   }
 }
 
@@ -1558,6 +1596,74 @@ onUnmounted(() => {
   z-index: 1;
 }
 
+.local-processing-strip {
+  min-height: 34px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-panel);
+}
+
+.local-processing-strip__status,
+.local-processing-strip button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.local-processing-strip__status svg {
+  width: 15px;
+  height: 15px;
+  color: var(--ins-focus);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.local-processing-strip button {
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.local-processing-strip button:hover:not(:disabled) {
+  border-color: var(--accent-border-strong);
+  background: var(--accent-soft-strong);
+  box-shadow: var(--control-shadow-hover);
+}
+
+.local-processing-strip button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.local-processing-strip button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.local-processing-strip button svg {
+  width: 13px;
+  height: 13px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .app-error-banner {
   background: rgba(var(--del-rgb), 0.1);
   border: 1px solid var(--del-border);
@@ -1697,6 +1803,12 @@ onUnmounted(() => {
     gap: 3px;
   }
 
+  .local-processing-strip {
+    min-height: 32px;
+    gap: 10px;
+    justify-content: space-between;
+  }
+
   .workspace-container--result {
     display: block;
   }
@@ -1729,6 +1841,12 @@ onUnmounted(() => {
 
 @media (max-width: 820px) and (prefers-reduced-motion: reduce) {
   .workspace-container--result > .view-dock-panel {
+    transition: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .local-processing-strip button {
     transition: none !important;
   }
 }

@@ -7,6 +7,11 @@ const en = {
     documentTitle: 'DocDiff Pro - DOCX Document Comparison',
     retryCompare: 'Compare again',
     newComparisonConfirm: 'Clear both documents and start a new comparison?',
+    localProcessingNotice: 'Documents stay in this browser',
+    loadSample: 'Load sample',
+    loadingSample: 'Loading sample...',
+    sampleOriginalFileName: 'sample-baseline.docx',
+    sampleRevisedFileName: 'sample-revised.docx',
     documents: {
       A: {
         title: 'Original document (A)',
@@ -34,6 +39,7 @@ const en = {
       settingsReset: 'Default compare settings restored.',
       documentsSwapped: 'Baseline and revised documents swapped.',
       newComparisonStarted: 'Ready for a new comparison.',
+      sampleLoadFailed: 'Could not load the sample documents.',
       compareFailed: 'Could not compare the documents. Adjust the files or settings and try again.',
       compareRefreshed: 'Comparison updated with the latest settings.'
     },
@@ -266,6 +272,11 @@ const zhCN: I18nMessages = {
     documentTitle: 'DocDiff Pro - DOCX 文档比对',
     retryCompare: '重新比对',
     newComparisonConfirm: '清空两份文档并开始新的比对吗？',
+    localProcessingNotice: '文档仅在当前浏览器本地处理',
+    loadSample: '加载示例',
+    loadingSample: '正在加载...',
+    sampleOriginalFileName: '示例-基准文档.docx',
+    sampleRevisedFileName: '示例-修订文档.docx',
     documents: {
       A: {
         title: '基准文档 (A)',
@@ -293,6 +304,7 @@ const zhCN: I18nMessages = {
       settingsReset: '已恢复默认比对设置',
       documentsSwapped: '已交换基准文档和修订文档',
       newComparisonStarted: '可以开始新的文档比对',
+      sampleLoadFailed: '示例文档加载失败，请稍后重试',
       compareFailed: '文档比对失败，请调整文件或设置后重试',
       compareRefreshed: '已根据最新设置刷新比对结果'
     },

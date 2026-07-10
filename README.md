@@ -36,6 +36,7 @@ Built with `Vue 3`, `Vite`, `mammoth`, and `diff-match-patch`. Document parsing,
 ## ✨ Features
 
 - 📥 Side-by-side upload of the baseline (A) and revised (B) documents, with drag-and-drop and document replacement.
+- 🧪 Built-in sample documents let you try the full comparison flow without uploading your own files.
 - 🔍 Three diff granularities: semantic, word, and character, covering quick review through fine-grained proofreading.
 - 📊 Similarity score and change counts derived from the current normalized comparison text.
 - 🧭 Difference navigation for jumping between previous and next changes.
