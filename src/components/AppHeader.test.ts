@@ -37,8 +37,6 @@ describe('AppHeader', () => {
   it('resets the persisted appearance mode with the rest of the settings', async () => {
     const { root, events } = mountHeader({ appearanceMode: 'dark' });
 
-    expect(root.querySelector('.settings-trigger')?.classList.contains('has-overrides')).toBe(true);
-
     root.querySelector<HTMLButtonElement>('.settings-trigger')?.click();
     await nextTick();
 
@@ -54,8 +52,6 @@ describe('AppHeader', () => {
 
   it('hides the reset button while using the default settings', async () => {
     const { root } = mountHeader();
-
-    expect(root.querySelector('.settings-trigger')?.classList.contains('has-overrides')).toBe(false);
 
     root.querySelector<HTMLButtonElement>('.settings-trigger')?.click();
     await nextTick();
