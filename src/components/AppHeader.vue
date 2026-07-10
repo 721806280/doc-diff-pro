@@ -53,7 +53,7 @@
         <button
             type="button"
             class="toolbar-icon-button settings-trigger"
-            :class="{ active: isSettingsPanelOpen }"
+            :class="{ active: isSettingsPanelOpen, 'has-overrides': !isUsingDefaultSettings }"
             :aria-label="i18n.header.compareSettingsAria"
             :aria-expanded="isSettingsPanelOpen"
             aria-haspopup="dialog"
@@ -675,6 +675,20 @@ onBeforeUnmount(() => {
 .appearance-trigger.active,
 .settings-trigger.active {
   color: var(--accent);
+}
+
+.settings-trigger.has-overrides::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--bg-panel-solid);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-border);
 }
 
 .toolbar-icon-button:hover {
