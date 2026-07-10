@@ -131,6 +131,9 @@ const en = {
   documentPane: {
     conversionWarnings: 'Conversion warnings',
     changeDocument: 'Replace',
+    mobileViewLabel: 'Document view',
+    mobileOriginal: 'Baseline (A)',
+    mobileRevised: 'Revised (B)',
     uploadSupport: 'Click or drag to upload',
     parsing: 'Parsing document...',
     comparing: 'Analyzing differences...',
@@ -387,6 +390,9 @@ const zhCN: I18nMessages = {
   documentPane: {
     conversionWarnings: '转换提示',
     changeDocument: '更换文档',
+    mobileViewLabel: '文档视图',
+    mobileOriginal: '基准文档 (A)',
+    mobileRevised: '修订文档 (B)',
     uploadSupport: '支持点击选择或拖拽上传',
     parsing: '正在解析文档...',
     comparing: '正在分析文档差异...',

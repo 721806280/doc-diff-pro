@@ -1,0 +1,111 @@
+<template>
+  <div class="mobile-pane-switch" role="radiogroup" :aria-label="i18n.documentPane.mobileViewLabel">
+    <button
+        type="button"
+        role="radio"
+        class="mobile-pane-switch__option is-original"
+        :class="{ active: activePane === 'A' }"
+        :aria-checked="activePane === 'A'"
+        @click="$emit('update:activePane', 'A')"
+    >
+      <span aria-hidden="true"></span>
+      {{ i18n.documentPane.mobileOriginal }}
+    </button>
+    <button
+        type="button"
+        role="radio"
+        class="mobile-pane-switch__option is-revised"
+        :class="{ active: activePane === 'B' }"
+        :aria-checked="activePane === 'B'"
+        @click="$emit('update:activePane', 'B')"
+    >
+      <span aria-hidden="true"></span>
+      {{ i18n.documentPane.mobileRevised }}
+    </button>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useI18n } from '@/i18n';
+
+defineProps<{
+  activePane: 'A' | 'B';
+}>();
+
+defineEmits<{
+  'update:activePane': [value: 'A' | 'B'];
+}>();
+
+const { messages: i18n } = useI18n();
+</script>
+
+<style scoped>
+.mobile-pane-switch {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .mobile-pane-switch {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--control-border);
+    border-radius: 8px;
+    background: var(--bg-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .mobile-pane-switch__option {
+    min-width: 0;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .mobile-pane-switch__option span {
+    width: 4px;
+    height: 14px;
+    flex: 0 0 4px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.72;
+  }
+
+  .mobile-pane-switch__option.is-original.active {
+    background: rgba(var(--del-rgb), 0.1);
+    color: var(--del-text);
+    box-shadow: inset 0 0 0 1px var(--del-border);
+  }
+
+  .mobile-pane-switch__option.is-revised.active {
+    background: rgba(var(--ins-rgb), 0.1);
+    color: var(--ins-text);
+    box-shadow: inset 0 0 0 1px var(--ins-border);
+  }
+
+  .mobile-pane-switch__option:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-pane-switch__option {
+    transition: none !important;
+  }
+}
+</style>

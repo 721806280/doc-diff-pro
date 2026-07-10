@@ -44,9 +44,16 @@
         @export-report="exportReviewReport"
     />
 
-    <div class="workspace-container">
+    <MobilePaneSwitch
+        v-if="hasResult"
+        :active-pane="mobilePane"
+        @update:active-pane="setMobilePane"
+    />
+
+    <div class="workspace-container" :class="{ 'workspace-container--result': hasResult }">
       <DocumentPane
           ref="paneA"
+          :class="hasResult ? (mobilePane === 'A' ? 'mobile-pane-active' : 'mobile-pane-inactive') : undefined"
           side-class="side-original"
           :title="i18n.app.documents.A.title"
           :file-name="documents.A.name"
@@ -80,6 +87,7 @@
 
       <DocumentPane
           ref="paneB"
+          :class="hasResult ? (mobilePane === 'B' ? 'mobile-pane-active' : 'mobile-pane-inactive') : undefined"
           side-class="side-revision"
           :title="i18n.app.documents.B.title"
           :file-name="documents.B.name"
@@ -163,6 +171,7 @@ import DiffActionPopover from './components/DiffActionPopover.vue';
 import DiffMap from './components/DiffMap.vue';
 import DiffNavigator from './components/DiffNavigator.vue';
 import DocumentPane from './components/DocumentPane.vue';
+import MobilePaneSwitch from './components/MobilePaneSwitch.vue';
 import SimilarDiffModal from './components/SimilarDiffModal.vue';
 import type { DiffGranularity, DiffMapItem, DiffSummary, DiffTableContextHint, IgnoredDiffItem, SimilarDiffLevel } from './types/diff';
 import {
@@ -248,6 +257,7 @@ const diffMapItems = ref<DiffMapItem[]>([]);
 const currentDiffIndex = ref(0);
 const ignoredDiffs = ref<Map<string, IgnoredDiffItem>>(new Map());
 const diffActionPosition = ref<DiffActionPosition | null>(null);
+const mobilePane = ref<PaneKey>('A');
 const similarDiffPanelOpen = ref(false);
 const activeTableHint = ref<DiffTableContextHint | null>(null);
 const tableHintPanelOpen = ref(false);
@@ -579,6 +589,7 @@ function resetCompareState(): void {
   syncActiveTableHint(null);
   alignmentAnchors = [];
   diffMapItems.value = [];
+  mobilePane.value = 'A';
   clearFocusedDiffElements();
   diffElementIndex.clear();
 }
@@ -702,6 +713,13 @@ function resetDocuments(): void {
     delete documentErrors[key];
   });
   showCompareNotice(i18n.value.app.notices.newComparisonStarted);
+}
+
+async function setMobilePane(key: PaneKey): Promise<void> {
+  mobilePane.value = key;
+  activeDriver = key;
+  await nextTick();
+  if (currentDiffIndex.value > 0) focusOnDiff(currentDiffIndex.value, 'auto');
 }
 
 function exportReviewReport(): void {
@@ -1679,9 +1697,39 @@ onUnmounted(() => {
     gap: 3px;
   }
 
+  .workspace-container--result {
+    display: block;
+  }
+
+  .workspace-container--result > .view-dock-panel {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 0.16s ease;
+  }
+
+  .workspace-container--result > .mobile-pane-inactive {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .workspace-container--result > .mobile-pane-active {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .table-hint-tip {
     top: 124px;
     max-width: calc(100vw - 16px);
+  }
+}
+
+@media (max-width: 820px) and (prefers-reduced-motion: reduce) {
+  .workspace-container--result > .view-dock-panel {
+    transition: none !important;
   }
 }
 </style>
