@@ -15,8 +15,9 @@
         <button
             type="button"
             class="diff-action-popover__button diff-action-popover__button--main"
-            :title="ignored ? i18n.diffNavigator.unignoreHereTitle : i18n.diffNavigator.ignoreHereTitle"
-            :aria-label="ignored ? i18n.diffNavigator.unignoreHereTitle : i18n.diffNavigator.ignoreHereTitle"
+            :title="i18n.diffNavigator.shortcutTitle(ignored ? i18n.diffNavigator.unignoreHereTitle : i18n.diffNavigator.ignoreHereTitle, 'I')"
+            :aria-label="i18n.diffNavigator.shortcutTitle(ignored ? i18n.diffNavigator.unignoreHereTitle : i18n.diffNavigator.ignoreHereTitle, 'I')"
+            aria-keyshortcuts="I"
             @click="handleAction"
         >
           <span class="diff-action-popover__icon" aria-hidden="true">

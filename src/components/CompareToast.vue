@@ -1,6 +1,12 @@
 <template>
   <Transition name="compare-toast">
-    <div v-if="message" class="compare-toast">
+    <div
+        v-if="message"
+        class="compare-toast"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+    >
       <div class="compare-toast-dot" :class="{ done: !comparing }"></div>
       <span>{{ message }}</span>
     </div>

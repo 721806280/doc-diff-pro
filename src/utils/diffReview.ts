@@ -11,6 +11,20 @@ export const SIMILAR_DIFF_THRESHOLDS: Record<SimilarDiffLevel, number> = {
 const MAX_SIMILAR_DIFFS = 12;
 const PREVIEW_LIMIT = 86;
 
+export type ReviewShortcut = 'previous' | 'next' | 'toggle-ignore';
+
+export function resolveReviewShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>): ReviewShortcut | null {
+  if (event.ctrlKey || event.metaKey || event.shiftKey) return null;
+
+  if (event.altKey) {
+    if (event.key === 'ArrowUp') return 'previous';
+    if (event.key === 'ArrowDown') return 'next';
+    return null;
+  }
+
+  return event.key.toLowerCase() === 'i' ? 'toggle-ignore' : null;
+}
+
 export function diffReviewId(index: number): string {
   return diffId(index);
 }

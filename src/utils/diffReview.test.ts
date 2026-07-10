@@ -4,7 +4,8 @@ import {
   createReviewItem,
   diffReviewId,
   findActiveReviewIndex,
-  findSimilarReviewItems
+  findSimilarReviewItems,
+  resolveReviewShortcut
 } from './diffReview';
 import type { DiffElementGroup } from './diffElementIndex';
 
@@ -73,7 +74,28 @@ describe('diffReview', () => {
       getGroup: (index) => groups.get(index)
     })).toEqual([]);
   });
+
+  it('maps review keyboard shortcuts without intercepting modified input', () => {
+    expect(resolveReviewShortcut(keyboardEvent('ArrowUp', { altKey: true }))).toBe('previous');
+    expect(resolveReviewShortcut(keyboardEvent('ArrowDown', { altKey: true }))).toBe('next');
+    expect(resolveReviewShortcut(keyboardEvent('i'))).toBe('toggle-ignore');
+    expect(resolveReviewShortcut(keyboardEvent('i', { ctrlKey: true }))).toBeNull();
+  });
 });
+
+function keyboardEvent(
+  key: string,
+  modifiers: Partial<Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>> = {}
+): Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'> {
+  return {
+    key,
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    ...modifiers
+  };
+}
 
 function insertedGroup(text: string): DiffElementGroup {
   return {

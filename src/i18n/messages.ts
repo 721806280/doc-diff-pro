@@ -220,7 +220,10 @@ const en = {
     allDiffsIgnored: 'All differences are temporarily ignored.',
     closeDetails: 'Close',
     previous: 'Previous',
-    next: 'Next'
+    next: 'Next',
+    shortcutTitle(label: string, shortcut: string): string {
+      return `${label} (${shortcut})`;
+    }
   }
 };
 
@@ -444,7 +447,10 @@ const zhCN: I18nMessages = {
     allDiffsIgnored: '当前差异已全部临时忽略',
     closeDetails: '关闭',
     previous: '上一处',
-    next: '下一处'
+    next: '下一处',
+    shortcutTitle(label: string, shortcut: string): string {
+      return `${label}（${shortcut}）`;
+    }
   }
 };
 

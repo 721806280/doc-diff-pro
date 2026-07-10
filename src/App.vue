@@ -176,6 +176,7 @@ import {
   findActiveReviewIndex,
   findSimilarReviewItems,
   firstReviewElement,
+  resolveReviewShortcut,
   setReviewClass,
   sortReviewItems
 } from './utils/diffReview';
@@ -1118,6 +1119,35 @@ function closeTableHintPanel(): void {
 
 function handleWindowKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && tableHintPanelOpen.value) closeTableHintPanel();
+
+  if (shouldBlockReviewShortcut(event)) return;
+  const shortcut = resolveReviewShortcut(event);
+  if (!shortcut || !hasResult.value) return;
+
+  if (shortcut === 'previous' && canPreviousDiff.value) {
+    event.preventDefault();
+    prevDiff();
+    return;
+  }
+
+  if (shortcut === 'next' && canNextDiff.value) {
+    event.preventDefault();
+    nextDiff();
+    return;
+  }
+
+  if (shortcut === 'toggle-ignore' && (canIgnoreCurrentDiff.value || currentDiffIgnored.value)) {
+    event.preventDefault();
+    currentDiffIgnored.value ? restoreCurrentDiff() : ignoreCurrentDiff();
+  }
+}
+
+function shouldBlockReviewShortcut(event: KeyboardEvent): boolean {
+  if (event.defaultPrevented || event.isComposing || settingsPanelOpen.value || similarDiffPanelOpen.value) return true;
+  if (document.querySelector('[aria-modal="true"]')) return true;
+
+  const target = event.target;
+  return target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
 }
 
 function buildViewportLockMatrix(): void {

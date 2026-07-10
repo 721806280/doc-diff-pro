@@ -70,6 +70,8 @@
       <div class="nav-triggers">
         <button
             class="btn-action-nav btn-action-nav--previous"
+            :title="i18n.diffNavigator.shortcutTitle(i18n.diffNavigator.previous, 'Alt+↑')"
+            aria-keyshortcuts="Alt+ArrowUp"
             @click="$emit('previous')"
             :disabled="!canPrevious"
         >
@@ -82,6 +84,8 @@
         </button>
         <button
             class="btn-action-nav btn-action-nav--next"
+            :title="i18n.diffNavigator.shortcutTitle(i18n.diffNavigator.next, 'Alt+↓')"
+            aria-keyshortcuts="Alt+ArrowDown"
             @click="$emit('next')"
             :disabled="!canNext"
         >

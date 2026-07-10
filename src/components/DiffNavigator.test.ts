@@ -73,6 +73,16 @@ describe('DiffNavigator', () => {
 
     expect(events).toEqual(['restoreAllIgnored']);
   });
+
+  it('exposes keyboard shortcuts on the navigation controls', () => {
+    const { root } = mountNavigator({ canPrevious: true });
+    const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>('.btn-action-nav'));
+
+    expect(buttons[0]?.getAttribute('aria-keyshortcuts')).toBe('Alt+ArrowUp');
+    expect(buttons[0]?.title).toContain('Alt+↑');
+    expect(buttons[1]?.getAttribute('aria-keyshortcuts')).toBe('Alt+ArrowDown');
+    expect(buttons[1]?.title).toContain('Alt+↓');
+  });
 });
 
 function mountNavigator(overrides: Record<string, unknown> = {}): MountedNavigator {
