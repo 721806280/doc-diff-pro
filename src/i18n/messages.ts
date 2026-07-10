@@ -182,6 +182,10 @@ const en = {
     currentPositionAria(current: number, total: number): string {
       return `Current difference: ${current} / ${total}`;
     },
+    diffMapLabel: 'Difference map',
+    diffMapItem(index: number, kind: string): string {
+      return `Difference ${index}: ${kind}`;
+    },
     difference: 'Diff',
     ignoredDiffs(count: number): string {
       return `Ignored ${count}`;
@@ -408,6 +412,10 @@ const zhCN: I18nMessages = {
     },
     currentPositionAria(current: number, total: number): string {
       return `当前差异位置：${current} / ${total}`;
+    },
+    diffMapLabel: '差异地图',
+    diffMapItem(index: number, kind: string): string {
+      return `差异 ${index}：${kind}`;
     },
     difference: '差异',
     ignoredDiffs(count: number): string {

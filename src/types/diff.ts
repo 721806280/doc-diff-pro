@@ -18,6 +18,12 @@ export type DiffSummary = {
 
 export type DiffChangeKind = 'modified' | 'inserted' | 'deleted';
 
+export type DiffMapItem = {
+  index: number;
+  kind: DiffChangeKind;
+  position: number;
+};
+
 export type IgnoredDiffItem = {
   id: string;
   index: number;

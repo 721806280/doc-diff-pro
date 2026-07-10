@@ -66,6 +66,13 @@
           @activate="setActiveDriver('A')"
       />
 
+      <DiffMap
+          :items="diffMapItems"
+          :current-index="currentDiffIndex"
+          :ignored-indices="ignoredDiffIndices"
+          @select="locateDiffFromMap"
+      />
+
       <DocumentPane
           ref="paneB"
           side-class="side-revision"
@@ -148,10 +155,11 @@ import { useI18n } from '@/i18n';
 import AppHeader from './components/AppHeader.vue';
 import CompareToast from './components/CompareToast.vue';
 import DiffActionPopover from './components/DiffActionPopover.vue';
+import DiffMap from './components/DiffMap.vue';
 import DiffNavigator from './components/DiffNavigator.vue';
 import DocumentPane from './components/DocumentPane.vue';
 import SimilarDiffModal from './components/SimilarDiffModal.vue';
-import type { DiffGranularity, DiffSummary, DiffTableContextHint, IgnoredDiffItem, SimilarDiffLevel } from './types/diff';
+import type { DiffGranularity, DiffMapItem, DiffSummary, DiffTableContextHint, IgnoredDiffItem, SimilarDiffLevel } from './types/diff';
 import {
   buildDiffElementIndex,
   DIFF_ELEMENT_SELECTOR,
@@ -230,6 +238,7 @@ const compareNotice = ref('');
 const compareError = ref('');
 const hasResult = ref(false);
 const diffSummary = ref<DiffSummary>({ ...EMPTY_DIFF_SUMMARY });
+const diffMapItems = ref<DiffMapItem[]>([]);
 const currentDiffIndex = ref(0);
 const ignoredDiffs = ref<Map<string, IgnoredDiffItem>>(new Map());
 const diffActionPosition = ref<DiffActionPosition | null>(null);
@@ -276,6 +285,7 @@ const ready = computed(() => documents.A.status === 'ready' && documents.B.statu
 const totalDiffs = computed(() => diffSummary.value.total);
 const ignoredDiffIds = computed(() => new Set(ignoredDiffs.value.keys()));
 const ignoredDiffList = computed(() => sortReviewItems(ignoredDiffs.value.values()));
+const ignoredDiffIndices = computed(() => new Set(ignoredDiffList.value.map((item) => item.index)));
 const ignoredDiffCount = computed(() => ignoredDiffList.value.length);
 const activeDiffCount = computed(() => activeReviewCount(totalDiffs.value, ignoredDiffCount.value));
 const activeDiffIndex = computed(() => activeReviewPosition(currentDiffIndex.value, totalDiffs.value, ignoredDiffIds.value));
@@ -560,6 +570,7 @@ function resetCompareState(): void {
   resetIgnoredDiffs();
   syncActiveTableHint(null);
   alignmentAnchors = [];
+  diffMapItems.value = [];
   clearFocusedDiffElements();
   diffElementIndex.clear();
 }
@@ -617,6 +628,7 @@ async function compare(showDoneNotice = false): Promise<void> {
     if (runId !== compareRunId) return;
 
     rebuildDiffElementIndex();
+    rebuildDiffMapItems();
     buildViewportLockMatrix();
     observeResultLayout();
     if (totalDiffs.value > 0) focusOnDiff(1, 'auto');
@@ -672,6 +684,11 @@ function nextDiff(): void {
 
   currentDiffIndex.value = targetIndex;
   focusOnDiff(targetIndex);
+}
+
+function locateDiffFromMap(index: number): void {
+  currentDiffIndex.value = index;
+  focusOnDiff(index);
 }
 
 function ignoreCurrentDiff(): void {
@@ -1176,10 +1193,48 @@ function rebuildDiffElementIndex(): void {
   diffElementIndex = buildDiffElementIndex(getPaneViewport('A'), getPaneViewport('B'));
 }
 
+function rebuildDiffMapItems(): void {
+  const containerA = getPaneViewport('A');
+  const containerB = getPaneViewport('B');
+  if (!containerA || !containerB) {
+    diffMapItems.value = [];
+    return;
+  }
+
+  const items: DiffMapItem[] = [];
+  for (let index = 1; index <= totalDiffs.value; index++) {
+    const group = getDiffGroup(index);
+    const reviewItem = createReviewItem(index, group);
+    if (!group || !reviewItem) continue;
+
+    const positions = [
+      getDiffMapPosition(containerA, firstReviewElement(group, 'A')),
+      getDiffMapPosition(containerB, firstReviewElement(group, 'B'))
+    ].filter((position): position is number => position !== null);
+    if (positions.length === 0) continue;
+
+    items.push({
+      index,
+      kind: reviewItem.kind,
+      position: positions.reduce((total, position) => total + position, 0) / positions.length
+    });
+  }
+
+  diffMapItems.value = items;
+}
+
+function getDiffMapPosition(container: HTMLElement, element: HTMLElement | null): number | null {
+  if (!element) return null;
+
+  const position = (getElementScrollTop(container, element) / Math.max(container.scrollHeight, 1)) * 100;
+  return clampNumber(position, 1, 99);
+}
+
 function refreshResultLayout(): void {
   if (!hasResult.value) return;
 
   rebuildDiffElementIndex();
+  rebuildDiffMapItems();
   buildViewportLockMatrix();
   scheduleDiffActionPositionUpdate();
 
