@@ -296,6 +296,22 @@
       </div>
 
       <button
+          v-if="installPrompt"
+          type="button"
+          class="toolbar-icon-button install-app-trigger"
+          :aria-label="i18n.header.installAppTitle"
+          :title="i18n.header.installAppTitle"
+          @click="installApp"
+      >
+        <svg class="session-action-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9">
+          <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3h9A2.5 2.5 0 0 1 19 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 5 18.5z"></path>
+          <path d="M12 6.5v8"></path>
+          <path d="m8.8 11.5 3.2 3.2 3.2-3.2"></path>
+          <path d="M9 18h6"></path>
+        </svg>
+      </button>
+
+      <button
           type="button"
           class="toolbar-icon-button appearance-trigger"
           :class="{ active: appearanceMode === 'dark' }"
@@ -376,6 +392,11 @@ import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
 import { createFocusTrap } from '@/utils/focusTrap';
 import { getThemeSwatchStyle, THEME_COLORS, type AppearanceMode, type ThemeColor } from '@/utils/themeColor';
 
+type BeforeInstallPromptEvent = Event & {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 const props = defineProps<{
   canSwapDocuments: boolean;
   canResetDocuments: boolean;
@@ -414,6 +435,7 @@ const { locale, messages: i18n, setLocale } = useI18n();
 const isSettingsPanelOpen = ref(false);
 const settingsControlRef = ref<HTMLElement | null>(null);
 const settingsPopoverRef = ref<HTMLElement | null>(null);
+const installPrompt = ref<BeforeInstallPromptEvent | null>(null);
 const githubRepositoryUrl = 'https://github.com/721806280/doc-diff-vision';
 const similarDiffLevelOptions: SimilarDiffLevel[] = ['strict', 'balanced', 'loose'];
 const themeColorOptions: ThemeColor[] = [...THEME_COLORS];
@@ -528,14 +550,40 @@ function handleDocumentKeyDown(event: KeyboardEvent): void {
   settingsFocusTrap.handleKeydown(event);
 }
 
+function handleBeforeInstallPrompt(event: Event): void {
+  event.preventDefault();
+  installPrompt.value = event as BeforeInstallPromptEvent;
+}
+
+function handleAppInstalled(): void {
+  installPrompt.value = null;
+}
+
+async function installApp(): Promise<void> {
+  const prompt = installPrompt.value;
+  if (!prompt) return;
+
+  installPrompt.value = null;
+  try {
+    await prompt.prompt();
+    await prompt.userChoice;
+  } catch (error) {
+    console.warn('[App installation failed]', error);
+  }
+}
+
 onMounted(() => {
   document.addEventListener('pointerdown', handleDocumentPointerDown);
   document.addEventListener('keydown', handleDocumentKeyDown);
+  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  window.addEventListener('appinstalled', handleAppInstalled);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleDocumentPointerDown);
   document.removeEventListener('keydown', handleDocumentKeyDown);
+  window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  window.removeEventListener('appinstalled', handleAppInstalled);
   settingsFocusTrap.deactivate({ restoreFocus: false });
 });
 </script>
@@ -693,6 +741,16 @@ onBeforeUnmount(() => {
 
 .toolbar-icon-button:hover {
   transform: translateY(-1px);
+}
+
+.install-app-trigger {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+.install-app-trigger:hover {
+  background: var(--accent-soft-strong);
 }
 
 .toolbar-icon-button:focus-visible,

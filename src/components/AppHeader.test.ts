@@ -71,6 +71,29 @@ describe('AppHeader', () => {
     expect(events).toContain('swapDocuments');
     expect(events).toContain('resetDocuments');
   });
+
+  it('offers the browser install prompt when available', async () => {
+    const { root } = mountHeader();
+    const prompt = vi.fn().mockResolvedValue(undefined);
+    const event = new Event('beforeinstallprompt', { cancelable: true });
+    Object.assign(event, {
+      prompt,
+      userChoice: Promise.resolve({ outcome: 'accepted', platform: 'web' })
+    });
+
+    window.dispatchEvent(event);
+    await nextTick();
+
+    const installButton = root.querySelector<HTMLButtonElement>('.install-app-trigger');
+    expect(event.defaultPrevented).toBe(true);
+    expect(installButton?.title).toBe('安装 DocDiff Pro');
+
+    installButton?.click();
+    await nextTick();
+
+    expect(prompt).toHaveBeenCalledOnce();
+    expect(root.querySelector('.install-app-trigger')).toBeNull();
+  });
 });
 
 function mountHeader(overrides: Record<string, unknown> = {}): MountedHeader {
