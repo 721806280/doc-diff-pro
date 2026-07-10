@@ -51,6 +51,7 @@ Built with `Vue 3`, `Vite`, `mammoth`, and `diff-match-patch`. Document parsing,
 - ⌨️ Keyboard-friendly dialogs with focus containment for details panels and review overlays.
 - 🌐 Bilingual interface (English / 中文) that auto-detects your browser language and remembers your choice.
 - 📲 Installable as a PWA after the first online load, with offline access to the locally processed comparison workspace.
+- 🛡️ Warns before closing or refreshing an active document session, since uploaded files are never persisted.
 
 ## ⚡ Quick Start
 

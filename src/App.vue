@@ -201,6 +201,7 @@ import {
 import { readSavedAppSettings, writeSavedAppSettings } from './utils/appSettings';
 import { compareDocuments } from './utils/diffEngine';
 import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
+import { guardDocumentSessionUnload } from './utils/documentSession';
 import { parseDocx, type ParsedDocx } from './utils/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
 import { buildReviewReportHtml, downloadReviewReport, type ReviewReportChange } from './utils/reviewReport';
@@ -319,6 +320,11 @@ const loadingSampleDocuments = ref(false);
 
 const ready = computed(() => documents.A.status === 'ready' && documents.B.status === 'ready');
 const hasDocuments = computed(() => Boolean(documents.A.name || documents.B.name));
+const hasActiveDocumentSession = computed(() =>
+  (Object.values(documents) as DocumentState[]).some((documentState) =>
+    documentState.status === 'parsing' || documentState.status === 'ready'
+  )
+);
 const canSwapDocuments = computed(() => ready.value && !comparing.value);
 const totalDiffs = computed(() => diffSummary.value.total);
 const ignoredDiffIds = computed(() => new Set(ignoredDiffs.value.keys()));
@@ -1544,15 +1550,21 @@ function syncDocumentLocale(): void {
   document.title = i18n.value.app.documentTitle;
 }
 
+function handleBeforeUnload(event: BeforeUnloadEvent): void {
+  guardDocumentSessionUnload(event, hasActiveDocumentSession.value);
+}
+
 onMounted(() => {
   syncDocumentLocale();
   window.addEventListener('resize', handleResize);
   window.addEventListener('keydown', handleWindowKeydown);
+  window.addEventListener('beforeunload', handleBeforeUnload);
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   window.removeEventListener('keydown', handleWindowKeydown);
+  window.removeEventListener('beforeunload', handleBeforeUnload);
   compareRunId++;
   clearSettingsCompareTimer();
   cancelPendingTextDiffs();
