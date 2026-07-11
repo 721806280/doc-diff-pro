@@ -1213,8 +1213,6 @@ function formatTableHintMessage(hint: DiffTableContextHint): string {
       );
     case 'cell-count-mismatch':
       return i18n.value.diffNavigator.tableHintMessages.cellCountMismatch(hint.tableNumber, rowLabel);
-    case 'row-count-mismatch':
-      return i18n.value.diffNavigator.tableHintMessages.rowCountMismatch(hint.tableNumber);
   }
 }
 

@@ -82,8 +82,6 @@ describe('AppHeader', () => {
   it('keeps the brand inactive without a document session', () => {
     const { root } = mountHeader();
     expect(root.querySelector<HTMLButtonElement>('.brand-zone')?.disabled).toBe(true);
-    expect(root.querySelector('.reset-documents-trigger')).toBeNull();
-    expect(root.querySelector('.install-app-trigger')).toBeNull();
   });
 });
 

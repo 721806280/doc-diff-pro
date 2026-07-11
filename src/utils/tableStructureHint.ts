@@ -331,15 +331,6 @@ function detectCellCountMismatch(context: TableContext): TableDiagnosis | null {
   return null;
 }
 
-function detectRowCountMismatch(context: TableContext): TableDiagnosis | null {
-  if (context.original.rows.length === context.revised.rows.length) return null;
-
-  return {
-    kind: 'row-count-mismatch',
-    confidence: 'medium'
-  };
-}
-
 function buildResolution(context: TableContext, diagnosis: TableDiagnosis): TableStructureResolution {
   const candidateRows = diagnosis.candidateRows ?? resolveCandidateRows(context, diagnosis);
 

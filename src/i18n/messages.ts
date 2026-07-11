@@ -208,9 +208,6 @@ const en = {
       },
       cellCountMismatch(_tableNumber: number, rowLabel: string): string {
         return `Row ${rowLabel} has a different cell count.`;
-      },
-      rowCountMismatch(_tableNumber: number): string {
-        return 'The two tables have different row counts.';
       }
     },
     currentPositionAria(current: number, total: number): string {
@@ -254,7 +251,6 @@ const en = {
       return `Select similar difference ${index}`;
     },
     restoreIgnored: 'Restore all',
-    restoreIgnoredTitle: 'Restore all temporarily ignored differences.',
     allDiffsIgnored: 'All differences are temporarily ignored.',
     closeDetails: 'Close',
     previous: 'Previous',
@@ -473,9 +469,6 @@ const zhCN: I18nMessages = {
       },
       cellCountMismatch(_tableNumber: number, rowLabel: string): string {
         return `第 ${rowLabel} 行单元格数不一致。`;
-      },
-      rowCountMismatch(_tableNumber: number): string {
-        return '两侧表格行数不一致。';
       }
     },
     currentPositionAria(current: number, total: number): string {
@@ -519,7 +512,6 @@ const zhCN: I18nMessages = {
       return `选择相似差异 ${index}`;
     },
     restoreIgnored: '恢复全部',
-    restoreIgnoredTitle: '恢复所有临时忽略的差异',
     allDiffsIgnored: '当前差异已全部临时忽略',
     closeDetails: '关闭',
     previous: '上一处',

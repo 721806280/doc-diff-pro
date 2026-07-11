@@ -54,8 +54,7 @@ export type DiffTableContextHintKind =
   | 'single-row-inserted'
   | 'single-row-deleted'
   | 'row-content-shift'
-  | 'cell-count-mismatch'
-  | 'row-count-mismatch';
+  | 'cell-count-mismatch';
 
 export type DiffTableContextHintConfidence = 'high' | 'medium';
 

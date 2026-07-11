@@ -1,7 +1,7 @@
 <div align="center">
    <p align="center">
       <a href="https://721806280.github.io/doc-diff-pro/">
-         <img src="public/favicon.svg" alt="DocDiff Pro logo" width="96" height="96">
+         <img src="favicon.svg" alt="DocDiff Pro logo" width="96" height="96">
       </a>
    </p>
    <p align="center">
@@ -50,7 +50,6 @@
 - 🎨 支持主题色预设与浅色/夜间外观模式，并随比对设置一起保存。
 - ⌨️ 明细面板和审阅弹层支持键盘焦点约束，键盘操作时不会跳到背景内容。
 - 🌐 提供中英文双语界面，自动识别浏览器语言并记住你的选择。
-- 📲 首次在线加载后可安装为 PWA，离线时仍可解析、比对本地文档并使用内置示例。
 - 🛡️ 文档会话仍在进行时，关闭或刷新页面前会提示确认，避免因文件不持久化而误丢进度。
 
 ## ⚡ 快速使用
