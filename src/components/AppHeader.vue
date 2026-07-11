@@ -102,8 +102,8 @@
             </button>
           </div>
 
-          <div class="settings-section">
-            <div class="settings-section__title">{{ i18n.header.diffGranularityLabel }}</div>
+          <fieldset class="settings-section settings-section--framed">
+            <legend class="settings-section__title">{{ i18n.header.diffGranularityLabel }}</legend>
             <div class="granularity-segmented" role="radiogroup" :aria-label="i18n.header.diffGranularityLabel">
               <button
                   type="button"
@@ -139,10 +139,10 @@
                 {{ i18n.header.granularityCompactOptions.char }}
               </button>
             </div>
-          </div>
+          </fieldset>
 
-          <div class="settings-section">
-            <div class="settings-section__title">{{ i18n.header.compareRulesLabel }}</div>
+          <fieldset class="settings-section settings-section--framed">
+            <legend class="settings-section__title">{{ i18n.header.compareRulesLabel }}</legend>
             <div class="settings-toggle-list settings-toggle-list--primary" :aria-label="i18n.header.compareRulesLabel">
               <button
                   type="button"
@@ -184,10 +184,10 @@
                 </span>
               </button>
             </div>
-          </div>
+          </fieldset>
 
-          <div class="settings-section settings-section--view">
-            <div class="settings-section__title">{{ i18n.header.viewOptionsLabel }}</div>
+          <fieldset class="settings-section settings-section--framed settings-section--view">
+            <legend class="settings-section__title">{{ i18n.header.viewOptionsLabel }}</legend>
             <div
                 class="theme-color-control"
                 role="radiogroup"
@@ -303,7 +303,7 @@
                 </div>
               </template>
             </div>
-          </div>
+          </fieldset>
         </div>
       </div>
 
@@ -940,19 +940,19 @@ onBeforeUnmount(() => {
 }
 
 .settings-reset-button {
-  height: 26px;
+  height: 20px;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 0 8px 0 6px;
+  gap: 4px;
+  padding: 0 6px 0 4px;
   border: 1px solid var(--control-border);
   border-radius: 999px;
   background: var(--surface-card-solid);
   color: var(--text-secondary);
   font: inherit;
-  font-size: 0.66rem;
+  font-size: 0.61rem;
   font-weight: 650;
   line-height: 1;
   letter-spacing: 0.01em;
@@ -962,9 +962,9 @@ onBeforeUnmount(() => {
 }
 
 .settings-reset-button svg {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 15px;
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
   stroke-linecap: round;
   stroke-linejoin: round;
   transition: transform 0.22s ease;
@@ -990,11 +990,6 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
-  background: var(--surface-card-solid);
-  box-shadow: var(--inset-highlight);
 }
 
 .granularity-segmented__option {
@@ -1013,6 +1008,7 @@ onBeforeUnmount(() => {
 }
 
 .granularity-segmented__option:hover {
+  background: var(--surface-chip-hover);
   color: var(--text-primary);
 }
 
@@ -1027,10 +1023,18 @@ onBeforeUnmount(() => {
   gap: 5px;
 }
 
-.settings-section--view {
+.settings-section--framed {
   gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--control-border);
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 7px 4px 4px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+}
+
+.settings-section--framed > .settings-section__title {
+  margin-left: 4px;
+  padding: 0 4px;
 }
 
 .settings-section__title {
@@ -1054,12 +1058,16 @@ onBeforeUnmount(() => {
   box-shadow: var(--inset-highlight);
 }
 
+.settings-section--framed .settings-toggle-list {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .settings-toggle-list--plain {
   gap: 1px;
-  padding: 4px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: var(--surface-chip);
+  padding: 0;
 }
 
 .settings-toggle {

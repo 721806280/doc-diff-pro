@@ -40,6 +40,17 @@ describe('AppHeader', () => {
     expect(root.querySelector('.settings-reset-button')).toBeNull();
   });
 
+  it('groups compare settings with titled borders', async () => {
+    const { root } = mountHeader();
+    root.querySelector<HTMLButtonElement>('.settings-trigger')?.click();
+    await nextTick();
+
+    const legends = Array.from(root.querySelectorAll('.settings-section--framed > legend'))
+      .map((legend) => legend.textContent?.trim());
+
+    expect(legends).toEqual(['比对粒度', '比对规则', '查看方式']);
+  });
+
   it('emits document session actions from swap and the brand', async () => {
     vi.useFakeTimers();
     const { root, events } = mountHeader({ canSwapDocuments: true, canResetDocuments: true });
