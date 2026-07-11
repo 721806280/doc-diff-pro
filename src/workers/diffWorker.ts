@@ -1,4 +1,4 @@
-import { createTextDiffs } from './textDiffCore';
+import { createTextDiffs } from '@/utils/textDiffCore';
 import type { DiffWorkerRequest, DiffWorkerResponse } from '@/types/diff';
 
 self.onmessage = (event: MessageEvent<DiffWorkerRequest>) => {

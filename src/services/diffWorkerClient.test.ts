@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   createTextDiffs: vi.fn(() => [[0, 'fallback']] as DiffTuple[])
 }));
 
-vi.mock('./textDiffCore', () => ({
+vi.mock('@/utils/textDiffCore', () => ({
   createTextDiffs: mocks.createTextDiffs
 }));
 

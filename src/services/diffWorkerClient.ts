@@ -1,5 +1,5 @@
 import type { DiffGranularity, DiffTuple, DiffWorkerRequest, DiffWorkerResponse } from '@/types/diff';
-import { createTextDiffs } from './textDiffCore';
+import { createTextDiffs } from '@/utils/textDiffCore';
 
 type PendingRequest = {
   resolve: (diffs: DiffTuple[]) => void;
@@ -85,7 +85,7 @@ function requestWorkerDiff(
 function getWorker(): Worker {
   if (worker) return worker;
 
-  worker = new Worker(new URL('./diffWorker.ts', import.meta.url), { type: 'module' });
+  worker = new Worker(new URL('../workers/diffWorker.ts', import.meta.url), { type: 'module' });
   worker.onmessage = (event: MessageEvent<DiffWorkerResponse>) => {
     const { id, diffs, error } = event.data;
     const pending = pendingRequests.get(id);

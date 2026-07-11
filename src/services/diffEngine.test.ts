@@ -5,7 +5,7 @@ import {
   type LayoutNoiseBySide,
   type CompareOptions
 } from './diffEngine';
-import type { LayoutNoiseHints } from './layoutNoise';
+import type { LayoutNoiseHints } from '@/utils/layoutNoise';
 
 const DEFAULT_OPTIONS: CompareOptions = {
   granularity: 'char',

@@ -2,7 +2,7 @@ import { createApp } from 'vue';
 import './styles/fonts.css';
 import './styles/overlays.css';
 import App from './App.vue';
-import { removeLegacyPwaState } from './utils/removeLegacyPwaState';
+import { removeLegacyPwaState } from './services/removeLegacyPwaState';
 
 createApp(App).mount('#app');
 

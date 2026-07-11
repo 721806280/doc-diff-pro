@@ -1,15 +1,15 @@
 import type { DiffGranularity, DiffSummary, LayoutNoiseItem, LayoutNoiseSide, LayoutNoiseSource } from '@/types/diff';
-import { applyDiffMarkup } from './diffMarkup';
+import { applyDiffMarkup } from '@/utils/diffMarkup';
 import { createTextDiffsAsync } from './diffWorkerClient';
-import { buildTextMapping, collapseWhitespace, normalizeText, type TextMapping } from './documentText';
+import { buildTextMapping, collapseWhitespace, normalizeText, type TextMapping } from '@/utils/documentText';
 import {
   createEmptyLayoutNoise,
   removeLayoutNoise,
   type LayoutNoiseData,
   type LayoutNoiseEntry,
   type LayoutNoiseHints
-} from './layoutNoise';
-import { DIFF_DELETE, DIFF_INSERT, summarizeDiffs } from './textDiffCore';
+} from '@/utils/layoutNoise';
+import { DIFF_DELETE, DIFF_INSERT, summarizeDiffs } from '@/utils/textDiffCore';
 
 export type LayoutNoiseBySide = Record<LayoutNoiseSide, LayoutNoiseData>;
 

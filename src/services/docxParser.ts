@@ -1,6 +1,6 @@
 import type * as MammothModule from 'mammoth';
-import { extractLayoutNoise, type LayoutNoiseData } from './layoutNoise';
-import { sanitizeDocumentHtml } from './sanitizeDocumentHtml';
+import { extractLayoutNoise, type LayoutNoiseData } from '@/utils/layoutNoise';
+import { sanitizeDocumentHtml } from '@/utils/sanitizeDocumentHtml';
 
 type MammothImage = {
   read(format: 'base64'): Promise<string>;

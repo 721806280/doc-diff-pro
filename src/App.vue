@@ -199,12 +199,12 @@ import {
   type DiffElementIndex
 } from './utils/diffElementIndex';
 import { readSavedAppSettings, writeSavedAppSettings } from './utils/appSettings';
-import { compareDocuments } from './utils/diffEngine';
-import { cancelPendingTextDiffs } from './utils/diffWorkerClient';
-import { parseDocx, type ParsedDocx } from './utils/docxParser';
+import { compareDocuments } from './services/diffEngine';
+import { cancelPendingTextDiffs } from './services/diffWorkerClient';
+import { parseDocx, type ParsedDocx } from './services/docxParser';
 import { createEmptyLayoutNoise, type LayoutNoiseData } from './utils/layoutNoise';
-import { buildReviewReportHtml, downloadReviewReport, type ReviewReportChange } from './utils/reviewReport';
-import { loadSampleDocuments } from './utils/sampleDocuments';
+import { buildReviewReportHtml, downloadReviewReport, type ReviewReportChange } from './services/reviewReport';
+import { loadSampleDocuments } from './services/sampleDocuments';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
 import { resolveSyncScrollTop, type ScrollAnchor } from './utils/scrollSync';
 import { applyThemeVariables, clearThemeVariables, getThemeStyle, type AppearanceMode, type ThemeColor } from './utils/themeColor';
