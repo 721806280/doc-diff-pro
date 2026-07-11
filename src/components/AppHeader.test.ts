@@ -1,37 +1,17 @@
-import { createApp, nextTick, type App as VueApp } from 'vue';
+import { nextTick } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
+import { createMountRegistry } from '@/test-utils/mountComponent';
 import AppHeader from './AppHeader.vue';
 
-vi.mock('@/i18n', async () => {
-  const { messages } = await vi.importActual<typeof import('@/i18n/messages')>('@/i18n/messages');
-  const { computed, ref } = await vi.importActual<typeof import('vue')>('vue');
-  const locale = ref('zh-CN');
+vi.mock('@/i18n', () => import('@/test-utils/i18nMock'));
 
-  return {
-    useI18n: () => ({
-      locale,
-      messages: computed(() => messages['zh-CN']),
-      setLocale: vi.fn()
-    })
-  };
-});
-
-type MountedHeader = {
-  app: VueApp;
-  root: HTMLElement;
-  events: string[];
-};
-
-const mountedHeaders: MountedHeader[] = [];
+const mounts = createMountRegistry();
 
 describe('AppHeader', () => {
   afterEach(() => {
     vi.useRealTimers();
-    mountedHeaders.splice(0).forEach(({ app, root }) => {
-      app.unmount();
-      root.remove();
-    });
+    mounts.cleanup();
   });
 
   it('resets the persisted appearance mode with the rest of the settings', async () => {
@@ -85,8 +65,7 @@ describe('AppHeader', () => {
   });
 });
 
-function mountHeader(overrides: Record<string, unknown> = {}): MountedHeader {
-  const root = document.createElement('div');
+function mountHeader(overrides: Record<string, unknown> = {}) {
   const events: string[] = [];
   const props = {
     ...DEFAULT_APP_SETTINGS,
@@ -110,11 +89,5 @@ function mountHeader(overrides: Record<string, unknown> = {}): MountedHeader {
     onSettingsOpenChange: (value: boolean) => events.push(`settingsOpen:${value}`)
   };
 
-  document.body.append(root);
-  const app = createApp(AppHeader, props);
-  app.mount(root);
-  const mounted = { app, root, events };
-  mountedHeaders.push(mounted);
-
-  return mounted;
+  return { ...mounts.mount(AppHeader, props), events };
 }

@@ -1,36 +1,16 @@
-import { createApp, nextTick, type App as VueApp } from 'vue';
+import { nextTick } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DiffSummary } from '@/types/diff';
+import { createMountRegistry } from '@/test-utils/mountComponent';
 import DiffNavigator from './DiffNavigator.vue';
 
-vi.mock('@/i18n', async () => {
-  const { messages } = await vi.importActual<typeof import('@/i18n/messages')>('@/i18n/messages');
-  const { computed, ref } = await vi.importActual<typeof import('vue')>('vue');
-  const locale = ref('zh-CN');
+vi.mock('@/i18n', () => import('@/test-utils/i18nMock'));
 
-  return {
-    useI18n: () => ({
-      locale,
-      messages: computed(() => messages['zh-CN']),
-      setLocale: vi.fn()
-    })
-  };
-});
-
-type MountedNavigator = {
-  app: VueApp;
-  root: HTMLElement;
-  events: string[];
-};
-
-const mountedNavigators: MountedNavigator[] = [];
+const mounts = createMountRegistry();
 
 describe('DiffNavigator', () => {
   afterEach(() => {
-    mountedNavigators.splice(0).forEach(({ app, root }) => {
-      app.unmount();
-      root.remove();
-    });
+    mounts.cleanup();
   });
 
   it('opens ignored details and emits locate or restore actions', async () => {
@@ -93,9 +73,8 @@ describe('DiffNavigator', () => {
   });
 });
 
-function mountNavigator(overrides: Record<string, unknown> = {}): MountedNavigator {
+function mountNavigator(overrides: Record<string, unknown> = {}) {
   const events: string[] = [];
-  const root = document.createElement('div');
   const props = {
     summary: createSummary(),
     activeDiffCount: 3,
@@ -113,13 +92,7 @@ function mountNavigator(overrides: Record<string, unknown> = {}): MountedNavigat
     ...overrides
   };
 
-  document.body.append(root);
-  const app = createApp(DiffNavigator, props);
-  app.mount(root);
-  const mounted = { app, root, events };
-  mountedNavigators.push(mounted);
-
-  return mounted;
+  return { ...mounts.mount(DiffNavigator, props), events };
 }
 
 function createIgnoredDiff() {

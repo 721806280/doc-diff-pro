@@ -1,28 +1,19 @@
-import { createApp, type App as VueApp } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createMountRegistry } from '@/test-utils/mountComponent';
 import DiffMap from './DiffMap.vue';
 
-vi.mock('@/i18n', async () => {
-  const { messages } = await vi.importActual<typeof import('@/i18n/messages')>('@/i18n/messages');
-  const { computed } = await vi.importActual<typeof import('vue')>('vue');
+vi.mock('@/i18n', () => import('@/test-utils/i18nMock'));
 
-  return {
-    useI18n: () => ({ messages: computed(() => messages['zh-CN']) })
-  };
-});
-
-let mountedApp: VueApp | null = null;
+const mounts = createMountRegistry();
 
 describe('DiffMap', () => {
   afterEach(() => {
-    mountedApp?.unmount();
-    mountedApp = null;
+    mounts.cleanup();
   });
 
   it('shows change distribution and selects a marker', () => {
-    const root = document.createElement('div');
     const selected: number[] = [];
-    mountedApp = createApp(DiffMap, {
+    const { root } = mounts.mount(DiffMap, {
       items: [
         { index: 1, kind: 'deleted', position: 10 },
         { index: 2, kind: 'modified', position: 52 },
@@ -33,7 +24,6 @@ describe('DiffMap', () => {
       onSelect: (index: number) => selected.push(index)
     });
 
-    mountedApp.mount(root);
     const markers = root.querySelectorAll<HTMLButtonElement>('.diff-map__marker');
 
     expect(markers).toHaveLength(3);

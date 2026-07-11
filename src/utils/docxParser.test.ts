@@ -1,5 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { collectDocxMetadata, collectMammothWarnings } from './docxParser';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { collectDocxMetadata, collectMammothWarnings, parseDocx } from './docxParser';
+
+const convertToHtml = vi.fn();
+const imgElement = vi.fn();
+
+vi.mock('mammoth', () => ({
+  convertToHtml,
+  images: { imgElement }
+}));
 
 describe('docxParser metadata helpers', () => {
   it('counts text characters and sanitized embedded images', () => {
@@ -24,5 +32,35 @@ describe('docxParser metadata helpers', () => {
       'Missing image alt text'
     ]);
     expect(collectMammothWarnings(null)).toEqual([]);
+  });
+});
+
+describe('parseDocx', () => {
+  beforeEach(() => {
+    convertToHtml.mockReset();
+    imgElement.mockReset();
+    imgElement.mockReturnValue('image-converter');
+  });
+
+  it('includes native headers and footers as layout noise', async () => {
+    convertToHtml.mockResolvedValueOnce({
+      value: '<header><p>内部资料</p></header><p onclick="alert(1)">正文</p><footer><p>第 1 页</p></footer>',
+      messages: []
+    });
+
+    const parsed = await parseDocx(new File(['docx'], 'review.docx'));
+    const [input, config] = convertToHtml.mock.calls[0];
+
+    expect(input.arrayBuffer.byteLength).toBe(4);
+    expect(config).toEqual({
+      includeHeadersAndFooters: true,
+      convertImage: 'image-converter'
+    });
+    expect(parsed.html).toBe('<p>正文</p>');
+    expect(parsed.layoutNoise.nativeItems).toEqual([
+      { reason: 'hint', text: '内部资料' },
+      { reason: 'hint', text: '第 1 页' }
+    ]);
+    expect(parsed.warnings).toEqual([]);
   });
 });

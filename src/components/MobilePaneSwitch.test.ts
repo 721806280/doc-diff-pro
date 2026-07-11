@@ -1,32 +1,25 @@
-import { createApp } from 'vue';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createMountRegistry } from '@/test-utils/mountComponent';
 import MobilePaneSwitch from './MobilePaneSwitch.vue';
 
-vi.mock('@/i18n', async () => {
-  const { messages } = await vi.importActual<typeof import('@/i18n/messages')>('@/i18n/messages');
-  const { computed } = await vi.importActual<typeof import('vue')>('vue');
+vi.mock('@/i18n', () => import('@/test-utils/i18nMock'));
 
-  return {
-    useI18n: () => ({ messages: computed(() => messages['zh-CN']) })
-  };
-});
+const mounts = createMountRegistry();
 
 describe('MobilePaneSwitch', () => {
+  afterEach(() => mounts.cleanup());
+
   it('marks the active document and emits a view change', () => {
-    const root = document.createElement('div');
     const selections: string[] = [];
-    const app = createApp(MobilePaneSwitch, {
+    const { root } = mounts.mount(MobilePaneSwitch, {
       activePane: 'A',
       'onUpdate:activePane': (value: string) => selections.push(value)
     });
 
-    app.mount(root);
     const buttons = root.querySelectorAll<HTMLButtonElement>('button');
 
     expect(buttons[0]?.getAttribute('aria-checked')).toBe('true');
     buttons[1]?.click();
     expect(selections).toEqual(['B']);
-
-    app.unmount();
   });
 });
