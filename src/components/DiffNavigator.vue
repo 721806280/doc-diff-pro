@@ -44,6 +44,7 @@
           {{ i18n.diffNavigator.ignoredDiffs(ignoredDiffCount) }}
         </button>
         <button
+            v-if="canExportReport"
             type="button"
             class="summary-chip export-report"
             :title="i18n.reviewReport.exportTitle"
@@ -152,6 +153,7 @@ const props = defineProps<{
   ignoredDiffs: IgnoredDiffItem[];
   canPrevious: boolean;
   canNext: boolean;
+  canExportReport: boolean;
 }>();
 
 const emit = defineEmits<{

@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
-  base: '/doc-diff-pro/',
+  base: process.env.VITE_BASE_PATH?.trim() || '/doc-diff-pro/',
   plugins: [vue()],
   resolve: {
     alias: {

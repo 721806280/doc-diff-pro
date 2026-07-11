@@ -19,6 +19,7 @@ const en = {
         reuploadTitle: 'Choose a different original document',
         uploadTitle: 'Upload original document (A)',
         uploadHint: 'Choose the source .docx file.',
+        externalWaitingText: 'Waiting for the connected system to provide the original document.',
         waitingText: 'Original document is ready. Upload the revised document on the right to start comparing.'
       },
       B: {
@@ -27,6 +28,7 @@ const en = {
         reuploadTitle: 'Choose a different revised document',
         uploadTitle: 'Upload revised document (B)',
         uploadHint: 'Choose the updated .docx file.',
+        externalWaitingText: 'Waiting for the connected system to provide the revised document.',
         waitingText: 'Revised document is ready. Upload the original document on the left to start comparing.'
       }
     },
@@ -45,7 +47,9 @@ const en = {
     },
     errors: {
       invalidType: 'Only .docx files are supported. Choose a different document.',
-      fileTooLarge: 'This file is larger than 25 MB. Compress images or split the document before uploading.',
+      fileTooLarge(maxSizeMb: number): string {
+        return `This file is larger than ${maxSizeMb} MB. Compress images or split the document before uploading.`;
+      },
       emptyFile: 'This file is empty. Choose a valid document.',
       parseFailed(detail: string): string {
         return `Could not parse this DOCX file. ${detail}`;
@@ -110,6 +114,8 @@ const en = {
     },
     syncScrollTitle: 'Scroll both documents together by difference position.',
     syncScroll: 'Sync scrolling',
+    showReportExportTitle: 'Show the report export action in the comparison summary.',
+    showReportExport: 'Report export',
     showTableHintsTitle: 'Show question markers for table structure differences that are hard to verify visually.',
     showTableHints: 'Table hints',
     enableDiffIgnoreTitle: 'Show temporary ignore actions near the current difference.',
@@ -280,6 +286,7 @@ const zhCN: I18nMessages = {
         reuploadTitle: '重新选择基准文档',
         uploadTitle: '上传基准文档 (A)',
         uploadHint: '选择用于对照的原始 .docx 文件',
+        externalWaitingText: '等待接入系统提供基准文档',
         waitingText: '基准文档已就绪，请上传右侧修订文档后开始比对'
       },
       B: {
@@ -288,6 +295,7 @@ const zhCN: I18nMessages = {
         reuploadTitle: '重新选择修订文档',
         uploadTitle: '上传修订文档 (B)',
         uploadHint: '选择需要核对的新版 .docx 文件',
+        externalWaitingText: '等待接入系统提供修订文档',
         waitingText: '修订文档已就绪，请上传左侧基准文档后开始比对'
       }
     },
@@ -306,7 +314,9 @@ const zhCN: I18nMessages = {
     },
     errors: {
       invalidType: '仅支持上传 .docx 文件，请重新选择文档。',
-      fileTooLarge: '文件超过 25 MB。建议压缩图片或拆分文档后再上传。',
+      fileTooLarge(maxSizeMb: number): string {
+        return `文件超过 ${maxSizeMb} MB。建议压缩图片或拆分文档后再上传。`;
+      },
       emptyFile: '文件内容为空，请重新选择有效文档。',
       parseFailed(detail: string): string {
         return `无法解析该 DOCX 文件。${detail}`;
@@ -371,6 +381,8 @@ const zhCN: I18nMessages = {
     },
     syncScrollTitle: '开启后，两侧文档会按差异位置同步滚动，便于长文对照',
     syncScroll: '同步滚动',
+    showReportExportTitle: '在比对结果摘要栏显示导出报告',
+    showReportExport: '导出报告',
     showTableHintsTitle: '显示表格结构差异的问号标记，点击后查看辅助判断提示',
     showTableHints: '结构标记',
     enableDiffIgnoreTitle: '在当前差异附近显示临时忽略操作',

@@ -1,9 +1,12 @@
 import { computed, readonly, ref } from 'vue';
+import { deploymentConfig, type ConfiguredLocale } from '@/config/deploymentConfig';
 import { messages, SUPPORTED_LOCALES, type Locale } from './messages';
 
 const STORAGE_KEY = 'doc-diff-locale';
 
-const locale = ref<Locale>(detectInitialLocale());
+const locale = ref<Locale>(detectInitialLocale(
+  deploymentConfig.locale
+));
 const currentMessages = computed(() => messages[locale.value]);
 
 export function useI18n() {
@@ -19,7 +22,8 @@ export function setLocale(nextLocale: Locale): void {
   writeSavedLocale(nextLocale);
 }
 
-export function detectInitialLocale(): Locale {
+export function detectInitialLocale(configuredLocale: ConfiguredLocale = 'auto'): Locale {
+  if (configuredLocale !== 'auto') return configuredLocale;
   return readSavedLocale() ?? detectBrowserLocale();
 }
 

@@ -229,6 +229,19 @@
               <button
                   type="button"
                   class="settings-toggle"
+                  :class="{ active: showReportExport }"
+                  :title="i18n.header.showReportExportTitle"
+                  :aria-pressed="showReportExport"
+                  @click="$emit('update:showReportExport', !showReportExport)"
+              >
+                <span class="settings-toggle__label">{{ i18n.header.showReportExport }}</span>
+                <span class="settings-toggle__switch" aria-hidden="true">
+                  <span class="settings-toggle__switch-thumb"></span>
+                </span>
+              </button>
+              <button
+                  type="button"
+                  class="settings-toggle"
                   :class="{ active: showTableHints }"
                   :title="i18n.header.showTableHintsTitle"
                   :aria-pressed="showTableHints"
@@ -349,6 +362,7 @@
       </button>
 
       <a
+          v-if="showGithubLink"
           class="toolbar-icon-button github-link"
           :href="githubRepositoryUrl"
           :aria-label="i18n.header.githubLabel"
@@ -371,13 +385,14 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { DiffGranularity, SimilarDiffLevel } from '@/types/diff';
-import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
+import { DEFAULT_USER_SETTINGS } from '@/config/userSettings';
 import { createFocusTrap } from '@/utils/focusTrap';
 import { getThemeSwatchStyle, THEME_COLORS, type AppearanceMode, type ThemeColor } from '@/utils/themeColor';
 
 const props = defineProps<{
   canSwapDocuments: boolean;
   canResetDocuments: boolean;
+  showGithubLink: boolean;
   diffGranularity: DiffGranularity;
   themeColor: ThemeColor;
   appearanceMode: AppearanceMode;
@@ -385,6 +400,7 @@ const props = defineProps<{
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
   syncScroll: boolean;
+  showReportExport: boolean;
   showTableHints: boolean;
   enableDiffIgnore: boolean;
   enableSimilarDiffs: boolean;
@@ -399,6 +415,7 @@ const emit = defineEmits<{
   'update:ignoreFullHalfWidth': [value: boolean];
   'update:filterLayoutNoise': [value: boolean];
   'update:syncScroll': [value: boolean];
+  'update:showReportExport': [value: boolean];
   'update:showTableHints': [value: boolean];
   'update:enableDiffIgnore': [value: boolean];
   'update:enableSimilarDiffs': [value: boolean];
@@ -426,17 +443,18 @@ const appearanceToggleLabel = computed(() =>
     : i18n.value.header.switchToNightMode
 );
 const isUsingDefaultSettings = computed(() =>
-  props.diffGranularity === DEFAULT_APP_SETTINGS.diffGranularity &&
-  props.themeColor === DEFAULT_APP_SETTINGS.themeColor &&
-  props.appearanceMode === DEFAULT_APP_SETTINGS.appearanceMode &&
-  props.ignoreSpaces === DEFAULT_APP_SETTINGS.ignoreSpaces &&
-  props.ignoreFullHalfWidth === DEFAULT_APP_SETTINGS.ignoreFullHalfWidth &&
-  props.filterLayoutNoise === DEFAULT_APP_SETTINGS.filterLayoutNoise &&
-  props.syncScroll === DEFAULT_APP_SETTINGS.syncScroll &&
-  props.showTableHints === DEFAULT_APP_SETTINGS.showTableHints &&
-  props.enableDiffIgnore === DEFAULT_APP_SETTINGS.enableDiffIgnore &&
-  props.enableSimilarDiffs === DEFAULT_APP_SETTINGS.enableSimilarDiffs &&
-  props.similarDiffLevel === DEFAULT_APP_SETTINGS.similarDiffLevel
+  props.diffGranularity === DEFAULT_USER_SETTINGS.diffGranularity &&
+  props.themeColor === DEFAULT_USER_SETTINGS.themeColor &&
+  props.appearanceMode === DEFAULT_USER_SETTINGS.appearanceMode &&
+  props.ignoreSpaces === DEFAULT_USER_SETTINGS.ignoreSpaces &&
+  props.ignoreFullHalfWidth === DEFAULT_USER_SETTINGS.ignoreFullHalfWidth &&
+  props.filterLayoutNoise === DEFAULT_USER_SETTINGS.filterLayoutNoise &&
+  props.syncScroll === DEFAULT_USER_SETTINGS.syncScroll &&
+  props.showReportExport === DEFAULT_USER_SETTINGS.showReportExport &&
+  props.showTableHints === DEFAULT_USER_SETTINGS.showTableHints &&
+  props.enableDiffIgnore === DEFAULT_USER_SETTINGS.enableDiffIgnore &&
+  props.enableSimilarDiffs === DEFAULT_USER_SETTINGS.enableSimilarDiffs &&
+  props.similarDiffLevel === DEFAULT_USER_SETTINGS.similarDiffLevel
 );
 
 watch(isSettingsPanelOpen, async (open) => {
@@ -477,17 +495,18 @@ function updateSimilarDiffLevel(value: SimilarDiffLevel): void {
 function resetSettings(): void {
   if (isUsingDefaultSettings.value) return;
 
-  emit('update:diffGranularity', DEFAULT_APP_SETTINGS.diffGranularity);
-  emit('update:themeColor', DEFAULT_APP_SETTINGS.themeColor);
-  emit('update:appearanceMode', DEFAULT_APP_SETTINGS.appearanceMode);
-  emit('update:ignoreSpaces', DEFAULT_APP_SETTINGS.ignoreSpaces);
-  emit('update:ignoreFullHalfWidth', DEFAULT_APP_SETTINGS.ignoreFullHalfWidth);
-  emit('update:filterLayoutNoise', DEFAULT_APP_SETTINGS.filterLayoutNoise);
-  emit('update:syncScroll', DEFAULT_APP_SETTINGS.syncScroll);
-  emit('update:showTableHints', DEFAULT_APP_SETTINGS.showTableHints);
-  emit('update:enableDiffIgnore', DEFAULT_APP_SETTINGS.enableDiffIgnore);
-  emit('update:enableSimilarDiffs', DEFAULT_APP_SETTINGS.enableSimilarDiffs);
-  emit('update:similarDiffLevel', DEFAULT_APP_SETTINGS.similarDiffLevel);
+  emit('update:diffGranularity', DEFAULT_USER_SETTINGS.diffGranularity);
+  emit('update:themeColor', DEFAULT_USER_SETTINGS.themeColor);
+  emit('update:appearanceMode', DEFAULT_USER_SETTINGS.appearanceMode);
+  emit('update:ignoreSpaces', DEFAULT_USER_SETTINGS.ignoreSpaces);
+  emit('update:ignoreFullHalfWidth', DEFAULT_USER_SETTINGS.ignoreFullHalfWidth);
+  emit('update:filterLayoutNoise', DEFAULT_USER_SETTINGS.filterLayoutNoise);
+  emit('update:syncScroll', DEFAULT_USER_SETTINGS.syncScroll);
+  emit('update:showReportExport', DEFAULT_USER_SETTINGS.showReportExport);
+  emit('update:showTableHints', DEFAULT_USER_SETTINGS.showTableHints);
+  emit('update:enableDiffIgnore', DEFAULT_USER_SETTINGS.enableDiffIgnore);
+  emit('update:enableSimilarDiffs', DEFAULT_USER_SETTINGS.enableSimilarDiffs);
+  emit('update:similarDiffLevel', DEFAULT_USER_SETTINGS.similarDiffLevel);
   emit('settings-reset');
 }
 

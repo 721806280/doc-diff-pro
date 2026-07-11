@@ -24,7 +24,7 @@
             </ul>
           </div>
         </div>
-        <label class="reupload-trigger" :title="reuploadTitle" :aria-label="reuploadTitle">
+        <label v-if="allowFileInput" class="reupload-trigger" :title="reuploadTitle" :aria-label="reuploadTitle">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           <span>{{ i18n.documentPane.changeDocument }}</span>
           <input type="file" accept=".docx" @change="handleFileInput">
@@ -34,7 +34,7 @@
 
     <div
         class="render-viewport"
-        :class="{ 'is-empty': !hasResult, 'is-dragging': dragging }"
+        :class="{ 'is-empty': !hasResult, 'is-dragging': allowFileInput && dragging }"
         ref="viewport"
         @scroll="$emit('pane-scroll')"
         @click="$emit('diff-click', $event)"
@@ -43,12 +43,12 @@
         @wheel.passive="$emit('activate')"
         @pointerdown="$emit('activate')"
         @touchstart.passive="$emit('activate')"
-        @dragenter.prevent="setDragging(true)"
-        @dragover.prevent="setDragging(true)"
+        @dragenter.prevent="handleDragEnter"
+        @dragover.prevent="handleDragEnter"
         @dragleave.prevent="setDragging(false)"
         @drop.prevent="handleDrop"
     >
-      <label v-if="!fileName" class="pane-upload-zone" :class="{ dragging }" :aria-label="uploadTitle">
+      <label v-if="!fileName && allowFileInput" class="pane-upload-zone" :class="{ dragging }" :aria-label="uploadTitle">
         <div class="upload-icon-box">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
         </div>
@@ -57,6 +57,13 @@
         <small>{{ i18n.documentPane.uploadSupport }}</small>
         <input type="file" accept=".docx" @change="handleFileInput">
       </label>
+
+      <div v-else-if="!fileName" class="pane-waiting-zone">
+        <div class="waiting-card">
+          <div class="pulse-dot"></div>
+          <p>{{ externalWaitingText }}</p>
+        </div>
+      </div>
 
       <div v-else-if="!hasResult" class="pane-waiting-zone">
         <div v-if="status === 'parsing' || comparing" class="loading-spinner-wrapper">
@@ -102,7 +109,9 @@ const props = defineProps<{
   reuploadTitle: string;
   uploadTitle: string;
   uploadHint: string;
+  externalWaitingText: string;
   waitingText: string;
+  allowFileInput: boolean;
   status: DocumentPaneStatus;
   errorMessage: string;
   hasResult: boolean;
@@ -150,6 +159,8 @@ function formatCount(value: number): string {
 }
 
 function handleFileInput(event: Event): void {
+  if (!props.allowFileInput) return;
+
   const input = event.target;
   if (input instanceof HTMLInputElement && input.files?.[0]) {
     emit('file-select', input.files[0]);
@@ -166,8 +177,14 @@ function handleKeydown(event: KeyboardEvent): void {
 
 function handleDrop(event: DragEvent): void {
   setDragging(false);
+  if (!props.allowFileInput) return;
+
   const file = event.dataTransfer?.files?.[0];
   if (file) emit('file-select', file);
+}
+
+function handleDragEnter(): void {
+  if (props.allowFileInput) setDragging(true);
 }
 
 function setDragging(value: boolean): void {

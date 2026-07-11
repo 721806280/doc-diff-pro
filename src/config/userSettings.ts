@@ -5,7 +5,7 @@ const STORAGE_KEY = 'doc-diff-settings';
 const DIFF_GRANULARITIES: readonly DiffGranularity[] = ['semantic', 'word', 'char'];
 const SIMILAR_DIFF_LEVELS: readonly SimilarDiffLevel[] = ['strict', 'balanced', 'loose'];
 
-export type AppSettings = {
+export type UserSettings = {
   diffGranularity: DiffGranularity;
   themeColor: ThemeColor;
   appearanceMode: AppearanceMode;
@@ -13,13 +13,14 @@ export type AppSettings = {
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
   syncScroll: boolean;
+  showReportExport: boolean;
   showTableHints: boolean;
   enableDiffIgnore: boolean;
   enableSimilarDiffs: boolean;
   similarDiffLevel: SimilarDiffLevel;
 };
 
-export const DEFAULT_APP_SETTINGS: AppSettings = {
+export const DEFAULT_USER_SETTINGS: UserSettings = {
   diffGranularity: 'char',
   themeColor: 'indigo',
   appearanceMode: 'light',
@@ -27,27 +28,28 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   ignoreFullHalfWidth: true,
   filterLayoutNoise: false,
   syncScroll: true,
+  showReportExport: false,
   showTableHints: false,
   enableDiffIgnore: false,
   enableSimilarDiffs: true,
   similarDiffLevel: 'balanced'
 };
 
-export function readSavedAppSettings(): AppSettings {
+export function readSavedUserSettings(): UserSettings {
   const storage = getStorage();
-  if (!storage) return { ...DEFAULT_APP_SETTINGS };
+  if (!storage) return { ...DEFAULT_USER_SETTINGS };
 
   try {
     const rawValue = storage.getItem(STORAGE_KEY);
-    if (!rawValue) return { ...DEFAULT_APP_SETTINGS };
+    if (!rawValue) return { ...DEFAULT_USER_SETTINGS };
 
-    return normalizeAppSettings(JSON.parse(rawValue));
+    return normalizeUserSettings(JSON.parse(rawValue));
   } catch {
-    return { ...DEFAULT_APP_SETTINGS };
+    return { ...DEFAULT_USER_SETTINGS };
   }
 }
 
-export function writeSavedAppSettings(settings: AppSettings): void {
+export function writeSavedUserSettings(settings: UserSettings): void {
   const storage = getStorage();
   if (!storage) return;
 
@@ -58,43 +60,46 @@ export function writeSavedAppSettings(settings: AppSettings): void {
   }
 }
 
-function normalizeAppSettings(value: unknown): AppSettings {
-  if (!isRecord(value)) return { ...DEFAULT_APP_SETTINGS };
+function normalizeUserSettings(value: unknown): UserSettings {
+  if (!isRecord(value)) return { ...DEFAULT_USER_SETTINGS };
 
   return {
     diffGranularity: isDiffGranularity(value.diffGranularity)
       ? value.diffGranularity
-      : DEFAULT_APP_SETTINGS.diffGranularity,
+      : DEFAULT_USER_SETTINGS.diffGranularity,
     themeColor: isThemeColor(value.themeColor)
       ? value.themeColor
-      : DEFAULT_APP_SETTINGS.themeColor,
+      : DEFAULT_USER_SETTINGS.themeColor,
     appearanceMode: isAppearanceMode(value.appearanceMode)
       ? value.appearanceMode
-      : DEFAULT_APP_SETTINGS.appearanceMode,
+      : DEFAULT_USER_SETTINGS.appearanceMode,
     ignoreSpaces: typeof value.ignoreSpaces === 'boolean'
       ? value.ignoreSpaces
-      : DEFAULT_APP_SETTINGS.ignoreSpaces,
+      : DEFAULT_USER_SETTINGS.ignoreSpaces,
     ignoreFullHalfWidth: typeof value.ignoreFullHalfWidth === 'boolean'
       ? value.ignoreFullHalfWidth
-      : DEFAULT_APP_SETTINGS.ignoreFullHalfWidth,
+      : DEFAULT_USER_SETTINGS.ignoreFullHalfWidth,
     filterLayoutNoise: typeof value.filterLayoutNoise === 'boolean'
       ? value.filterLayoutNoise
-      : DEFAULT_APP_SETTINGS.filterLayoutNoise,
+      : DEFAULT_USER_SETTINGS.filterLayoutNoise,
     syncScroll: typeof value.syncScroll === 'boolean'
       ? value.syncScroll
-      : DEFAULT_APP_SETTINGS.syncScroll,
+      : DEFAULT_USER_SETTINGS.syncScroll,
+    showReportExport: typeof value.showReportExport === 'boolean'
+      ? value.showReportExport
+      : DEFAULT_USER_SETTINGS.showReportExport,
     showTableHints: typeof value.showTableHints === 'boolean'
       ? value.showTableHints
-      : DEFAULT_APP_SETTINGS.showTableHints,
+      : DEFAULT_USER_SETTINGS.showTableHints,
     enableDiffIgnore: typeof value.enableDiffIgnore === 'boolean'
       ? value.enableDiffIgnore
-      : DEFAULT_APP_SETTINGS.enableDiffIgnore,
+      : DEFAULT_USER_SETTINGS.enableDiffIgnore,
     enableSimilarDiffs: typeof value.enableSimilarDiffs === 'boolean'
       ? value.enableSimilarDiffs
-      : DEFAULT_APP_SETTINGS.enableSimilarDiffs,
+      : DEFAULT_USER_SETTINGS.enableSimilarDiffs,
     similarDiffLevel: isSimilarDiffLevel(value.similarDiffLevel)
       ? value.similarDiffLevel
-      : DEFAULT_APP_SETTINGS.similarDiffLevel
+      : DEFAULT_USER_SETTINGS.similarDiffLevel
   };
 }
 

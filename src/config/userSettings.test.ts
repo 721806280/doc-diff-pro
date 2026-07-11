@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  DEFAULT_APP_SETTINGS,
-  readSavedAppSettings,
-  writeSavedAppSettings
-} from './appSettings';
+  DEFAULT_USER_SETTINGS,
+  readSavedUserSettings,
+  writeSavedUserSettings
+} from './userSettings';
 
 type FakeStorage = {
   getItem(key: string): string | null;
@@ -27,7 +27,7 @@ function createFakeStorage(): FakeStorage {
   };
 }
 
-describe('appSettings', () => {
+describe('userSettings', () => {
   let storage: FakeStorage;
 
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe('appSettings', () => {
   });
 
   it('returns defaults when nothing has been saved', () => {
-    expect(readSavedAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
+    expect(readSavedUserSettings()).toEqual(DEFAULT_USER_SETTINGS);
   });
 
   it('reads and validates saved settings', () => {
@@ -52,13 +52,14 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: true,
       syncScroll: false,
+      showReportExport: true,
       showTableHints: true,
       enableDiffIgnore: false,
       enableSimilarDiffs: false,
       similarDiffLevel: 'strict'
     }));
 
-    expect(readSavedAppSettings()).toEqual({
+    expect(readSavedUserSettings()).toEqual({
       diffGranularity: 'word',
       themeColor: 'teal',
       appearanceMode: 'dark',
@@ -66,6 +67,7 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: true,
       syncScroll: false,
+      showReportExport: true,
       showTableHints: true,
       enableDiffIgnore: false,
       enableSimilarDiffs: false,
@@ -82,13 +84,14 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: null,
       syncScroll: true,
+      showReportExport: 'yes',
       showTableHints: 'yes',
       enableDiffIgnore: 'sure',
       enableSimilarDiffs: 1,
       similarDiffLevel: 'wide'
     }));
 
-    expect(readSavedAppSettings()).toEqual({
+    expect(readSavedUserSettings()).toEqual({
       diffGranularity: 'char',
       themeColor: 'indigo',
       appearanceMode: 'light',
@@ -96,6 +99,7 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: false,
       syncScroll: true,
+      showReportExport: false,
       showTableHints: false,
       enableDiffIgnore: false,
       enableSimilarDiffs: true,
@@ -104,7 +108,7 @@ describe('appSettings', () => {
   });
 
   it('writes settings when storage is available', () => {
-    writeSavedAppSettings({
+    writeSavedUserSettings({
       diffGranularity: 'char',
       themeColor: 'rose',
       appearanceMode: 'dark',
@@ -112,6 +116,7 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,
       syncScroll: false,
+      showReportExport: true,
       showTableHints: true,
       enableDiffIgnore: true,
       enableSimilarDiffs: false,
@@ -126,6 +131,7 @@ describe('appSettings', () => {
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,
       syncScroll: false,
+      showReportExport: true,
       showTableHints: true,
       enableDiffIgnore: true,
       enableSimilarDiffs: false,
@@ -136,6 +142,6 @@ describe('appSettings', () => {
   it('returns defaults when storage is unavailable', () => {
     vi.stubGlobal('localStorage', undefined);
 
-    expect(readSavedAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
+    expect(readSavedUserSettings()).toEqual(DEFAULT_USER_SETTINGS);
   });
 });

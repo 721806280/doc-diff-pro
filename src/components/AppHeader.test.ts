@@ -1,6 +1,7 @@
 import { nextTick } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_APP_SETTINGS } from '@/utils/appSettings';
+import { DEFAULT_DEPLOYMENT_CONFIG } from '@/config/deploymentConfig';
+import { DEFAULT_USER_SETTINGS } from '@/config/userSettings';
 import { createMountRegistry } from '@/test-utils/mountComponent';
 import AppHeader from './AppHeader.vue';
 
@@ -26,7 +27,7 @@ describe('AppHeader', () => {
 
     resetButton?.click();
 
-    expect(events).toContain(`appearanceMode:${DEFAULT_APP_SETTINGS.appearanceMode}`);
+    expect(events).toContain(`appearanceMode:${DEFAULT_USER_SETTINGS.appearanceMode}`);
     expect(events).toContain('settingsReset');
   });
 
@@ -63,14 +64,48 @@ describe('AppHeader', () => {
     const { root } = mountHeader();
     expect(root.querySelector<HTMLButtonElement>('.brand-zone')?.disabled).toBe(true);
   });
+
+  it('updates report export visibility from user settings', async () => {
+    const { root, events } = mountHeader();
+    root.querySelector<HTMLButtonElement>('.settings-trigger')?.click();
+    await nextTick();
+
+    const reportToggle = Array.from(root.querySelectorAll<HTMLButtonElement>('.settings-toggle'))
+      .find((button) => button.textContent?.trim() === '导出报告');
+    reportToggle?.click();
+
+    expect(events).toContain('showReportExport:true');
+  });
+
+  it('hides the repository link when deployment disables it', async () => {
+    const { root } = mountHeader({
+      canSwapDocuments: true,
+      showGithubLink: false
+    });
+
+    expect(root.querySelector('.github-link')).toBeNull();
+    expect(root.querySelector('.brand-zone')).toBeTruthy();
+    expect(root.querySelector('.swap-documents-trigger')).toBeTruthy();
+    expect(root.querySelector('.appearance-trigger')).toBeTruthy();
+    expect(root.querySelector('.language-trigger')).toBeTruthy();
+
+    root.querySelector<HTMLButtonElement>('.settings-trigger')?.click();
+    await nextTick();
+
+    expect(Array.from(root.querySelectorAll<HTMLButtonElement>('.settings-toggle'))
+      .some((button) => button.textContent?.trim() === '导出报告')).toBe(true);
+    expect(root.textContent).toContain('结构标记');
+    expect(root.textContent).toContain('临时忽略');
+  });
 });
 
 function mountHeader(overrides: Record<string, unknown> = {}) {
   const events: string[] = [];
   const props = {
-    ...DEFAULT_APP_SETTINGS,
+    ...DEFAULT_USER_SETTINGS,
     canSwapDocuments: false,
     canResetDocuments: false,
+    showGithubLink: DEFAULT_DEPLOYMENT_CONFIG.showGithubLink,
     ...overrides,
     'onUpdate:diffGranularity': (value: string) => events.push(`diffGranularity:${value}`),
     'onUpdate:themeColor': (value: string) => events.push(`themeColor:${value}`),
@@ -79,6 +114,7 @@ function mountHeader(overrides: Record<string, unknown> = {}) {
     'onUpdate:ignoreFullHalfWidth': (value: boolean) => events.push(`ignoreFullHalfWidth:${value}`),
     'onUpdate:filterLayoutNoise': (value: boolean) => events.push(`filterLayoutNoise:${value}`),
     'onUpdate:syncScroll': (value: boolean) => events.push(`syncScroll:${value}`),
+    'onUpdate:showReportExport': (value: boolean) => events.push(`showReportExport:${value}`),
     'onUpdate:showTableHints': (value: boolean) => events.push(`showTableHints:${value}`),
     'onUpdate:enableDiffIgnore': (value: boolean) => events.push(`enableDiffIgnore:${value}`),
     'onUpdate:enableSimilarDiffs': (value: boolean) => events.push(`enableSimilarDiffs:${value}`),

@@ -100,7 +100,7 @@ DocDiff Pro 会在正式比对前把版面内容和正文内容分离。
 ## 📌 支持范围与限制
 
 - 仅支持上传 `.docx` 文件。
-- 单个上传文件不能超过 25 MB。
+- 单个上传文件默认不能超过 25 MB，可通过运行时配置调整。
 - 不支持 `.doc`、`.pdf`、扫描件和 OCR 流程。
 - 可以展示内嵌图片，但不会对图片内容进行 OCR 比对。
 - DOCX 到 HTML 的转换效果取决于 mammoth，复杂 Word 版式可能无法与 Microsoft Word 完全一致。
@@ -113,6 +113,44 @@ DocDiff Pro 会在正式比对前把版面内容和正文内容分离。
 - 🔎 转换后文档比对：建议开启 `忽略空白` 和 `版面过滤`，减少空白、页眉页脚和页码干扰。
 - 🙈 重复出现的无害变化：开启 `临时忽略` 和 `相似推荐`，确认后可批量忽略相似差异。
 - 🌙 长时间审阅：可在工具栏切换夜间模式或主题色，偏好会保存在本地。
+
+## 🔌 第三方系统接入
+
+部署方可以在应用入口脚本执行前注入少量运行时配置。部署配置与用户比对设置相互独立。
+
+```html
+<script>
+window.__DOC_DIFF_CONFIG__ = {
+  documentInput: 'external',
+  showHeader: false,
+  showSampleDocuments: false,
+  showGithubLink: false,
+  locale: 'zh-CN',
+  maxDocxSizeMb: 40
+};
+</script>
+```
+
+`documentInput` 支持 `local` 和 `external`。当前不支持 URL 输入，应用不会接管第三方系统的鉴权、来源验证或网络请求。接入方应先安全地获取文件，再通过浏览器 API 传入：
+
+```js
+await window.DocDiffPro.loadDocuments({
+  baseline: baselineFile,
+  revised: revisedFile
+});
+```
+
+`baselineFile` 和 `revisedFile` 均为浏览器 `File` 对象，可只传入其中一侧。该 API 适用于同页面或同源 iframe。跨域 iframe 受浏览器同源策略限制，需要由接入方增加带来源校验的 `postMessage` 适配层；应用不会开放无来源校验的消息入口。
+
+GitHub 仓库入口固定指向作者仓库，不支持运行时替换；部署方只能通过 `showGithubLink` 控制是否显示。
+
+第三方系统已有自己的页面框架时，可设置 `showHeader: false` 隐藏 DocDiff Pro 整个顶部工具栏。
+
+构建到不同子路径时可设置 `VITE_BASE_PATH`：
+
+```bash
+VITE_BASE_PATH=/document-tools/ pnpm build
+```
 
 ## 🛠️ 开发命令
 
@@ -152,7 +190,7 @@ pnpm preview
 - 🎨 主题 token 集中在 `src/utils/themeColor.ts`；Teleport 到 body 的弹层也会通过 document root 继承同一套 CSS 变量。
 - 🎯 差异标记通过原始文本节点映射回 DOM，避免归一化逻辑散落到渲染层。
 - 🌐 界面文案集中在 `src/i18n/` 的类型化消息表中。
-- 📐 仅支持 `.docx` 文件，单个文件不超过 25 MB。
+- 📐 仅支持 `.docx` 文件，单个文件默认不超过 25 MB。
 
 ## 📜 开源许可
 

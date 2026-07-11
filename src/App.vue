@@ -1,8 +1,10 @@
 <template>
   <div class="app-container" :style="themeStyle">
     <AppHeader
+        v-if="deploymentConfig.showHeader"
         :can-swap-documents="canSwapDocuments"
         :can-reset-documents="hasDocuments"
+        :show-github-link="deploymentConfig.showGithubLink"
         v-model:diff-granularity="diffGranularity"
         v-model:theme-color="themeColor"
         v-model:appearance-mode="appearanceMode"
@@ -10,6 +12,7 @@
         v-model:ignore-full-half-width="ignoreFullHalfWidth"
         v-model:filter-layout-noise="filterLayoutNoise"
         v-model:sync-scroll="syncScroll"
+        v-model:show-report-export="showReportExport"
         v-model:show-table-hints="showTableHints"
         v-model:enable-diff-ignore="enableDiffIgnore"
         v-model:enable-similar-diffs="enableSimilarDiffs"
@@ -20,7 +23,7 @@
         @settings-open-change="handleSettingsPanelOpenChange"
     />
 
-    <div v-if="!hasDocuments" class="local-processing-strip">
+    <div v-if="!hasDocuments && deploymentConfig.showSampleDocuments" class="local-processing-strip">
       <span class="local-processing-strip__status">
         <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 3l7 3v5c0 4.6-2.8 8.1-7 10-4.2-1.9-7-5.4-7-10V6z"></path>
@@ -28,7 +31,12 @@
         </svg>
         {{ i18n.app.localProcessingNotice }}
       </span>
-      <button type="button" :disabled="loadingSampleDocuments" @click="loadBundledSampleDocuments">
+      <button
+          v-if="deploymentConfig.showSampleDocuments"
+          type="button"
+          :disabled="loadingSampleDocuments"
+          @click="loadBundledSampleDocuments"
+      >
         <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path>
           <path d="M14 3v5h5"></path>
@@ -54,6 +62,7 @@
         :ignored-diffs="ignoredDiffList"
         :can-previous="canPreviousDiff"
         :can-next="canNextDiff"
+        :can-export-report="showReportExport"
         @previous="prevDiff"
         @next="nextDiff"
         @locate-ignored="locateIgnoredDiff"
@@ -83,7 +92,9 @@
           :reupload-title="i18n.app.documents.A.reuploadTitle"
           :upload-title="i18n.app.documents.A.uploadTitle"
           :upload-hint="i18n.app.documents.A.uploadHint"
+          :external-waiting-text="i18n.app.documents.A.externalWaitingText"
           :waiting-text="i18n.app.documents.A.waitingText"
+          :allow-file-input="allowsLocalInput"
           :status="documents.A.status"
           :error-message="documents.A.error"
           :has-result="hasResult"
@@ -117,7 +128,9 @@
           :reupload-title="i18n.app.documents.B.reuploadTitle"
           :upload-title="i18n.app.documents.B.uploadTitle"
           :upload-hint="i18n.app.documents.B.uploadHint"
+          :external-waiting-text="i18n.app.documents.B.externalWaitingText"
           :waiting-text="i18n.app.documents.B.waitingText"
+          :allow-file-input="allowsLocalInput"
           :status="documents.B.status"
           :error-message="documents.B.error"
           :has-result="hasResult"
@@ -177,11 +190,13 @@
         </button>
       </div>
     </transition>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { deploymentConfig } from '@/config/deploymentConfig';
 import { useI18n } from '@/i18n';
 import AppHeader from './components/AppHeader.vue';
 import CompareToast from './components/CompareToast.vue';
@@ -198,7 +213,7 @@ import {
   type DiffElementGroup,
   type DiffElementIndex
 } from './utils/diffElementIndex';
-import { readSavedAppSettings, writeSavedAppSettings } from './utils/appSettings';
+import { readSavedUserSettings, writeSavedUserSettings } from './config/userSettings';
 import { compareDocuments } from './services/diffEngine';
 import { cancelPendingTextDiffs } from './services/diffWorkerClient';
 import { parseDocx, type ParsedDocx } from './services/docxParser';
@@ -222,6 +237,10 @@ import {
   setReviewClass,
   sortReviewItems
 } from './utils/diffReview';
+import {
+  installExternalDocumentApi,
+  type ExternalDocumentSet
+} from './services/externalDocumentApi';
 
 type PaneKey = 'A' | 'B';
 
@@ -260,8 +279,10 @@ const EMPTY_DIFF_SUMMARY: DiffSummary = {
   layoutNoiseFiltered: 0,
   layoutNoiseItems: []
 };
-const MAX_DOCX_SIZE = 25 * 1024 * 1024;
 const DIFF_ACTION_POPOVER_CLEARANCE = 48;
+const maxDocxSize = deploymentConfig.maxDocxSizeMb * 1024 * 1024;
+const allowsLocalInput = deploymentConfig.documentInput === 'local';
+const allowsExternalInput = deploymentConfig.documentInput === 'external';
 
 const documents = reactive<Record<PaneKey, DocumentState>>({
   A: createEmptyDocumentState(),
@@ -280,10 +301,11 @@ const mobilePane = ref<PaneKey>('A');
 const similarDiffPanelOpen = ref(false);
 const activeTableHint = ref<DiffTableContextHint | null>(null);
 const tableHintPanelOpen = ref(false);
-const initialSettings = readSavedAppSettings();
+const initialSettings = readSavedUserSettings();
 const themeColor = ref<ThemeColor>(initialSettings.themeColor);
 const appearanceMode = ref<AppearanceMode>(initialSettings.appearanceMode);
 const syncScroll = ref(initialSettings.syncScroll);
+const showReportExport = ref(initialSettings.showReportExport);
 const showTableHints = ref(initialSettings.showTableHints);
 const enableDiffIgnore = ref(initialSettings.enableDiffIgnore);
 const enableSimilarDiffs = ref(initialSettings.enableSimilarDiffs);
@@ -311,6 +333,7 @@ let settingsCompareTimer: number | null = null;
 let scrollRaf: number | null = null;
 let diffActionRaf: number | null = null;
 let layoutObserver: ResizeObserver | null = null;
+let uninstallExternalDocumentApi: (() => void) | null = null;
 let compareRunId = 0;
 const fileLoadIds: Record<PaneKey, number> = { A: 0, B: 0 };
 const documentErrors = reactive<Partial<Record<PaneKey, { kind: ErrorKind; detail?: string }>>>({});
@@ -341,7 +364,9 @@ const canIgnoreCurrentDiff = computed(() =>
   !isDiffIgnored(currentDiffIndex.value)
 );
 const currentDiffIgnored = computed(() =>
-  enableDiffIgnore.value && currentDiffIndex.value > 0 && isDiffIgnored(currentDiffIndex.value)
+  enableDiffIgnore.value &&
+  currentDiffIndex.value > 0 &&
+  isDiffIgnored(currentDiffIndex.value)
 );
 const currentDiffItem = computed(() =>
   currentDiffIndex.value > 0 ? createIgnoredDiffItem(currentDiffIndex.value) : null
@@ -441,8 +466,33 @@ async function handleFile(key: PaneKey, file: File): Promise<void> {
   }
 }
 
+async function loadExternalDocuments(input: ExternalDocumentSet): Promise<void> {
+  if (!allowsExternalInput) throw new Error('External document input is disabled.');
+
+  const baseline = input?.baseline;
+  const revised = input?.revised;
+  if (baseline !== undefined && !isFileLike(baseline)) throw new TypeError('Baseline must be a browser File object.');
+  if (revised !== undefined && !isFileLike(revised)) throw new TypeError('Revised must be a browser File object.');
+
+  const documentsToLoad: Array<Promise<void>> = [];
+  if (baseline) documentsToLoad.push(handleFile('A', baseline));
+  if (revised) documentsToLoad.push(handleFile('B', revised));
+  if (documentsToLoad.length === 0) throw new TypeError('Provide a baseline or revised DOCX file.');
+
+  await Promise.all(documentsToLoad);
+}
+
+function isFileLike(value: unknown): value is File {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const file = value as Partial<File>;
+  return typeof file.name === 'string' &&
+    typeof file.size === 'number' &&
+    typeof file.arrayBuffer === 'function';
+}
+
 async function loadBundledSampleDocuments(): Promise<void> {
-  if (loadingSampleDocuments.value || hasDocuments.value) return;
+  if (!deploymentConfig.showSampleDocuments || loadingSampleDocuments.value || hasDocuments.value) return;
 
   loadingSampleDocuments.value = true;
   try {
@@ -464,7 +514,7 @@ function validateDocxFile(file: File): ErrorKind | '' {
     return 'invalidType';
   }
 
-  if (file.size > MAX_DOCX_SIZE) {
+  if (file.size > maxDocxSize) {
     return 'fileTooLarge';
   }
 
@@ -555,7 +605,7 @@ watch(enableSimilarDiffs, (enabled) => {
   if (!enabled) closeSimilarDiffs();
 });
 
-watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showTableHints, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
+watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showReportExport, showTableHints, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
     [
       nextDiffGranularity,
       nextThemeColor,
@@ -564,13 +614,14 @@ watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalf
       nextIgnoreFullHalfWidth,
       nextFilterLayoutNoise,
       nextSyncScroll,
+      nextShowReportExport,
       nextShowTableHints,
       nextEnableDiffIgnore,
       nextEnableSimilarDiffs,
       nextSimilarDiffLevel
     ]
 ) => {
-  writeSavedAppSettings({
+  writeSavedUserSettings({
     diffGranularity: nextDiffGranularity,
     themeColor: nextThemeColor,
     appearanceMode: nextAppearanceMode,
@@ -578,6 +629,7 @@ watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalf
     ignoreFullHalfWidth: nextIgnoreFullHalfWidth,
     filterLayoutNoise: nextFilterLayoutNoise,
     syncScroll: nextSyncScroll,
+    showReportExport: nextShowReportExport,
     showTableHints: nextShowTableHints,
     enableDiffIgnore: nextEnableDiffIgnore,
     enableSimilarDiffs: nextEnableSimilarDiffs,
@@ -766,6 +818,8 @@ async function setMobilePane(key: PaneKey): Promise<void> {
 }
 
 function exportReviewReport(): void {
+  if (!showReportExport.value) return;
+
   const generatedAt = new Date();
   const enabledLabel = (enabled: boolean) => enabled
     ? i18n.value.reviewReport.enabled
@@ -876,7 +930,11 @@ function ignoreCurrentDiff(): void {
 }
 
 function ignoreSimilarDiffs(ids: string[]): void {
-  if (!enableDiffIgnore.value || !enableSimilarDiffs.value || ids.length === 0) return;
+  if (
+    !enableDiffIgnore.value ||
+    !enableSimilarDiffs.value ||
+    ids.length === 0
+  ) return;
 
   const nextIgnoredDiffs = new Map(ignoredDiffs.value);
   ids.forEach((id) => {
@@ -939,7 +997,10 @@ function restoreIgnoredDiff(id: string): void {
 }
 
 function openSimilarDiffs(): void {
-  if (!enableSimilarDiffs.value || similarDiffs.value.length === 0) return;
+  if (
+    !enableSimilarDiffs.value ||
+    similarDiffs.value.length === 0
+  ) return;
   similarDiffPanelOpen.value = true;
 }
 
@@ -1045,11 +1106,11 @@ function clearFocusedDiffElements(): void {
 
 function shouldTrackDiffActionPosition(): boolean {
   return enableDiffIgnore.value &&
-      !settingsPanelOpen.value &&
-      hasResult.value &&
-      currentDiffIndex.value > 0 &&
-      focusedDiffElements.length > 0 &&
-      (canIgnoreCurrentDiff.value || currentDiffIgnored.value);
+    !settingsPanelOpen.value &&
+    hasResult.value &&
+    currentDiffIndex.value > 0 &&
+    focusedDiffElements.length > 0 &&
+    (canIgnoreCurrentDiff.value || currentDiffIgnored.value);
 }
 
 function scheduleDiffActionPositionUpdate(): void {
@@ -1534,7 +1595,7 @@ function resolveDocumentError(kind: ErrorKind, detail?: string): string {
     case 'invalidType':
       return i18n.value.app.errors.invalidType;
     case 'fileTooLarge':
-      return i18n.value.app.errors.fileTooLarge;
+      return i18n.value.app.errors.fileTooLarge(deploymentConfig.maxDocxSizeMb);
     case 'emptyFile':
       return i18n.value.app.errors.emptyFile;
     case 'parseFailed':
@@ -1556,12 +1617,17 @@ function handleBeforeUnload(event: BeforeUnloadEvent): void {
 
 onMounted(() => {
   syncDocumentLocale();
+  if (allowsExternalInput) {
+    uninstallExternalDocumentApi = installExternalDocumentApi(loadExternalDocuments);
+  }
   window.addEventListener('resize', handleResize);
   window.addEventListener('keydown', handleWindowKeydown);
   window.addEventListener('beforeunload', handleBeforeUnload);
 });
 
 onUnmounted(() => {
+  uninstallExternalDocumentApi?.();
+  uninstallExternalDocumentApi = null;
   window.removeEventListener('resize', handleResize);
   window.removeEventListener('keydown', handleWindowKeydown);
   window.removeEventListener('beforeunload', handleBeforeUnload);

@@ -100,7 +100,7 @@ DocDiff Pro separates layout text from body content before diffing.
 ## 📌 Supported Inputs and Limits
 
 - Only `.docx` files are accepted.
-- Each uploaded file must be 25 MB or smaller.
+- Each uploaded file is limited to 25 MB by default; runtime configuration can change the limit.
 - `.doc`, `.pdf`, scanned documents, and OCR workflows are not supported.
 - Embedded images can be displayed, but image contents are not OCR-compared.
 - DOCX-to-HTML fidelity depends on mammoth, so highly complex Word layouts may not render exactly like Microsoft Word.
@@ -113,6 +113,44 @@ DocDiff Pro separates layout text from body content before diffing.
 - 🔎 Comparing converted documents: enable `Ignore spaces` and `Layout filter` to reduce whitespace, page header/footer, and page-number noise introduced by conversion.
 - 🙈 Repeated harmless changes: enable `Temporary ignore` and `Similar suggestions`, then review and batch-ignore matching differences.
 - 🌙 Long review sessions: switch to night mode or adjust the theme color from the toolbar; the preference is saved locally.
+
+## 🔌 Third-party integration
+
+Deployments can inject a small runtime configuration before the application module runs. Deployment configuration remains separate from user comparison preferences.
+
+```html
+<script>
+window.__DOC_DIFF_CONFIG__ = {
+  documentInput: 'external',
+  showHeader: false,
+  showSampleDocuments: false,
+  showGithubLink: false,
+  locale: 'en',
+  maxDocxSizeMb: 40
+};
+</script>
+```
+
+`documentInput` accepts `local` or `external`. URL input is not currently supported, and the application does not take responsibility for external authentication, source validation, or network requests. The integrating system must obtain the files safely and then pass browser `File` objects into the API:
+
+```js
+await window.DocDiffPro.loadDocuments({
+  baseline: baselineFile,
+  revised: revisedFile
+});
+```
+
+Either file may be supplied independently. This API works on the same page or in a same-origin iframe. Cross-origin iframes require a trusted `postMessage` adapter with explicit origin validation; the application intentionally does not expose an unrestricted message listener.
+
+The GitHub entry always points to the author's repository and cannot be replaced at runtime. Deployments may only control its visibility through `showGithubLink`.
+
+When the integrating system already provides its own application frame, set `showHeader: false` to hide the entire DocDiff Pro toolbar.
+
+Set `VITE_BASE_PATH` when building for another deployment path:
+
+```bash
+VITE_BASE_PATH=/document-tools/ pnpm build
+```
 
 ## 🛠️ Development
 
@@ -152,7 +190,7 @@ pnpm preview
 - 🎨 Theme tokens live in `src/utils/themeColor.ts`; teleported overlays receive the same CSS variables through the document root.
 - 🎯 Diff markers are mapped back to the DOM through the original text nodes, so normalization logic never leaks into the rendering layer.
 - 🌐 Interface strings live in a typed message catalog under `src/i18n/`.
-- 📐 Only `.docx` files are supported, up to 25 MB per file.
+- 📐 Only `.docx` files are supported, up to 25 MB per file by default.
 
 ## 📜 License
 

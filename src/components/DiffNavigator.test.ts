@@ -71,6 +71,12 @@ describe('DiffNavigator', () => {
 
     expect(events).toContain('exportReport');
   });
+
+  it('hides report export when the deployment disables it', () => {
+    const { root } = mountNavigator({ canExportReport: false });
+
+    expect(root.textContent).not.toContain('导出报告');
+  });
 });
 
 function mountNavigator(overrides: Record<string, unknown> = {}) {
@@ -83,6 +89,7 @@ function mountNavigator(overrides: Record<string, unknown> = {}) {
     ignoredDiffs: [],
     canPrevious: false,
     canNext: true,
+    canExportReport: true,
     onPrevious: () => events.push('previous'),
     onNext: () => events.push('next'),
     onLocateIgnored: (id: string) => events.push(`locateIgnored:${id}`),
