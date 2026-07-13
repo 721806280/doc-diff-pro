@@ -18,27 +18,18 @@
               <strong :id="titleId">{{ i18n.diffNavigator.ignoredDetailsTitle }}</strong>
               <span>{{ i18n.diffNavigator.ignoredDiffs(items.length) }}</span>
             </div>
-            <div class="ignored-diff-panel__actions">
-              <button
-                  type="button"
-                  class="ignored-diff-restore-all"
-                  @click="emit('restoreAll')"
-              >
-                {{ i18n.diffNavigator.restoreIgnored }}
-              </button>
-              <button
-                  type="button"
-                  class="ignored-diff-close"
-                  :aria-label="i18n.diffNavigator.closeDetails"
-                  :title="i18n.diffNavigator.closeDetails"
-                  @click="emit('close')"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
+            <button
+                type="button"
+                class="ignored-diff-close"
+                :aria-label="i18n.diffNavigator.closeDetails"
+                :title="i18n.diffNavigator.closeDetails"
+                @click="emit('close')"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
 
           <ul class="ignored-diff-list">
@@ -61,7 +52,7 @@
               </div>
               <div class="ignored-diff-row-actions">
                 <button type="button" @click="emit('locate', item.id)">
-                  {{ i18n.diffNavigator.locateIgnored }}
+                  {{ i18n.diffNavigator.viewSimilarDiff }}
                 </button>
                 <button type="button" class="restore" @click="emit('restore', item.id)">
                   {{ i18n.diffNavigator.unignoreHere }}
@@ -69,6 +60,13 @@
               </div>
             </li>
           </ul>
+
+          <div class="ignored-diff-footer">
+            <span>{{ i18n.diffNavigator.ignoredSelectedCount(items.length) }}</span>
+            <button type="button" class="ignored-diff-restore-all" @click="emit('restoreAll')">
+              {{ i18n.diffNavigator.restoreIgnored }}
+            </button>
+          </div>
         </section>
       </div>
     </transition>
@@ -155,10 +153,11 @@ onUnmounted(() => {
   --ignored-muted: var(--text-tertiary);
   --ignored-line: var(--popup-border);
 
-  width: min(780px, calc(100vw - 32px));
+  width: min(820px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-  overflow-x: hidden;
-  overflow-y: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
   border: 1px solid var(--popup-border);
   border-radius: var(--popup-radius);
   background: var(--popup-surface);
@@ -203,13 +202,6 @@ onUnmounted(() => {
   font-family: 'SF Mono', 'Monaco', monospace;
   font-size: 0.68rem;
   font-weight: 750;
-}
-
-.ignored-diff-panel__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
 }
 
 .ignored-diff-restore-all,
@@ -258,7 +250,25 @@ onUnmounted(() => {
   margin: 0;
   padding: 12px;
   list-style: none;
+  overflow-y: auto;
   background: var(--surface-chip);
+}
+
+.ignored-diff-footer {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--ignored-line);
+  background: var(--popup-surface-soft);
+}
+
+.ignored-diff-footer > span {
+  color: var(--ignored-text);
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 .ignored-diff-list li {

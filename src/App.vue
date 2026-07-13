@@ -164,7 +164,7 @@
         :items="similarDiffs"
         @close="closeSimilarDiffs"
         @locate="locateSimilarDiff"
-        @ignore-selected="ignoreSimilarDiffs"
+        @ignore-selected="ignoreSelectedDiffs"
     />
 
     <transition name="table-hint-tip">
@@ -934,38 +934,59 @@ function ignoreCurrentDiff(): void {
   syncActiveTableHint(null);
 }
 
-function ignoreSimilarDiffs(ids: string[]): void {
+function ignoreSelectedDiffs(ids: string[]): void {
   if (
     !enableDiffIgnore.value ||
     !enableSimilarDiffs.value ||
     ids.length === 0
   ) return;
 
+  const ignoredIndex = currentDiffIndex.value;
+  const ignoredIndices = ignoreDiffIds(ids);
+  closeSimilarDiffs();
+
+  if (ignoredIndices.has(ignoredIndex)) {
+    const nextIndex = findActiveDiff(ignoredIndex + 1, 1) ?? findActiveDiff(ignoredIndex - 1, -1);
+    if (nextIndex !== null) {
+      currentDiffIndex.value = nextIndex;
+      focusOnDiff(nextIndex);
+      return;
+    }
+
+    currentDiffIndex.value = 0;
+    clearFocusedDiffElements();
+    syncActiveTableHint(null);
+    return;
+  }
+
+  scheduleDiffActionPositionUpdate();
+}
+
+function ignoreDiffByIndex(index: number): boolean {
+  return ignoreDiffIds([diffReviewId(index)]).has(index);
+}
+
+function ignoreDiffIds(ids: string[]): Set<number> {
   const nextIgnoredDiffs = new Map(ignoredDiffs.value);
+  const ignoredIndices = new Set<number>();
+
   ids.forEach((id) => {
+    if (nextIgnoredDiffs.has(id)) return;
+
     const index = diffReviewIndex(id);
-    if (Number.isNaN(index) || isDiffIgnored(index)) return;
+    if (Number.isNaN(index)) return;
 
     const item = createIgnoredDiffItem(index);
     if (!item) return;
 
     nextIgnoredDiffs.set(id, item);
+    ignoredIndices.add(index);
     setDiffIgnoredClass(index, true);
   });
-  ignoredDiffs.value = nextIgnoredDiffs;
-  closeSimilarDiffs();
-  scheduleDiffActionPositionUpdate();
-}
 
-function ignoreDiffByIndex(index: number): boolean {
-  const item = createIgnoredDiffItem(index);
-  if (!item) return false;
-
-  const nextIgnoredDiffs = new Map(ignoredDiffs.value);
-  nextIgnoredDiffs.set(item.id, item);
+  if (ignoredIndices.size === 0) return ignoredIndices;
   ignoredDiffs.value = nextIgnoredDiffs;
-  setDiffIgnoredClass(index, true);
-  return true;
+  return ignoredIndices;
 }
 
 function restoreCurrentDiff(): void {

@@ -279,38 +279,24 @@
                 </span>
               </button>
               <div v-if="enableDiffIgnore" class="settings-subgroup">
-                <button
-                    type="button"
-                    class="settings-toggle"
-                    :class="{ active: enableSimilarDiffs }"
-                    :title="i18n.header.enableSimilarDiffsTitle"
-                    :aria-pressed="enableSimilarDiffs"
-                    @click="$emit('update:enableSimilarDiffs', !enableSimilarDiffs)"
-                >
-                  <span class="settings-toggle__label">{{ i18n.header.enableSimilarDiffs }}</span>
-                  <span class="settings-toggle__switch" aria-hidden="true">
-                    <span class="settings-toggle__switch-thumb"></span>
-                  </span>
-                </button>
                 <div
-                    v-if="enableSimilarDiffs"
                     class="similar-level-control"
                     role="radiogroup"
-                    :aria-label="i18n.header.similarDiffLevelLabel"
+                    :aria-label="i18n.header.enableSimilarDiffs"
                 >
-                  <span>{{ i18n.header.similarDiffLevelLabel }}</span>
+                  <span>{{ i18n.header.enableSimilarDiffs }}</span>
                   <div class="similar-level-segmented">
                     <button
-                        v-for="option in similarDiffLevelOptions"
+                        v-for="option in similarDiffOptions"
                         :key="option"
                         type="button"
                         role="radio"
-                        :aria-checked="similarDiffLevel === option"
-                        :class="{ active: similarDiffLevel === option }"
-                        :title="i18n.header.similarDiffLevelTitle[option]"
-                        @click="updateSimilarDiffLevel(option)"
+                        :aria-checked="option === 'off' ? !enableSimilarDiffs : enableSimilarDiffs && similarDiffLevel === option"
+                        :class="{ active: option === 'off' ? !enableSimilarDiffs : enableSimilarDiffs && similarDiffLevel === option }"
+                        :title="option === 'off' ? i18n.header.enableSimilarDiffsOffTitle : i18n.header.similarDiffLevelTitle[option]"
+                        @click="updateSimilarDiffOption(option)"
                     >
-                      {{ i18n.header.similarDiffLevel[option] }}
+                      {{ option === 'off' ? i18n.header.enableSimilarDiffsOff : i18n.header.similarDiffLevel[option] }}
                     </button>
                   </div>
                 </div>
@@ -447,7 +433,7 @@ const settingsControlRef = ref<HTMLElement | null>(null);
 const settingsPopoverRef = ref<HTMLElement | null>(null);
 const brandResetting = ref(false);
 const githubRepositoryUrl = 'https://github.com/721806280/doc-diff-vision';
-const similarDiffLevelOptions: SimilarDiffLevel[] = ['strict', 'balanced', 'loose'];
+const similarDiffOptions: Array<SimilarDiffLevel | 'off'> = ['off', 'strict', 'balanced', 'loose'];
 const themeColorOptions: ThemeColor[] = [...THEME_COLORS];
 const settingsFocusTrap = createFocusTrap();
 let restoreSettingsFocus = true;
@@ -504,7 +490,13 @@ function toggleAppearanceShortcut(): void {
   toggleAppearanceMode();
 }
 
-function updateSimilarDiffLevel(value: SimilarDiffLevel): void {
+function updateSimilarDiffOption(value: SimilarDiffLevel | 'off'): void {
+  if (value === 'off') {
+    emit('update:enableSimilarDiffs', false);
+    return;
+  }
+
+  emit('update:enableSimilarDiffs', true);
   emit('update:similarDiffLevel', value);
 }
 
@@ -1265,9 +1257,6 @@ onBeforeUnmount(() => {
 .settings-subgroup {
   display: grid;
   gap: 6px;
-  margin-left: 10px;
-  padding-left: 10px;
-  border-left: 2px solid var(--border-subtle);
 }
 
 .similar-level-control > span {
@@ -1283,9 +1272,9 @@ onBeforeUnmount(() => {
 }
 
 .similar-level-segmented {
-  flex: 0 0 140px;
+  flex: 0 0 180px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--control-border);

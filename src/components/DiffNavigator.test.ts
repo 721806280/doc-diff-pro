@@ -29,10 +29,10 @@ describe('DiffNavigator', () => {
 
     expect(document.body.textContent).toContain('已忽略差异');
 
-    clickButton(document.body, '定位');
+    clickButton(document.body, '查看');
     clickButton(root, '忽略 1');
     await nextTick();
-    clickButton(document.body, '恢复此差异');
+    document.body.querySelector<HTMLButtonElement>('.ignored-diff-row-actions .restore')?.click();
 
     expect(events).toEqual(['locateIgnored:diff-2', 'restoreIgnored:diff-2']);
   });

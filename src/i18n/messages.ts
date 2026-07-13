@@ -122,9 +122,9 @@ const en = {
     showDiffMap: 'Difference map',
     enableDiffIgnoreTitle: 'Allow differences to be excluded from review and navigation.',
     enableDiffIgnore: 'Difference ignore',
-    enableSimilarDiffsTitle: 'Recommend similar differences for optional batch processing.',
     enableSimilarDiffs: 'Similar difference suggestions',
-    similarDiffLevelLabel: 'Match range',
+    enableSimilarDiffsOff: 'Off',
+    enableSimilarDiffsOffTitle: 'Do not recommend similar differences.',
     similarDiffLevel: {
       strict: 'Strict',
       balanced: 'Balanced',
@@ -230,31 +230,41 @@ const en = {
       return `Ignored ${count}`;
     },
     ignoredDetailsTitle: 'Ignored differences',
+    ignoredSelectedCount(count: number): string {
+      return `${count} ignored`;
+    },
     ignoredDiffKind: {
       modified: 'Modified',
       inserted: 'Added',
       deleted: 'Deleted'
     },
     emptyDiffPreview: 'No content',
-    ignoreHere: 'Ignore this difference',
+    ignoreHere: 'Ignore',
     ignoreHereTitle: 'Exclude this difference from review navigation.',
-    unignoreHere: 'Restore this difference',
+    unignoreHere: 'Restore',
     unignoreHereTitle: 'Return this difference to review navigation.',
-    locateIgnored: 'Locate',
-    similarDiffsLabel: 'Process similar',
+    similarDiffsLabel: 'Batch process',
     similarDiffs(count: number): string {
       return `Similar ${count}`;
     },
     similarDiffsTitle(count: number): string {
       return `Review ${count} similar ${count === 1 ? 'difference' : 'differences'}.`;
     },
-    similarDetailsTitle: 'Similar differences',
-    similarCurrentLabel: 'Compared with current',
+    batchProcessTitle: 'Batch process',
+    similarCurrentLabel: 'Current difference',
+    similarScore(score: string): string {
+      return `${score} similar`;
+    },
+    selectedSimilar(selected: number, total: number): string {
+      return `Selected ${selected}/${total}`;
+    },
+    viewSimilarDiff: 'View',
     selectAllSimilar: 'Select all',
     clearSimilarSelection: 'Clear',
     ignoreSelectedSimilar(count: number): string {
-      return count === 0 ? 'Ignore selected' : `Ignore selected ${count}`;
+      return count === 0 ? 'Ignore' : `Ignore ${count}`;
     },
+    selectCurrentDiff: 'Select current difference',
     selectSimilarDiff(index: number): string {
       return `Select similar difference ${index}`;
     },
@@ -391,9 +401,9 @@ const zhCN: I18nMessages = {
     showDiffMap: '差异地图',
     enableDiffIgnoreTitle: '允许将无需处理的差异排除在审阅和导航之外',
     enableDiffIgnore: '差异忽略',
-    enableSimilarDiffsTitle: '推荐相似差异，确认后可批量处理',
-    enableSimilarDiffs: '相似差异推荐',
-    similarDiffLevelLabel: '匹配范围',
+    enableSimilarDiffs: '相似推荐',
+    enableSimilarDiffsOff: '关闭',
+    enableSimilarDiffsOffTitle: '不推荐相似差异',
     similarDiffLevel: {
       strict: '严格',
       balanced: '均衡',
@@ -499,31 +509,41 @@ const zhCN: I18nMessages = {
       return `忽略 ${count}`;
     },
     ignoredDetailsTitle: '已忽略差异',
+    ignoredSelectedCount(count: number): string {
+      return `已忽略 ${count} 项`;
+    },
     ignoredDiffKind: {
       modified: '修改',
       inserted: '新增',
       deleted: '删除'
     },
     emptyDiffPreview: '无内容',
-    ignoreHere: '忽略此差异',
+    ignoreHere: '忽略',
     ignoreHereTitle: '将此差异排除在审阅导航之外',
-    unignoreHere: '恢复此差异',
+    unignoreHere: '恢复',
     unignoreHereTitle: '将此差异恢复到审阅导航',
-    locateIgnored: '定位',
-    similarDiffsLabel: '处理相似差异',
+    similarDiffsLabel: '批量处理',
     similarDiffs(count: number): string {
       return `相似项 ${count}`;
     },
     similarDiffsTitle(count: number): string {
       return `查看 ${count} 个相似差异`;
     },
-    similarDetailsTitle: '相似差异',
-    similarCurrentLabel: '与当前差异对比',
+    batchProcessTitle: '批量处理',
+    similarCurrentLabel: '当前差异',
+    similarScore(score: string): string {
+      return `${score} 相似`;
+    },
+    selectedSimilar(selected: number, total: number): string {
+      return `已选 ${selected}/${total}`;
+    },
+    viewSimilarDiff: '查看',
     selectAllSimilar: '全选',
     clearSimilarSelection: '清空',
     ignoreSelectedSimilar(count: number): string {
-      return count === 0 ? '忽略选中' : `忽略选中 ${count}`;
+      return count === 0 ? '忽略' : `忽略 ${count} 项`;
     },
+    selectCurrentDiff: '选择当前差异',
     selectSimilarDiff(index: number): string {
       return `选择相似差异 ${index}`;
     },

@@ -15,7 +15,7 @@
         >
           <div class="similar-diff-panel__head">
             <div class="similar-diff-panel__title">
-              <strong :id="titleId">{{ i18n.diffNavigator.similarDetailsTitle }}</strong>
+              <strong :id="titleId">{{ i18n.diffNavigator.batchProcessTitle }}</strong>
               <span>{{ i18n.diffNavigator.similarDiffs(items.length) }}</span>
             </div>
             <button
@@ -33,8 +33,31 @@
           </div>
 
           <div class="similar-diff-current">
-            <span>{{ i18n.diffNavigator.similarCurrentLabel }}</span>
-            <strong>#{{ current.index }}</strong>
+            <label class="similar-diff-check">
+              <input
+                  type="checkbox"
+                  :aria-label="i18n.diffNavigator.selectCurrentDiff"
+                  :checked="selectedIds.has(current.id)"
+                  @change="toggleSelected(current.id)"
+              >
+              <span></span>
+            </label>
+            <div class="similar-diff-body">
+              <div class="similar-diff-meta">
+                <span class="similar-diff-current-label">{{ i18n.diffNavigator.similarCurrentLabel }}</span>
+                <span class="similar-diff-index">#{{ current.index }}</span>
+              </div>
+              <div class="similar-diff-preview">
+                <p>
+                  <span>{{ i18n.diffNavigator.tableHintSides.original }}</span>
+                  <strong>{{ current.originalPreview || i18n.diffNavigator.emptyDiffPreview }}</strong>
+                </p>
+                <p>
+                  <span>{{ i18n.diffNavigator.tableHintSides.revised }}</span>
+                  <strong>{{ current.revisedPreview || i18n.diffNavigator.emptyDiffPreview }}</strong>
+                </p>
+              </div>
+            </div>
           </div>
 
           <ul class="similar-diff-list">
@@ -54,7 +77,7 @@
                   <span class="similar-diff-kind" :class="`kind-${item.kind}`">
                     {{ i18n.diffNavigator.ignoredDiffKind[item.kind] }}
                   </span>
-                  <span class="similar-diff-score">{{ percentFormatter.format(item.similarity) }}</span>
+                  <span class="similar-diff-score">{{ i18n.diffNavigator.similarScore(percentFormatter.format(item.similarity)) }}</span>
                 </div>
                 <div class="similar-diff-preview">
                   <p>
@@ -68,17 +91,15 @@
                 </div>
               </div>
               <button type="button" class="similar-diff-locate" @click="emit('locate', item.id)">
-                {{ i18n.diffNavigator.locateIgnored }}
+                {{ i18n.diffNavigator.viewSimilarDiff }}
               </button>
             </li>
           </ul>
 
           <div class="similar-diff-footer">
-            <button type="button" class="secondary" @click="selectAll">
-              {{ i18n.diffNavigator.selectAllSimilar }}
-            </button>
-            <button type="button" class="secondary" @click="clearSelected">
-              {{ i18n.diffNavigator.clearSimilarSelection }}
+            <span class="similar-diff-selected">{{ i18n.diffNavigator.selectedSimilar(selectedIds.size, totalSelectable) }}</span>
+            <button type="button" class="secondary" @click="toggleAll">
+              {{ allSelected ? i18n.diffNavigator.clearSimilarSelection : i18n.diffNavigator.selectAllSimilar }}
             </button>
             <button
                 type="button"
@@ -125,11 +146,15 @@ const percentFormatter = computed(() => new Intl.NumberFormat(locale.value, {
   minimumFractionDigits: 0,
   maximumFractionDigits: 0
 }));
+const totalSelectable = computed(() => props.items.length + (props.current ? 1 : 0));
+const allSelected = computed(() => selectedIds.value.size === totalSelectable.value);
 
 watch(
   () => [props.open, props.items.map((item) => item.id).join('\u0000')] as const,
   ([open]) => {
-    selectedIds.value = open ? new Set(props.items.map((item) => item.id)) : new Set();
+    selectedIds.value = open && props.current
+      ? new Set([props.current.id, ...props.items.map((item) => item.id)])
+      : new Set();
   },
   { immediate: true }
 );
@@ -156,7 +181,18 @@ function toggleSelected(id: string): void {
 }
 
 function selectAll(): void {
-  selectedIds.value = new Set(props.items.map((item) => item.id));
+  selectedIds.value = new Set([
+    ...(props.current ? [props.current.id] : []),
+    ...props.items.map((item) => item.id)
+  ]);
+}
+
+function toggleAll(): void {
+  if (allSelected.value) {
+    clearSelected();
+    return;
+  }
+  selectAll();
 }
 
 function clearSelected(): void {
@@ -277,16 +313,29 @@ onUnmounted(() => {
 }
 
 .similar-diff-current {
-  display: inline-flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: 8px;
   min-width: 0;
-  padding: 10px 14px;
+  padding: 12px 14px;
   color: var(--similar-muted);
   font-size: 0.72rem;
   font-weight: 700;
   border-bottom: 1px solid var(--popup-border);
   background: var(--surface-chip);
+}
+
+.similar-diff-current-label {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.65rem;
+  font-weight: 750;
 }
 
 .similar-diff-list {
@@ -437,6 +486,13 @@ onUnmounted(() => {
   padding: 12px 14px;
   border-top: 1px solid var(--similar-line);
   background: var(--popup-surface-soft);
+}
+
+.similar-diff-selected {
+  margin-right: auto;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 .similar-diff-footer .primary {
