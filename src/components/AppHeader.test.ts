@@ -106,7 +106,7 @@ describe('AppHeader', () => {
     expect(Array.from(root.querySelectorAll<HTMLButtonElement>('.settings-toggle'))
       .some((button) => button.textContent?.trim() === '导出报告')).toBe(true);
     expect(root.textContent).toContain('结构标记');
-    expect(root.textContent).toContain('临时忽略');
+    expect(root.textContent).toContain('差异忽略');
   });
 });
 

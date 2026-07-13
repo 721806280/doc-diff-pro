@@ -278,7 +278,7 @@
                   <span class="settings-toggle__switch-thumb"></span>
                 </span>
               </button>
-              <template v-if="enableDiffIgnore">
+              <div v-if="enableDiffIgnore" class="settings-subgroup">
                 <button
                     type="button"
                     class="settings-toggle"
@@ -314,7 +314,7 @@
                     </button>
                   </div>
                 </div>
-              </template>
+              </div>
             </div>
           </fieldset>
         </div>
@@ -1260,6 +1260,14 @@ onBeforeUnmount(() => {
   padding: 0 6px 0 8px;
   border-radius: 6px;
   color: var(--text-secondary);
+}
+
+.settings-subgroup {
+  display: grid;
+  gap: 6px;
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border-subtle);
 }
 
 .similar-level-control > span {

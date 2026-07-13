@@ -32,7 +32,7 @@ describe('DiffNavigator', () => {
     clickButton(document.body, '定位');
     clickButton(root, '忽略 1');
     await nextTick();
-    clickButton(document.body, '取消忽略');
+    clickButton(document.body, '恢复此差异');
 
     expect(events).toEqual(['locateIgnored:diff-2', 'restoreIgnored:diff-2']);
   });
