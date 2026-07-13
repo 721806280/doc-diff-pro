@@ -40,8 +40,8 @@ Built with `Vue 3`, `Vite`, `mammoth`, and `diff-match-patch`. Document parsing,
 - 🔍 Three diff granularities: semantic, word, and character, covering quick review through fine-grained proofreading.
 - 📊 Similarity score and change counts derived from the current normalized comparison text.
 - 🧭 Difference navigation for jumping between previous and next changes.
-- 🙈 Temporary ignore actions for the current difference, with an ignored-differences list and one-click restore.
-- 🧠 Similar-difference suggestions for optional batch ignore when repeated review noise appears.
+- 🙈 Difference ignore actions with an ignored-differences list and one-click restore.
+- 🧠 Configurable similar-difference suggestions for reviewing and ignoring repeated noise in batches.
 - 🔗 Synchronized scrolling across both panes to keep long documents aligned.
 - 🧹 Ignore whitespace, normalize full-/half-width characters, and filter layout noise such as page headers, footers, page numbers, and repeated layout text.
 - 📋 Table structure hints for common review cases such as inserted rows, missing rows, adjacent row splits, or mismatched cell counts.
@@ -111,7 +111,7 @@ DocDiff Pro separates layout text from body content before diffing.
 - 📝 General version comparison: enable `Ignore spaces` / `Normalize width` as needed.
 - 🎯 Strict character-by-character proofreading: choose the character granularity and turn off any normalization toggles you don't need.
 - 🔎 Comparing converted documents: enable `Ignore spaces` and `Layout filter` to reduce whitespace, page header/footer, and page-number noise introduced by conversion.
-- 🙈 Repeated harmless changes: enable `Temporary ignore` and `Similar suggestions`, then review and batch-ignore matching differences.
+- 🙈 Repeated harmless changes: enable `Difference ignore`, then choose `Strict`, `Balanced`, or `Loose` under `Similar suggestions` for batch review.
 - 🌙 Long review sessions: switch to night mode or adjust the theme color from the toolbar; the preference is saved locally.
 
 ## 🔌 Third-party integration

@@ -269,7 +269,7 @@ const en = {
       return `Select similar difference ${index}`;
     },
     restoreIgnored: 'Restore all',
-    allDiffsIgnored: 'All differences are temporarily ignored.',
+    allDiffsIgnored: 'All differences are ignored.',
     closeDetails: 'Close',
     previous: 'Previous',
     next: 'Next',
@@ -548,7 +548,7 @@ const zhCN: I18nMessages = {
       return `选择相似差异 ${index}`;
     },
     restoreIgnored: '恢复全部',
-    allDiffsIgnored: '当前差异已全部临时忽略',
+    allDiffsIgnored: '当前差异已全部忽略',
     closeDetails: '关闭',
     previous: '上一处',
     next: '下一处',

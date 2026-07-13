@@ -47,7 +47,7 @@ describe('DiffNavigator', () => {
     });
 
     expect(root.textContent).toContain('差异 0/3');
-    expect(root.textContent).toContain('当前差异已全部临时忽略');
+    expect(root.textContent).toContain('当前差异已全部忽略');
 
     clickButton(root, '恢复全部');
 
