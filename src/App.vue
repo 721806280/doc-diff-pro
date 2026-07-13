@@ -14,6 +14,7 @@
         v-model:sync-scroll="syncScroll"
         v-model:show-report-export="showReportExport"
         v-model:show-table-hints="showTableHints"
+        v-model:show-diff-map="showDiffMap"
         v-model:enable-diff-ignore="enableDiffIgnore"
         v-model:enable-similar-diffs="enableSimilarDiffs"
         v-model:similar-diff-level="similarDiffLevel"
@@ -111,6 +112,7 @@
           :items="diffMapItems"
           :current-index="currentDiffIndex"
           :ignored-indices="ignoredDiffIndices"
+          :collapsed="!showDiffMap"
           @select="locateDiffFromMap"
       />
 
@@ -307,6 +309,7 @@ const appearanceMode = ref<AppearanceMode>(initialSettings.appearanceMode);
 const syncScroll = ref(initialSettings.syncScroll);
 const showReportExport = ref(initialSettings.showReportExport);
 const showTableHints = ref(initialSettings.showTableHints);
+const showDiffMap = ref(initialSettings.showDiffMap);
 const enableDiffIgnore = ref(initialSettings.enableDiffIgnore);
 const enableSimilarDiffs = ref(initialSettings.enableSimilarDiffs);
 const similarDiffLevel = ref<SimilarDiffLevel>(initialSettings.similarDiffLevel);
@@ -605,7 +608,7 @@ watch(enableSimilarDiffs, (enabled) => {
   if (!enabled) closeSimilarDiffs();
 });
 
-watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showReportExport, showTableHints, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
+watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showReportExport, showTableHints, showDiffMap, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
     [
       nextDiffGranularity,
       nextThemeColor,
@@ -616,6 +619,7 @@ watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalf
       nextSyncScroll,
       nextShowReportExport,
       nextShowTableHints,
+      nextShowDiffMap,
       nextEnableDiffIgnore,
       nextEnableSimilarDiffs,
       nextSimilarDiffLevel
@@ -631,6 +635,7 @@ watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalf
     syncScroll: nextSyncScroll,
     showReportExport: nextShowReportExport,
     showTableHints: nextShowTableHints,
+    showDiffMap: nextShowDiffMap,
     enableDiffIgnore: nextEnableDiffIgnore,
     enableSimilarDiffs: nextEnableSimilarDiffs,
     similarDiffLevel: nextSimilarDiffLevel

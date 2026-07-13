@@ -1,7 +1,13 @@
 <template>
-  <aside v-if="items.length" class="diff-map" :aria-label="i18n.diffNavigator.diffMapLabel">
+  <aside
+      v-if="items.length"
+      class="diff-map"
+      :class="{ 'is-collapsed': collapsed }"
+      :aria-label="i18n.diffNavigator.diffMapLabel"
+  >
     <button
         v-for="item in items"
+        v-show="!collapsed"
         :key="item.index"
         type="button"
         tabindex="-1"
@@ -32,6 +38,7 @@ defineProps<{
   items: DiffMapItem[];
   currentIndex: number;
   ignoredIndices: ReadonlySet<number>;
+  collapsed: boolean;
 }>();
 
 defineEmits<{
@@ -50,6 +57,15 @@ const { messages: i18n } = useI18n();
   min-height: 0;
   margin: 44px 0 5px;
   border-radius: 999px;
+}
+
+.diff-map.is-collapsed {
+  width: 1px;
+  flex-basis: 1px;
+}
+
+.diff-map.is-collapsed::before {
+  display: none;
 }
 
 .diff-map::before {

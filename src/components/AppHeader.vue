@@ -216,6 +216,19 @@
               <button
                   type="button"
                   class="settings-toggle"
+                  :class="{ active: showDiffMap }"
+                  :title="i18n.header.showDiffMapTitle"
+                  :aria-pressed="showDiffMap"
+                  @click="$emit('update:showDiffMap', !showDiffMap)"
+              >
+                <span class="settings-toggle__label">{{ i18n.header.showDiffMap }}</span>
+                <span class="settings-toggle__switch" aria-hidden="true">
+                  <span class="settings-toggle__switch-thumb"></span>
+                </span>
+              </button>
+              <button
+                  type="button"
+                  class="settings-toggle"
                   :class="{ active: syncScroll }"
                   :title="i18n.header.syncScrollTitle"
                   :aria-pressed="syncScroll"
@@ -402,6 +415,7 @@ const props = defineProps<{
   syncScroll: boolean;
   showReportExport: boolean;
   showTableHints: boolean;
+  showDiffMap: boolean;
   enableDiffIgnore: boolean;
   enableSimilarDiffs: boolean;
   similarDiffLevel: SimilarDiffLevel;
@@ -417,6 +431,7 @@ const emit = defineEmits<{
   'update:syncScroll': [value: boolean];
   'update:showReportExport': [value: boolean];
   'update:showTableHints': [value: boolean];
+  'update:showDiffMap': [value: boolean];
   'update:enableDiffIgnore': [value: boolean];
   'update:enableSimilarDiffs': [value: boolean];
   'update:similarDiffLevel': [value: SimilarDiffLevel];
@@ -452,6 +467,7 @@ const isUsingDefaultSettings = computed(() =>
   props.syncScroll === DEFAULT_USER_SETTINGS.syncScroll &&
   props.showReportExport === DEFAULT_USER_SETTINGS.showReportExport &&
   props.showTableHints === DEFAULT_USER_SETTINGS.showTableHints &&
+  props.showDiffMap === DEFAULT_USER_SETTINGS.showDiffMap &&
   props.enableDiffIgnore === DEFAULT_USER_SETTINGS.enableDiffIgnore &&
   props.enableSimilarDiffs === DEFAULT_USER_SETTINGS.enableSimilarDiffs &&
   props.similarDiffLevel === DEFAULT_USER_SETTINGS.similarDiffLevel
@@ -504,6 +520,7 @@ function resetSettings(): void {
   emit('update:syncScroll', DEFAULT_USER_SETTINGS.syncScroll);
   emit('update:showReportExport', DEFAULT_USER_SETTINGS.showReportExport);
   emit('update:showTableHints', DEFAULT_USER_SETTINGS.showTableHints);
+  emit('update:showDiffMap', DEFAULT_USER_SETTINGS.showDiffMap);
   emit('update:enableDiffIgnore', DEFAULT_USER_SETTINGS.enableDiffIgnore);
   emit('update:enableSimilarDiffs', DEFAULT_USER_SETTINGS.enableSimilarDiffs);
   emit('update:similarDiffLevel', DEFAULT_USER_SETTINGS.similarDiffLevel);

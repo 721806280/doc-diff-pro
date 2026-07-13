@@ -54,6 +54,7 @@ describe('userSettings', () => {
       syncScroll: false,
       showReportExport: true,
       showTableHints: true,
+      showDiffMap: false,
       enableDiffIgnore: false,
       enableSimilarDiffs: false,
       similarDiffLevel: 'strict'
@@ -69,6 +70,7 @@ describe('userSettings', () => {
       syncScroll: false,
       showReportExport: true,
       showTableHints: true,
+      showDiffMap: false,
       enableDiffIgnore: false,
       enableSimilarDiffs: false,
       similarDiffLevel: 'strict'
@@ -86,6 +88,7 @@ describe('userSettings', () => {
       syncScroll: true,
       showReportExport: 'yes',
       showTableHints: 'yes',
+      showDiffMap: 'yes',
       enableDiffIgnore: 'sure',
       enableSimilarDiffs: 1,
       similarDiffLevel: 'wide'
@@ -101,6 +104,7 @@ describe('userSettings', () => {
       syncScroll: true,
       showReportExport: false,
       showTableHints: false,
+      showDiffMap: true,
       enableDiffIgnore: false,
       enableSimilarDiffs: true,
       similarDiffLevel: 'balanced'
@@ -118,6 +122,7 @@ describe('userSettings', () => {
       syncScroll: false,
       showReportExport: true,
       showTableHints: true,
+      showDiffMap: false,
       enableDiffIgnore: true,
       enableSimilarDiffs: false,
       similarDiffLevel: 'loose'
@@ -133,6 +138,7 @@ describe('userSettings', () => {
       syncScroll: false,
       showReportExport: true,
       showTableHints: true,
+      showDiffMap: false,
       enableDiffIgnore: true,
       enableSimilarDiffs: false,
       similarDiffLevel: 'loose'

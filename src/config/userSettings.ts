@@ -15,6 +15,7 @@ export type UserSettings = {
   syncScroll: boolean;
   showReportExport: boolean;
   showTableHints: boolean;
+  showDiffMap: boolean;
   enableDiffIgnore: boolean;
   enableSimilarDiffs: boolean;
   similarDiffLevel: SimilarDiffLevel;
@@ -30,6 +31,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   syncScroll: true,
   showReportExport: false,
   showTableHints: false,
+  showDiffMap: true,
   enableDiffIgnore: false,
   enableSimilarDiffs: true,
   similarDiffLevel: 'balanced'
@@ -91,6 +93,9 @@ function normalizeUserSettings(value: unknown): UserSettings {
     showTableHints: typeof value.showTableHints === 'boolean'
       ? value.showTableHints
       : DEFAULT_USER_SETTINGS.showTableHints,
+    showDiffMap: typeof value.showDiffMap === 'boolean'
+      ? value.showDiffMap
+      : DEFAULT_USER_SETTINGS.showDiffMap,
     enableDiffIgnore: typeof value.enableDiffIgnore === 'boolean'
       ? value.enableDiffIgnore
       : DEFAULT_USER_SETTINGS.enableDiffIgnore,

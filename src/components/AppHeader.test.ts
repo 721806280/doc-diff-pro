@@ -127,6 +127,7 @@ function mountHeader(overrides: Record<string, unknown> = {}) {
     'onUpdate:syncScroll': (value: boolean) => events.push(`syncScroll:${value}`),
     'onUpdate:showReportExport': (value: boolean) => events.push(`showReportExport:${value}`),
     'onUpdate:showTableHints': (value: boolean) => events.push(`showTableHints:${value}`),
+    'onUpdate:showDiffMap': (value: boolean) => events.push(`showDiffMap:${value}`),
     'onUpdate:enableDiffIgnore': (value: boolean) => events.push(`enableDiffIgnore:${value}`),
     'onUpdate:enableSimilarDiffs': (value: boolean) => events.push(`enableSimilarDiffs:${value}`),
     'onUpdate:similarDiffLevel': (value: string) => events.push(`similarDiffLevel:${value}`),
