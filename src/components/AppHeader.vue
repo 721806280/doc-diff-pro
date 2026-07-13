@@ -906,9 +906,8 @@ onBeforeUnmount(() => {
   padding: 12px;
   border: 1px solid var(--popup-border);
   border-radius: 8px;
-  background: var(--popup-surface);
+  background: var(--bg-panel-solid);
   box-shadow: var(--popup-shadow-sm);
-  backdrop-filter: blur(12px);
 }
 
 .settings-popover__header {
