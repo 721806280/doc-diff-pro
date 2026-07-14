@@ -30,6 +30,175 @@ describe('compareDocuments', () => {
     expect(result.revisedHtml).toContain('<ins data-diff-id="diff-1">x</ins>');
   });
 
+  it('keeps table and body changes as separate review differences', async () => {
+    const result = await compareDocuments(
+      '<table><tr><td>旧表</td></tr></table><p>旧文</p>',
+      '<table><tr><td>新表</td></tr></table><p>新文</p>',
+      DEFAULT_OPTIONS
+    );
+
+    expect(result.summary).toMatchObject({
+      total: 2,
+      inserted: 0,
+      deleted: 0,
+      modified: 2
+    });
+
+    const originalIds = [...result.originalHtml.matchAll(/<del data-diff-id="(diff-\d+)">/g)]
+      .map((match) => match[1]);
+    const revisedIds = [...result.revisedHtml.matchAll(/<ins data-diff-id="(diff-\d+)">/g)]
+      .map((match) => match[1]);
+
+    expect(originalIds).toHaveLength(2);
+    expect(revisedIds).toEqual(originalIds);
+    expect(new Set(originalIds).size).toBe(2);
+  });
+
+  it('pairs a label moved by a table row split while keeping new cell text separate', async () => {
+    const result = await compareDocuments(
+      '<table><tr><td>行标签</td><td>值A</td></tr><tr><td>说明</td></tr></table>',
+      '<table><tr><td></td><td>值A</td></tr><tr><td>行标签</td></tr><tr><td>说明新增内容</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+
+    expect(result.summary).toMatchObject({
+      total: 2,
+      inserted: 1,
+      deleted: 0,
+      modified: 1
+    });
+
+    const originalMovedId = result.originalHtml.match(/<del data-diff-id="(diff-\d+)">行标签<\/del>/)?.[1];
+    const revisedMovedId = result.revisedHtml.match(/<ins data-diff-id="(diff-\d+)">行标签<\/ins>/)?.[1];
+    const insertedId = result.revisedHtml.match(/<ins data-diff-id="(diff-\d+)">新增内容<\/ins>/)?.[1];
+
+    expect(originalMovedId).toBe(revisedMovedId);
+    expect(insertedId).not.toBe(originalMovedId);
+  });
+
+  it.each([
+    ['paragraphs', '<p>甲旧</p><p>乙旧</p>', '<p>甲新</p><p>乙新</p>'],
+    ['list items', '<ol><li>甲旧</li><li>乙旧</li></ol>', '<ol><li>甲新</li><li>乙新</li></ol>'],
+    ['headings', '<h2>甲旧</h2><h2>乙旧</h2>', '<h2>甲新</h2><h2>乙新</h2>'],
+    ['direct divs', '<div>甲旧</div><div>乙旧</div>', '<div>甲新</div><div>乙新</div>']
+  ])('keeps adjacent %s as separate review differences', async (_name, original, revised) => {
+    const result = await compareDocuments(original, revised, DEFAULT_OPTIONS);
+
+    expect(result.summary).toMatchObject({
+      total: 2,
+      inserted: 0,
+      deleted: 0,
+      modified: 2
+    });
+  });
+
+  it('uses table rows as review boundaries while keeping cells in one row together', async () => {
+    const separateRows = await compareDocuments(
+      '<table><tr><td>甲旧</td></tr><tr><td>乙旧</td></tr></table>',
+      '<table><tr><td>甲新</td></tr><tr><td>乙新</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+    const sameRow = await compareDocuments(
+      '<table><tr><td>甲旧</td><td>乙旧</td></tr></table>',
+      '<table><tr><td>甲新</td><td>乙新</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+
+    expect(separateRows.summary.total).toBe(2);
+    expect(sameRow.summary.total).toBe(1);
+  });
+
+  it('does not report textless table layout changes as differences', async () => {
+    const emptyRow = await compareDocuments(
+      '<table><tr><td>内容A</td></tr></table>',
+      '<table><tr><td>内容A</td></tr><tr><td></td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+    const mergedCells = await compareDocuments(
+      '<table><tr><td>内容A</td><td>内容B</td></tr></table>',
+      '<table><tr><td colspan="2">内容A内容B</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+    const changedRowSpan = await compareDocuments(
+      '<table><tr><td rowspan="2">内容A</td><td>内容B</td></tr><tr><td>内容C</td></tr></table>',
+      '<table><tr><td>内容A</td><td>内容B</td></tr><tr><td>内容C</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+
+    expect(emptyRow.summary.total).toBe(0);
+    expect(mergedCells.summary.total).toBe(0);
+    expect(changedRowSpan.summary.total).toBe(0);
+    expect(emptyRow.revisedHtml).not.toMatch(/<(?:ins|del)\b/);
+    expect(mergedCells.originalHtml).not.toMatch(/<(?:ins|del)\b/);
+    expect(mergedCells.revisedHtml).not.toMatch(/<(?:ins|del)\b/);
+  });
+
+  it('does not report empty block insertion as a difference', async () => {
+    const emptyParagraph = await compareDocuments(
+      '<p>内容A</p>',
+      '<p>内容A</p><p></p>',
+      DEFAULT_OPTIONS
+    );
+    const emptyTable = await compareDocuments(
+      '<p>内容A</p>',
+      '<p>内容A</p><table></table>',
+      DEFAULT_OPTIONS
+    );
+
+    expect(emptyParagraph.summary.total).toBe(0);
+    expect(emptyTable.summary.total).toBe(0);
+    expect(emptyParagraph.revisedHtml).not.toMatch(/<(?:ins|del)\b/);
+    expect(emptyTable.revisedHtml).not.toMatch(/<(?:ins|del)\b/);
+  });
+
+  it('suppresses broad table-grid normalization when row text is stable', async () => {
+    const originalRows = Array.from({ length: 5 }, (_, index) =>
+      `<tr><td colspan="2">行${index}</td><td>值${index}</td></tr>`
+    ).join('');
+    const revisedRows = Array.from({ length: 5 }, (_, index) =>
+      `<tr><td>行${index}</td><td colspan="2">值${index}</td></tr>`
+    ).join('');
+
+    const result = await compareDocuments(
+      `<table>${originalRows}</table>`,
+      `<table>${revisedRows}</table>`,
+      DEFAULT_OPTIONS
+    );
+
+    expect(result.summary.total).toBe(0);
+    expect(result.originalHtml).not.toMatch(/<(?:ins|del)\b/);
+    expect(result.revisedHtml).not.toMatch(/<(?:ins|del)\b/);
+  });
+
+  it('treats one table split into multiple tables as layout normalization', async () => {
+    const result = await compareDocuments(
+      '<table><tr><td>行A</td></tr><tr><td>行B</td></tr><tr><td>行C</td></tr><tr><td>行D</td></tr></table>',
+      '<table><tr><td>行A</td></tr><tr><td>行B</td></tr></table><table><tr><td>行C</td></tr><tr><td>行D</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+
+    expect(result.summary.total).toBe(0);
+    expect(result.originalHtml).not.toMatch(/<(?:ins|del)\b/);
+    expect(result.revisedHtml).not.toMatch(/<(?:ins|del)\b/);
+  });
+
+  it('keeps an existing table aligned when another table is inserted before it', async () => {
+    const result = await compareDocuments(
+      '<table><tr><td>内容旧</td></tr></table>',
+      '<table><tr><td>新增表</td></tr></table><table><tr><td>内容新</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+
+    expect(result.summary).toMatchObject({
+      total: 2,
+      inserted: 1,
+      deleted: 0,
+      modified: 1
+    });
+    expect([...result.revisedHtml.matchAll(/data-diff-id="(diff-\d+)"/g)].map((match) => match[1]))
+      .toEqual(['diff-1', 'diff-2']);
+  });
+
   it('uses full-width normalization but keeps case differences', async () => {
     const sameWidth = await compareDocuments('<p>１２３</p>', '<p>123</p>', DEFAULT_OPTIONS);
     const differentCase = await compareDocuments('<p>ABC</p>', '<p>abc</p>', DEFAULT_OPTIONS);

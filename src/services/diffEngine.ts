@@ -10,6 +10,7 @@ import {
   type LayoutNoiseHints
 } from '@/utils/layoutNoise';
 import { DIFF_DELETE, DIFF_INSERT, summarizeDiffs } from '@/utils/textDiffCore';
+import { refineDiffGroups } from '@/utils/diffGroupStructure';
 
 export type LayoutNoiseBySide = Record<LayoutNoiseSide, LayoutNoiseData>;
 
@@ -66,9 +67,18 @@ export async function compareDocuments(
   summary.layoutNoiseItems = groupItems([...nativeNoiseItems, ...bodyNoiseItems]);
   summary.layoutNoiseFiltered = summary.layoutNoiseItems.reduce((total, item) => total + item.count, 0);
 
+  applyDiffMarkup(originalDom, originalTrack.mapping, diffs, DIFF_DELETE, 'del');
+  applyDiffMarkup(revisedDom, revisedTrack.mapping, diffs, DIFF_INSERT, 'ins');
+
+  const refinedSummary = refineDiffGroups(originalDom, revisedDom);
+  summary.total = refinedSummary.total;
+  summary.inserted = refinedSummary.inserted;
+  summary.deleted = refinedSummary.deleted;
+  summary.modified = refinedSummary.modified;
+
   return {
-    originalHtml: applyDiffMarkup(originalDom, originalTrack.mapping, diffs, DIFF_DELETE, 'del'),
-    revisedHtml: applyDiffMarkup(revisedDom, revisedTrack.mapping, diffs, DIFF_INSERT, 'ins'),
+    originalHtml: originalDom.innerHTML,
+    revisedHtml: revisedDom.innerHTML,
     summary
   };
 }
