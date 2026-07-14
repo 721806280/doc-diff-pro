@@ -175,7 +175,7 @@ const en = {
     activeDifferenceCount(active: number, total: number): string {
       return `${active} / ${total} diffs`;
     },
-    similarity: 'Similarity',
+    similarity: 'Text similarity',
     similarityTitle: 'Calculated from edit distance after applying the current normalization settings.',
     modified: 'Modified',
     inserted: 'Added',
@@ -454,7 +454,7 @@ const zhCN: I18nMessages = {
     activeDifferenceCount(active: number, total: number): string {
       return `差异 ${active}/${total}`;
     },
-    similarity: '相似度',
+    similarity: '文本相似度',
     similarityTitle: '基于当前归一化文本的编辑距离计算',
     modified: '修改',
     inserted: '新增',
