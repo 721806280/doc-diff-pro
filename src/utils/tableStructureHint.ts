@@ -5,6 +5,7 @@ import type {
   LayoutNoiseSide
 } from '@/types/diff';
 import { normalizeText } from './documentText';
+import { alignDocumentTables } from './diffGroupStructure';
 
 export type TableStructureHintOptions = {
   ignoreSpaces: boolean;
@@ -19,7 +20,6 @@ export type TableStructureResolution = {
 
 type TableInfo = {
   table: HTMLTableElement;
-  index: number;
 };
 
 type TableSideData = {
@@ -153,14 +153,23 @@ function findTablePair(
 ): { tableIndex: number; originalTable: HTMLTableElement; revisedTable: HTMLTableElement } | null {
   const originalInfo = findDiffTableInfo(originalRoot, originalElements);
   const revisedInfo = findDiffTableInfo(revisedRoot, revisedElements);
-  const tableIndex = originalInfo?.index ?? revisedInfo?.index;
-  if (tableIndex === undefined) return null;
+  if (!originalInfo && !revisedInfo) return null;
 
-  const originalTable = originalInfo?.table ?? tableAtIndex(originalRoot, tableIndex);
-  const revisedTable = revisedInfo?.table ?? tableAtIndex(revisedRoot, tableIndex);
-  if (!originalTable || !revisedTable) return null;
+  const alignment = alignDocumentTables(originalRoot, revisedRoot);
+  const entry = alignment.find((candidate) =>
+    (!originalInfo || candidate.original === originalInfo.table) &&
+    (!revisedInfo || candidate.revised === revisedInfo.table)
+  );
+  if (!entry?.original || !entry.revised) return null;
 
-  return { tableIndex, originalTable, revisedTable };
+  const tableIndex = tableElements(originalRoot).indexOf(entry.original);
+  if (tableIndex < 0) return null;
+
+  return {
+    tableIndex,
+    originalTable: entry.original,
+    revisedTable: entry.revised
+  };
 }
 
 function createTableSideData(table: HTMLTableElement): TableSideData {
@@ -619,15 +628,10 @@ function findDiffTableInfo(root: HTMLElement, elements: HTMLElement[]): TableInf
     const table = element.closest<HTMLTableElement>('table');
     if (!table) continue;
 
-    const index = tables.indexOf(table);
-    if (index >= 0) return { table, index };
+    if (tables.includes(table)) return { table };
   }
 
   return null;
-}
-
-function tableAtIndex(root: HTMLElement, index: number): HTMLTableElement | null {
-  return tableElements(root)[index] ?? null;
 }
 
 function tableElements(root: HTMLElement): HTMLTableElement[] {
