@@ -1,4 +1,4 @@
-import type { DiffChangeKind, IgnoredDiffItem, SimilarDiffItem, SimilarDiffLevel } from '@/types/diff';
+import type { DiffChangeKind, DiffReviewContext, IgnoredDiffItem, SimilarDiffItem, SimilarDiffLevel } from '@/types/diff';
 import type { DiffElementGroup, DiffElementIndex } from './diffElementIndex';
 import { diffId, parseDiffId } from './textDiffCore';
 
@@ -74,7 +74,8 @@ export function createReviewItem(index: number, group: DiffElementGroup | undefi
     index,
     kind: resolveReviewKind(group),
     originalPreview: previewElements(group.A),
-    revisedPreview: previewElements(group.B)
+    revisedPreview: previewElements(group.B),
+    context: resolveReviewContext(group)
   };
 }
 
@@ -98,6 +99,7 @@ export function findSimilarReviewItems(options: {
 
     const candidateItem = createReviewItem(candidateIndex, options.getGroup(candidateIndex));
     if (!candidateItem || candidateItem.kind !== currentItem.kind) continue;
+    if (candidateItem.context !== currentItem.context) continue;
 
     const candidateSignature = createReviewSignature(candidateItem);
     if (!canReachSimilarityThreshold(currentSignature, candidateSignature, threshold)) continue;
@@ -137,6 +139,11 @@ function resolveReviewKind(group: DiffElementGroup): DiffChangeKind {
 
   if (hasOriginal && hasRevised) return 'modified';
   return hasRevised ? 'inserted' : 'deleted';
+}
+
+function resolveReviewContext(group: DiffElementGroup): DiffReviewContext {
+  const firstElement = [...group.A, ...group.B][0];
+  return firstElement?.closest('table') ? 'table' : 'body';
 }
 
 function previewElements(elements: HTMLElement[]): string {

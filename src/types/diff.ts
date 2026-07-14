@@ -18,6 +18,8 @@ export type DiffSummary = {
 
 export type DiffChangeKind = 'modified' | 'inserted' | 'deleted';
 
+export type DiffReviewContext = 'body' | 'table';
+
 export type DiffMapItem = {
   index: number;
   kind: DiffChangeKind;
@@ -30,6 +32,7 @@ export type IgnoredDiffItem = {
   kind: DiffChangeKind;
   originalPreview: string;
   revisedPreview: string;
+  context?: DiffReviewContext;
 };
 
 export type SimilarDiffItem = IgnoredDiffItem & {

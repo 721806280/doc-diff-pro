@@ -75,6 +75,29 @@ describe('diffReview', () => {
     })).toEqual([]);
   });
 
+  it('does not recommend body differences as similar to table differences', () => {
+    const table = document.createElement('table');
+    const cell = document.createElement('td');
+    cell.appendChild(textElement('abcdefghij'));
+    table.appendChild(cell);
+    document.body.appendChild(table);
+
+    const groups = new Map<number, DiffElementGroup>([
+      [1, insertedGroupFrom(cell.firstElementChild as HTMLElement)],
+      [2, insertedGroup('abcdefghij')]
+    ]);
+
+    expect(findSimilarReviewItems({
+      currentIndex: 1,
+      total: 2,
+      ignoredIds: new Set(),
+      level: 'loose',
+      getGroup: (index) => groups.get(index)
+    })).toEqual([]);
+
+    table.remove();
+  });
+
   it('maps review keyboard shortcuts without intercepting modified input', () => {
     expect(resolveReviewShortcut(keyboardEvent('ArrowUp', { altKey: true }))).toBe('previous');
     expect(resolveReviewShortcut(keyboardEvent('ArrowDown', { altKey: true }))).toBe('next');
@@ -102,6 +125,10 @@ function insertedGroup(text: string): DiffElementGroup {
     A: [],
     B: [textElement(text)]
   };
+}
+
+function insertedGroupFrom(element: HTMLElement): DiffElementGroup {
+  return { A: [], B: [element] };
 }
 
 function textElement(text: string): HTMLElement {
