@@ -236,6 +236,7 @@ import {
   findSimilarReviewItems,
   firstReviewElement,
   resolveReviewShortcut,
+  selectReviewElement,
   setReviewClass,
   sortReviewItems
 } from './utils/diffReview';
@@ -328,6 +329,7 @@ let activeDriver: PaneKey | null = null;
 let alignmentAnchors: ScrollAnchor[] = [];
 let diffElementIndex: DiffElementIndex = new Map();
 let focusedDiffElements: HTMLElement[] = [];
+let preferredDiffActionElement: HTMLElement | null = null;
 let compareNoticeTimer: number | null = null;
 let tableHintTimer: number | null = null;
 let resizeTimer: number | null = null;
@@ -1087,7 +1089,11 @@ function getDiffGroup(index: number): DiffElementGroup | undefined {
   return diffElementIndex.get(diffReviewId(index));
 }
 
-function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
+function focusOnDiff(
+  index: number,
+  behavior: ScrollBehavior = 'smooth',
+  preferredElement: HTMLElement | null = null
+): void {
   clearFocusedDiffElements();
   const group = getDiffGroup(index);
   if (!group) {
@@ -1097,6 +1103,7 @@ function focusOnDiff(index: number, behavior: ScrollBehavior = 'smooth'): void {
   }
 
   focusedDiffElements = [...group.A, ...group.B];
+  preferredDiffActionElement = preferredElement;
   focusedDiffElements.forEach((element) => element.classList.add('focus-diff'));
   syncActiveTableHint(resolveFocusedTableHint(group));
   const containerA = getPaneViewport('A');
@@ -1127,6 +1134,7 @@ function clearFocusedDiffElements(): void {
   });
   clearTableHintMarkers();
   focusedDiffElements = [];
+  preferredDiffActionElement = null;
   diffActionPosition.value = null;
 }
 
@@ -1188,7 +1196,11 @@ function clampDiffActionLeft(value: number): number {
 }
 
 function selectDiffActionTarget(): HTMLElement | null {
-  return focusedDiffElements.find((element) => isDiffActionTargetVisible(element)) ?? null;
+  return selectReviewElement(
+    getDiffGroup(currentDiffIndex.value),
+    preferredDiffActionElement,
+    (element) => isDiffActionTargetVisible(element)
+  );
 }
 
 function isDiffActionTargetVisible(element: HTMLElement, elementRect = element.getBoundingClientRect()): boolean {
@@ -1335,7 +1347,7 @@ function handleDiffClick(event: MouseEvent): void {
   if (Number.isNaN(index)) return;
 
   currentDiffIndex.value = index;
-  focusOnDiff(index);
+  focusOnDiff(index, 'smooth', diffElement);
   if (activeTableHint.value) showTableHintTip();
 }
 
@@ -1350,7 +1362,7 @@ function handleDiffActivate(event: KeyboardEvent): void {
   if (Number.isNaN(index)) return;
 
   currentDiffIndex.value = index;
-  focusOnDiff(index);
+  focusOnDiff(index, 'smooth', diffElement);
   if (activeTableHint.value) showTableHintTip();
 }
 

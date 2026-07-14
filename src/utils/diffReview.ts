@@ -133,6 +133,20 @@ export function firstReviewElement(group: DiffElementGroup | undefined, side: 'A
   return group?.[side][0] ?? null;
 }
 
+export function selectReviewElement(
+  group: DiffElementGroup | undefined,
+  preferredElement: HTMLElement | null,
+  predicate: (element: HTMLElement) => boolean
+): HTMLElement | null {
+  if (!group) return null;
+
+  const elements = [...group.A, ...group.B];
+  if (preferredElement && elements.includes(preferredElement) && predicate(preferredElement)) {
+    return preferredElement;
+  }
+  return elements.find(predicate) ?? null;
+}
+
 function resolveReviewKind(group: DiffElementGroup): DiffChangeKind {
   const hasOriginal = group.A.length > 0;
   const hasRevised = group.B.length > 0;

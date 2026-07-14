@@ -5,7 +5,8 @@ import {
   diffReviewId,
   findActiveReviewIndex,
   findSimilarReviewItems,
-  resolveReviewShortcut
+  resolveReviewShortcut,
+  selectReviewElement
 } from './diffReview';
 import type { DiffElementGroup } from './diffElementIndex';
 
@@ -96,6 +97,18 @@ describe('diffReview', () => {
     })).toEqual([]);
 
     table.remove();
+  });
+
+  it('positions review actions on the exact difference selected by the user', () => {
+    const original = textElement('旧内容');
+    const revisedFirst = textElement('新内容一');
+    const revisedSecond = textElement('新内容二');
+    const unrelated = textElement('其他内容');
+    const group = { A: [original], B: [revisedFirst, revisedSecond] };
+
+    expect(selectReviewElement(group, revisedSecond, () => true)).toBe(revisedSecond);
+    expect(selectReviewElement(group, unrelated, () => true)).toBe(original);
+    expect(selectReviewElement(group, revisedSecond, (element) => element === original)).toBe(original);
   });
 
   it('maps review keyboard shortcuts without intercepting modified input', () => {
