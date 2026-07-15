@@ -9,15 +9,12 @@
       <img src="https://img.shields.io/badge/Vite-8.0-646CFF?logo=vite&amp;logoColor=white" alt="Vite">
       <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&amp;logoColor=white" alt="TypeScript">
       <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
-      <img src="https://img.shields.io/badge/Author-xm.z-success" alt="Author">
    </p>
-
    <div align="center">
       <a href="https://721806280.github.io/doc-diff-pro/">
          <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&amp;weight=600&amp;size=28&amp;pause=1000&amp;repeat=false&amp;random=false&amp;center=true&amp;vCenter=true&amp;width=620&amp;height=56&amp;lines=DocDiff+Pro+-+Browser+DOCX+Compare" alt="DocDiff Pro - Browser DOCX Compare">
       </a>
    </div>
-
    <p align="center">
       <a href="https://721806280.github.io/doc-diff-pro/">Live Demo</a>
       ·
@@ -31,92 +28,101 @@
 
 `DocDiff Pro` is a browser-first `.docx` comparison tool for document review, proofreading, and version checks. Upload a baseline document and a revised document to see added, deleted, and modified content side by side.
 
-Built with `Vue 3`, `Vite`, `mammoth`, and `diff-match-patch`. Document parsing, text normalization, diffing, and highlighting run in the browser, so the app does not upload your documents to a server.
+Document parsing, text normalization, diffing, and highlighting run in the browser. The app does not require a backend comparison service and does not proactively upload your documents to a server.
 
 ## ✨ Features
 
-- 📥 Side-by-side upload of the baseline (A) and revised (B) documents, with drag-and-drop and document replacement.
-- 🧪 Built-in sample documents let you try the full comparison flow without uploading your own files.
-- 🔍 Three diff granularities: semantic, word, and character, covering quick review through fine-grained proofreading.
-- 📊 Similarity score and change counts derived from the current normalized comparison text.
-- 🧭 Difference navigation for jumping between previous and next changes.
-- 🙈 Difference ignore actions with an ignored-differences list and one-click restore.
-- 🧠 Configurable similar-difference suggestions for reviewing and ignoring repeated noise in batches.
-- 🔗 Synchronized scrolling across both panes to keep long documents aligned.
-- 🧹 Ignore whitespace, normalize full-/half-width characters, and filter layout noise such as page headers, footers, page numbers, and repeated layout text.
-- 📋 Table structure hints for common review cases such as inserted rows, missing rows, adjacent row splits, or mismatched cell counts.
-- 🧩 Preserves the original document structure and maps normalized diffs back to their original DOM text positions.
-- 🖼️ Displays embedded document images and surfaces DOCX conversion warnings when mammoth reports them.
-- 🎨 Theme color presets and light/dark appearance mode, saved with the rest of the compare settings.
-- ⌨️ Keyboard-friendly dialogs with focus containment for details panels and review overlays.
-- 🌐 Bilingual interface (English / 中文) that auto-detects your browser language and remembers your choice.
-- 🛡️ Warns before closing or refreshing an active document session, since uploaded files are never persisted.
+- 📥 Side-by-side baseline (A) and revised (B) inputs with drag-and-drop, replacement, document swapping, and bundled samples.
+- 🔍 Semantic, word, and character review levels that adjust diff cleanup and grouping behavior.
+- 📊 Similarity plus inserted, deleted, and modified counts, with difference navigation and a difference map.
+- 🙈 Temporary difference ignore actions, an ignored-difference list, restore controls, and batch handling for similar differences.
+- 🧹 Whitespace handling, full-/half-width normalization, and layout filtering for headers, footers, page numbers, and repeated layout text.
+- 📋 Table structure hints for inserted or missing rows, adjacent row splits, and mismatched cell counts.
+- 🔗 Synchronized scrolling and a narrow-screen switch between the baseline and revised panes.
+- 🖼️ Embedded image display and DOCX conversion warnings.
+- 📄 Local HTML review report export with filenames, settings, summary data, and difference previews.
+- 🎨 English and Chinese UI, theme presets, and light/dark appearance with locally saved preferences.
+- 🔌 Runtime deployment configuration and browser `File` input for embedding in third-party systems.
 
 ## ⚡ Quick Start
 
-1. Open the live demo or run the app locally.
-2. Upload or drop the baseline document on the left and the revised document on the right.
-3. Choose the diff granularity and normalization settings.
-4. Review the summary, then use the navigator to move through each change.
-5. Temporarily ignore known noise when needed; restore ignored items from the result bar.
-6. Open layout details, similar-difference suggestions, or table hints when they appear, and replace either document to compare another version.
+1. Open the [live demo](https://721806280.github.io/doc-diff-pro/) or run the app locally.
+2. Upload or drop a baseline and revised document, or select the bundled sample. Comparison starts automatically when both documents are ready.
+3. Adjust the review level and normalization rules as needed. Character mode, whitespace ignore, width normalization, the difference map, and synchronized scrolling are enabled by default; layout filtering is off.
+4. Review changes through the result bar, difference map, or previous/next buttons. Use `Alt+↑` and `Alt+↓` for keyboard navigation.
+5. After enabling `Difference ignore`, click a difference to ignore or restore it, or press `I` to toggle the current difference. Ignore state belongs to the current comparison and is cleared when the comparison is recalculated.
+6. To keep a record, enable `Report export` in compare settings and download the HTML report from the result bar.
+
+## 🔍 Review Levels and Difference Counting
+
+All three levels compare character sequences through `diff-match-patch`. They do not use an NLP semantic model or strict natural-language tokenization:
+
+- **Semantic** applies semantic cleanup to reduce fragmented changes and is intended for quick review.
+- **Word** groups nearby changes more aggressively for content checks; it is not a strict word-token mode.
+- **Character** preserves finer changes for detailed proofreading.
+
+The number of highlighted fragments may differ from the difference count in the result bar. After text diffing, changes are organized into structural review units:
+
+- Adjacent paragraphs, list items, headings, and other body blocks are generally counted separately.
+- Table rows are the main table review boundary; changes across multiple cells in the same row are generally counted as one difference.
+- A group containing both deletion and insertion is `Modified`; a group present on only one side is `Deleted` or `Inserted`.
+
+Similarity is computed from the edit distance of the currently normalized text:
+
+```text
+1 - edit distance / max(baseline text length, revised text length)
+```
 
 ## 🧹 Text Normalization
 
-### Ignore whitespace
+### ↔️ Ignore Whitespace
 
-Reduces noise from layout, conversion, or structural changes. Current handling includes:
+Reduces whitespace noise introduced by layout, conversion, or structural changes. Current handling includes:
 
 - Extra line breaks or whitespace from merged paragraphs or list items.
-- Layout spacing after clause or list numbering, e.g. `1.3.1. Access`.
-- Whitespace in mixed CJK / Latin / numeric text, e.g. `2025 年`, `A 座`, `8 号`.
-- Whitespace inside numbers, e.g. phone numbers, dates, or IDs like `010 59618935`.
-- Local whitespace inside emails, domains, and URLs, e.g. `review. team@example. com`.
-- Field-punctuation whitespace in CJK context, e.g. `邮箱： name@example.com` and `邮箱:name@example.com`.
+- Layout spacing after clause or list numbering, such as `1.3.1. Access`.
+- Whitespace in mixed CJK, Latin, and numeric text, such as `2025 年`, `A 座`, or `8 号`.
+- Numeric whitespace in phone numbers, dates, or IDs, such as `010 59618935`.
+- Local whitespace inside emails, domains, and URLs, such as `review. team@example. com`.
+- Field-punctuation whitespace in CJK context, such as `邮箱： name@example.com`.
 
-Ordinary spaces between English words are **not** ignored by default (e.g. `Example Corp`), so that real differences in English prose are not mistaken for formatting differences.
+Ordinary spaces between English words are not ignored by default, such as in `Example Corp`, so real differences in English prose are not hidden.
 
-### Normalize Full-/Half-Width
+### 📏 Normalize Full-/Half-Width
 
-Treats full-width ASCII and half-width ASCII as equivalent, including full-width letters, digits, and common symbols.
+Treats full-width ASCII and half-width ASCII as equivalent, including letters, digits, and common symbols.
 
-### Layout Noise Filtering
+### 🧾 Layout Filtering
 
-DocDiff Pro separates layout text from body content before diffing.
+DocDiff Pro separates layout text from body content before diffing:
 
-- Native DOCX headers and footers are always read during parsing, used as layout hints, kept in layout details, and removed from the displayed document body.
-- When `Layout filter` is enabled, converted page text in the document body can also be filtered when it matches page header/footer hints.
-- Page numbers such as `Page 1 of 5`, `P. iv of x`, `第 1 页，共 5 页`, `第1页/共5页`, `共5页 第1页`, `1/5`, `页码：1`, or `— 1/5 —` can be removed from the comparison input.
+- Native DOCX headers and footers are read during parsing, used as layout hints, listed in layout details, and removed from the displayed document body.
+- With `Layout filter` enabled, converted body content matching header or footer hints is also excluded from comparison input.
+- Page text such as `Page 1 of 5`, `P. iv of x`, `第1页/共5页`, `1/5`, or `页码：1` can be recognized.
 - Repeated short layout text such as confidentiality notices, copyright notices, document IDs, phone numbers, or email footer lines can be filtered.
-- Body text is protected from broad fragment matching: extracted footer fragments such as phone numbers or email addresses are only used against page-marked candidates.
-- The `Layout` count in the result bar can be clicked to review layout details.
+- To protect body content, contact fragments such as phone numbers, email addresses, and contact names are only matched against page-marked candidates.
+- Click the `Layout` count in the result bar to review details.
 
 ## 🔒 Privacy
 
-- Document files are read through the browser File API, then parsed and compared locally.
-- No backend service is required; the hosted demo is a static GitHub Pages site.
-- The app stores only interface preferences and compare settings in `localStorage`; uploaded document contents are not persisted by the app.
+- Documents are read through the browser File API, then parsed and compared locally; the hosted demo is a static GitHub Pages site.
+- The app writes only UI language, theme, and comparison settings to `localStorage`. Uploaded documents, difference content, and ignore state are not persisted.
+- The browser asks for confirmation before closing or refreshing a page with an active document session.
+- A user-initiated HTML report contains filenames, settings, summary data, and difference text previews. The browser saves it to the local downloads directory, and the app does not upload it.
+- How a third-party integration obtains, transfers, or stores supplied files is outside the app's control.
 
 ## 📌 Supported Inputs and Limits
 
-- Only `.docx` files are accepted.
-- Each uploaded file is limited to 25 MB by default; runtime configuration can change the limit.
-- `.doc`, `.pdf`, scanned documents, and OCR workflows are not supported.
-- Embedded images can be displayed, but image contents are not OCR-compared.
-- DOCX-to-HTML fidelity depends on mammoth, so highly complex Word layouts may not render exactly like Microsoft Word.
+- Only `.docx` files are supported. `.doc`, `.pdf`, scanned documents, and OCR workflows are not supported.
+- Each file is limited to 25 MB by default, configurable at runtime. This is an upload validation limit, not a guarantee that every complex document will complete in the same amount of time.
+- Embedded images can be displayed, but image contents are not compared or OCR-processed.
+- DOCX-to-HTML fidelity depends on mammoth. The app preserves convertible paragraphs, lists, tables, and images where possible, but complex Word layouts may not match Microsoft Word.
+- A modern browser with File API, Web Worker, and ES module support is required. Internet Explorer is not supported.
+- A worker timeout or insufficient browser resources can cause comparison to fail; the UI keeps the error and provides a retry action.
 
-## ⚙️ Usage Tips
+## 🔌 Third-Party Integration
 
-- 🧭 Defaults favor precise review: character diffing, whitespace ignore, full-/half-width normalization, and sync scrolling are enabled; `Layout filter` is off by default.
-- 📝 General version comparison: enable `Ignore spaces` / `Normalize width` as needed.
-- 🎯 Strict character-by-character proofreading: choose the character granularity and turn off any normalization toggles you don't need.
-- 🔎 Comparing converted documents: enable `Ignore spaces` and `Layout filter` to reduce whitespace, page header/footer, and page-number noise introduced by conversion.
-- 🙈 Repeated harmless changes: enable `Difference ignore`, then choose `Strict`, `Balanced`, or `Loose` under `Similar suggestions` for batch review.
-- 🌙 Long review sessions: switch to night mode or adjust the theme color from the toolbar; the preference is saved locally.
-
-## 🔌 Third-party integration
-
-Deployments can inject a small runtime configuration before the application module runs. Deployment configuration remains separate from user comparison preferences.
+Deployments can inject runtime configuration before the application entry module runs. Deployment configuration remains separate from comparison settings saved in the browser.
 
 ```html
 <script>
@@ -131,30 +137,38 @@ window.__DOC_DIFF_CONFIG__ = {
 </script>
 ```
 
-`documentInput` accepts `local` or `external`. URL input is not currently supported, and the application does not take responsibility for external authentication, source validation, or network requests. The integrating system must obtain the files safely and then pass browser `File` objects into the API:
+| Option | Default | Description |
+| --- | --- | --- |
+| `documentInput` | `local` | `local` shows browser file inputs; `external` disables local upload and enables the `window.DocDiffPro` API. |
+| `showHeader` | `true` | Controls the top toolbar. |
+| `showSampleDocuments` | `true` | Controls the bundled sample action. |
+| `showGithubLink` | `true` | Controls the author repository link in the toolbar. |
+| `locale` | `auto` | Accepts `auto`, `zh-CN`, or `en`. `auto` prefers a saved locale before browser detection. |
+| `maxDocxSizeMb` | `25` | Per-file size limit; it must be a finite number greater than zero. |
+
+`documentInput: 'external'` does not accept URLs. The integrating system must handle authentication, source validation, and file retrieval, then pass browser `File` objects after DocDiff Pro has mounted:
 
 ```js
+// Run after window.DocDiffPro becomes available.
 await window.DocDiffPro.loadDocuments({
   baseline: baselineFile,
   revised: revisedFile
 });
 ```
 
-Either file may be supplied independently. This API works on the same page or in a same-origin iframe. Cross-origin iframes require a trusted `postMessage` adapter with explicit origin validation; the application intentionally does not expose an unrestricted message listener.
+Either `baseline` or `revised` may be supplied independently. The API is installed only in `external` mode and works on the same page or in a same-origin iframe. Cross-origin iframes require an integration-owned `postMessage` adapter with explicit origin validation; the app does not expose an unrestricted message listener.
 
-The GitHub entry always points to the author's repository and cannot be replaced at runtime. Deployments may only control its visibility through `showGithubLink`.
+The GitHub entry always points to the author's repository and cannot be replaced at runtime; only its visibility is configurable. Setting `showHeader: false` hides the entire toolbar, including comparison settings and UI preference controls.
 
-When the integrating system already provides its own application frame, set `showHeader: false` to hide the entire DocDiff Pro toolbar.
-
-Set `VITE_BASE_PATH` when building for another deployment path:
+The default build path is `/doc-diff-pro/`. Set `VITE_BASE_PATH` with leading and trailing slashes when building for another subpath:
 
 ```bash
 VITE_BASE_PATH=/document-tools/ pnpm build
 ```
 
-## 🛠️ Development
+## 🛠️ Local Development
 
-The current Node.js LTS release is recommended.
+Vite 8 requires Node.js `^20.19.0 || >=22.12.0`. Node.js 22.12 or a newer LTS release is recommended, with pnpm for dependency installation.
 
 ```bash
 pnpm install
@@ -169,28 +183,25 @@ pnpm typecheck
 pnpm build
 ```
 
-Preview the production build:
+Preview the completed build locally:
 
 ```bash
-pnpm build
 pnpm preview
 ```
 
 ## 🔧 How It Works
 
-- 📦 `.docx` parsing is handled by mammoth, and the resulting HTML is sanitized with DOMPurify.
-- 🧾 DOCX headers and footers are parsed once with the document, converted into layout hints, and excluded from the final displayed body.
-- 🧮 Text diffing is handled by diff-match-patch in a web worker; long-running worker requests time out instead of falling back to the main thread.
-- 🧯 Synchronous diff fallback is guarded by a text-size limit so unsupported worker environments do not freeze on large documents.
-- 📈 Similarity is computed from the edit distance of the current normalized text: `1 - editDistance / max(originalLength, revisedLength)`.
-- 🧱 Text mapping, whitespace collapsing, and normalization rules are centralized in `src/utils/documentText.ts`.
-- 🧹 Layout noise detection is centralized in `src/utils/layoutNoise.ts`.
-- 📋 Table structure diagnosis is centralized in `src/utils/tableStructureHint.ts`.
-- 🙈 Review ignore state and similar-difference scoring live in `src/utils/diffReview.ts`.
-- 🎨 Theme tokens live in `src/utils/themeColor.ts`; teleported overlays receive the same CSS variables through the document root.
-- 🎯 Diff markers are mapped back to the DOM through the original text nodes, so normalization logic never leaks into the rendering layer.
-- 🌐 Interface strings live in a typed message catalog under `src/i18n/`.
-- 📐 Only `.docx` files are supported, up to 25 MB per file by default.
+- 📦 DOCX conversion uses the npm alias `mammoth@npm:@xm721806280/mammoth`, currently based on `1.12.0-rc3`; generated HTML is sanitized with DOMPurify.
+- 🧾 Headers and footers are parsed with the document, converted into layout hints, and excluded from the displayed body.
+- 🧮 Text differences are computed by diff-match-patch in a Web Worker; long-running requests time out.
+- 🧯 Environments without Worker support can fall back to the main thread after a text-size safety check.
+- 🧱 Text mapping, whitespace collapsing, and normalization rules live in `src/utils/documentText.ts`.
+- 🧭 Structural difference grouping lives in `src/utils/diffGroupStructure.ts`.
+- 🧹 Layout noise detection lives in `src/utils/layoutNoise.ts`.
+- 📋 Table structure diagnosis lives in `src/utils/tableStructureHint.ts`.
+- 🙈 Difference ignore behavior and similar-difference scoring live in `src/utils/diffReview.ts`.
+- 📄 Local HTML review reports are generated by `src/services/reviewReport.ts`.
+- 🎨 Theme tokens live in `src/utils/themeColor.ts`, and interface strings live in `src/i18n/`.
 
 ## 📜 License
 
