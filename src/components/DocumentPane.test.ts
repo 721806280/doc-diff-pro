@@ -23,6 +23,53 @@ describe('DocumentPane', () => {
     expect(root.querySelector('.pane-upload-zone')).toBeTruthy();
     expect(root.querySelector('input[type="file"]')).toBeTruthy();
   });
+
+  it('emits selected files and clears the input for selecting the same file again', () => {
+    const selected: File[] = [];
+    const { root } = mountPane({
+      allowFileInput: true,
+      onFileSelect: (file: File) => selected.push(file)
+    });
+    const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const file = new File(['docx'], 'review.docx');
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+    Object.defineProperty(input, 'value', { configurable: true, writable: true, value: 'review.docx' });
+
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(selected).toEqual([file]);
+    expect(input.value).toBe('');
+  });
+
+  it('accepts dropped files only when local input is enabled', () => {
+    const selected: File[] = [];
+    const enabled = mountPane({ allowFileInput: true, onFileSelect: (file: File) => selected.push(file) });
+    const disabled = mountPane({ allowFileInput: false, onFileSelect: (file: File) => selected.push(file) });
+    const file = new File(['docx'], 'drop.docx');
+
+    enabled.root.querySelector('.render-viewport')?.dispatchEvent(dropEvent(file));
+    disabled.root.querySelector('.render-viewport')?.dispatchEvent(dropEvent(file));
+
+    expect(selected).toEqual([file]);
+  });
+
+  it('emits keyboard activation only from a rendered difference', () => {
+    const activated: KeyboardEvent[] = [];
+    const { root } = mountPane({
+      allowFileInput: true,
+      fileName: 'review.docx',
+      hasResult: true,
+      highlightedHtml: '<p><ins data-diff-id="diff-1">new</ins></p>',
+      onDiffActivate: (event: KeyboardEvent) => activated.push(event)
+    });
+    const difference = root.querySelector<HTMLElement>('[data-diff-id]')!;
+
+    difference.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    root.querySelector('.render-viewport')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    expect(activated).toHaveLength(1);
+    expect(activated[0].defaultPrevented).toBe(true);
+  });
 });
 
 function mountPane(overrides: Record<string, unknown>) {
@@ -47,4 +94,10 @@ function mountPane(overrides: Record<string, unknown>) {
     highlightedHtml: '',
     ...overrides
   });
+}
+
+function dropEvent(file: File): DragEvent {
+  const event = new Event('drop', { bubbles: true, cancelable: true }) as DragEvent;
+  Object.defineProperty(event, 'dataTransfer', { value: { files: [file] } });
+  return event;
 }

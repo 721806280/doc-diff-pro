@@ -60,6 +60,53 @@ describe('diffWorkerClient', () => {
     expect(workers[0].terminate).toHaveBeenCalledTimes(1);
   });
 
+  it('resolves a successful worker response without using the fallback', async () => {
+    const workers = installFakeWorker();
+    const { createTextDiffsAsync } = await import('./diffWorkerClient');
+
+    const pendingDiff = createTextDiffsAsync('before', 'after', 'word');
+    expect(workers[0].postMessage).toHaveBeenCalledWith({
+      id: 1,
+      originalText: 'before',
+      revisedText: 'after',
+      granularity: 'word'
+    });
+
+    workers[0].onmessage?.({ data: { id: 1, diffs: [[1, 'after']] } } as MessageEvent);
+
+    await expect(pendingDiff).resolves.toEqual([[1, 'after']]);
+    expect(mocks.createTextDiffs).not.toHaveBeenCalled();
+  });
+
+  it('matches concurrent worker responses by request id', async () => {
+    const workers = installFakeWorker();
+    const { createTextDiffsAsync } = await import('./diffWorkerClient');
+
+    const first = createTextDiffsAsync('a', 'b', 'char');
+    const second = createTextDiffsAsync('c', 'd', 'char');
+
+    expect(workers).toHaveLength(1);
+    const firstId = workers[0].postMessage.mock.calls[0][0].id as number;
+    const secondId = workers[0].postMessage.mock.calls[1][0].id as number;
+    workers[0].onmessage?.({ data: { id: secondId, diffs: [[1, 'd']] } } as MessageEvent);
+    workers[0].onmessage?.({ data: { id: firstId, diffs: [[-1, 'a']] } } as MessageEvent);
+
+    await expect(first).resolves.toEqual([[-1, 'a']]);
+    await expect(second).resolves.toEqual([[1, 'd']]);
+  });
+
+  it('uses the synchronous fallback when the worker reports a request error', async () => {
+    const workers = installFakeWorker();
+    const { createTextDiffsAsync } = await import('./diffWorkerClient');
+
+    const pendingDiff = createTextDiffsAsync('a', 'b', 'char');
+    const id = workers[0].postMessage.mock.calls[0][0].id as number;
+    workers[0].onmessage?.({ data: { id, error: 'worker failed' } } as MessageEvent);
+
+    await expect(pendingDiff).resolves.toEqual([[0, 'fallback']]);
+    expect(mocks.createTextDiffs).toHaveBeenCalledWith('a', 'b', 'char');
+  });
+
   it('uses the synchronous fallback when the worker fails', async () => {
     const workers = installFakeWorker();
     const { createTextDiffsAsync } = await import('./diffWorkerClient');
@@ -94,5 +141,13 @@ describe('diffWorkerClient', () => {
       createTextDiffsAsync('a'.repeat(MAX_MAIN_THREAD_DIFF_CHARS), 'b', 'char')
     ).rejects.toThrow('too large');
     expect(mocks.createTextDiffs).not.toHaveBeenCalled();
+  });
+
+  it('runs small requests synchronously when workers are unavailable', async () => {
+    vi.stubGlobal('Worker', undefined);
+    const { createTextDiffsAsync } = await import('./diffWorkerClient');
+
+    await expect(createTextDiffsAsync('a', 'b', 'char')).resolves.toEqual([[0, 'fallback']]);
+    expect(mocks.createTextDiffs).toHaveBeenCalledWith('a', 'b', 'char');
   });
 });

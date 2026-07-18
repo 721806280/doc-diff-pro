@@ -2,6 +2,7 @@ import { nextTick } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_DEPLOYMENT_CONFIG } from '@/config/deploymentConfig';
 import { DEFAULT_USER_SETTINGS } from '@/config/userSettings';
+import { useI18n } from '@/i18n';
 import { createMountRegistry } from '@/test-utils/mountComponent';
 import AppHeader from './AppHeader.vue';
 
@@ -12,6 +13,7 @@ const mounts = createMountRegistry();
 describe('AppHeader', () => {
   afterEach(() => {
     vi.useRealTimers();
+    useI18n().setLocale('zh-CN');
     mounts.cleanup();
   });
 
@@ -107,6 +109,49 @@ describe('AppHeader', () => {
       .some((button) => button.textContent?.trim() === '导出报告')).toBe(true);
     expect(root.textContent).toContain('结构标记');
     expect(root.textContent).toContain('差异忽略');
+  });
+
+  it('closes settings on Escape and restores focus to the trigger', async () => {
+    const { root, events } = mountHeader();
+    const trigger = root.querySelector<HTMLButtonElement>('.settings-trigger')!;
+    trigger.focus();
+    trigger.click();
+    await nextTick();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await nextTick();
+
+    expect(root.querySelector('.settings-popover')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(events).toContain('settingsOpen:false');
+  });
+
+  it('closes settings on an outside pointer without moving focus', async () => {
+    const { root } = mountHeader();
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    root.querySelector<HTMLButtonElement>('.settings-trigger')?.click();
+    await nextTick();
+    outside.focus();
+
+    outside.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    await nextTick();
+
+    expect(root.querySelector('.settings-popover')).toBeNull();
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+  });
+
+  it('switches locale and closes an open settings panel', async () => {
+    const { root } = mountHeader();
+    root.querySelector<HTMLButtonElement>('.settings-trigger')?.click();
+    await nextTick();
+
+    root.querySelector<HTMLButtonElement>('.language-trigger')?.click();
+    await nextTick();
+
+    expect(root.querySelector('.settings-popover')).toBeNull();
+    expect(root.querySelector('.language-icon')?.classList).toContain('is-en');
   });
 });
 

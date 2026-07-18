@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { buildReviewReportHtml } from './reviewReport';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildReviewReportHtml, downloadReviewReport } from './reviewReport';
 
 describe('reviewReport', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it('creates a printable report and escapes document content', () => {
     const html = buildReviewReportHtml({
       locale: 'zh-CN',
@@ -38,5 +44,22 @@ describe('reviewReport', () => {
     expect(html).toContain('&lt;baseline&gt;.docx');
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(html).not.toContain('<script>alert(1)</script>');
+  });
+
+  it('downloads an html blob and releases its object url', () => {
+    vi.useFakeTimers();
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:review-report');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    downloadReviewReport('<h1>Report</h1>', 'review.html');
+
+    const [blob] = createObjectURL.mock.calls[0]!;
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.type).toBe('text/html;charset=utf-8');
+    expect(click).toHaveBeenCalledTimes(1);
+    vi.runAllTimers();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:review-report');
   });
 });
