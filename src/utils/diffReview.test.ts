@@ -34,6 +34,11 @@ describe('diffReview', () => {
     });
   });
 
+  it('builds complete review items for one-sided differences', () => {
+    expect(createReviewItem(1, { A: [textElement('删除内容')], B: [] })).toMatchObject({ kind: 'deleted', revisedPreview: '' });
+    expect(createReviewItem(2, { A: [], B: [textElement('新增内容')] })).toMatchObject({ kind: 'inserted', originalPreview: '' });
+  });
+
   it('finds similar inserted differences by configured threshold', () => {
     const groups = new Map<number, DiffElementGroup>([
       [1, insertedGroup('abcdefghij')],

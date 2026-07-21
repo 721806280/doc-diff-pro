@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { detectInitialLocale, setLocale, useI18n } from './index';
+import { detectInitialLocale, getCurrentLocale, setLocale } from './index';
 
 describe('i18n locale selection', () => {
   afterEach(() => {
@@ -33,9 +33,15 @@ describe('i18n locale selection', () => {
     const storage = storageWith(null);
     vi.stubGlobal('localStorage', storage);
 
+    setLocale('zh-CN');
+    expect(getCurrentLocale()).toBe('zh-CN');
+    expect(storage.setItem).toHaveBeenCalledWith('doc-diff-locale', 'zh-CN');
+
+    storage.setItem.mockClear();
+    setLocale('zh-CN');
+    expect(storage.setItem).not.toHaveBeenCalled();
+
     setLocale('en');
-    expect(useI18n().locale.value).toBe('en');
-    expect(storage.setItem).toHaveBeenCalledWith('doc-diff-locale', 'en');
   });
 });
 

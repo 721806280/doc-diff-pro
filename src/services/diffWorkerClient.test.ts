@@ -119,6 +119,24 @@ describe('diffWorkerClient', () => {
     expect(workers[0].terminate).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores late errors from a canceled worker after its replacement starts', async () => {
+    const workers = installFakeWorker();
+    const { cancelPendingTextDiffs, createTextDiffsAsync } = await import('./diffWorkerClient');
+
+    const canceledDiff = createTextDiffsAsync('old', 'request', 'word');
+    cancelPendingTextDiffs();
+    await expect(canceledDiff).rejects.toThrow('Diff request canceled');
+
+    const currentDiff = createTextDiffsAsync('new', 'request', 'word');
+    const currentId = workers[1].postMessage.mock.calls[0][0].id as number;
+    workers[0].onerror?.({ message: 'late worker error' } as ErrorEvent);
+    workers[1].onmessage?.({ data: { id: currentId, diffs: [[1, 'request']] } } as MessageEvent);
+
+    await expect(currentDiff).resolves.toEqual([[1, 'request']]);
+    expect(workers[1].terminate).not.toHaveBeenCalled();
+    expect(mocks.createTextDiffs).not.toHaveBeenCalled();
+  });
+
   it('does not run the synchronous fallback for timed out worker requests', async () => {
     vi.useFakeTimers();
     const workers = installFakeWorker();

@@ -85,8 +85,9 @@ function requestWorkerDiff(
 function getWorker(): Worker {
   if (worker) return worker;
 
-  worker = new Worker(new URL('../workers/diffWorker.ts', import.meta.url), { type: 'module' });
-  worker.onmessage = (event: MessageEvent<DiffWorkerResponse>) => {
+  const currentWorker = new Worker(new URL('../workers/diffWorker.ts', import.meta.url), { type: 'module' });
+  worker = currentWorker;
+  currentWorker.onmessage = (event: MessageEvent<DiffWorkerResponse>) => {
     const { id, diffs, error } = event.data;
     const pending = pendingRequests.get(id);
     if (!pending) return;
@@ -99,13 +100,14 @@ function getWorker(): Worker {
       pending.resolve(diffs ?? []);
     }
   };
-  worker.onerror = (event) => {
+  currentWorker.onerror = (event) => {
+    if (worker !== currentWorker) return;
     rejectPendingRequests(new Error(event.message || 'Diff worker failed'));
-    worker?.terminate();
+    currentWorker.terminate();
     worker = null;
   };
 
-  return worker;
+  return currentWorker;
 }
 
 function rejectPendingRequests(error: Error): void {

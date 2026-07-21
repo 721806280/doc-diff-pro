@@ -1,25 +1,37 @@
-import { computed, readonly, ref } from 'vue';
+import { useSyncExternalStore } from 'react';
 import { deploymentConfig, type ConfiguredLocale } from '@/config/deploymentConfig';
 import { messages, SUPPORTED_LOCALES, type Locale } from './messages';
 
 const STORAGE_KEY = 'doc-diff-locale';
 
-const locale = ref<Locale>(detectInitialLocale(
+let locale = detectInitialLocale(
   deploymentConfig.locale
-));
-const currentMessages = computed(() => messages[locale.value]);
+);
+const listeners = new Set<() => void>();
 
 export function useI18n() {
+  const currentLocale = useSyncExternalStore(subscribe, getCurrentLocale, getCurrentLocale);
   return {
-    locale: readonly(locale),
-    messages: currentMessages,
+    locale: currentLocale,
+    messages: messages[currentLocale],
     setLocale
   };
 }
 
 export function setLocale(nextLocale: Locale): void {
-  locale.value = nextLocale;
+  if (locale === nextLocale) return;
+  locale = nextLocale;
   writeSavedLocale(nextLocale);
+  listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function getCurrentLocale(): Locale {
+  return locale;
 }
 
 export function detectInitialLocale(configuredLocale: ConfiguredLocale = 'auto'): Locale {

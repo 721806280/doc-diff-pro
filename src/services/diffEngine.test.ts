@@ -30,6 +30,18 @@ describe('compareDocuments', () => {
     expect(result.revisedHtml).toContain('<ins data-diff-id="diff-1">x</ins>');
   });
 
+  it('preserves insertion and deletion as one-sided review differences', async () => {
+    const deleted = await compareDocuments('<p>before</p>', '<p></p>', DEFAULT_OPTIONS);
+    const inserted = await compareDocuments('<p></p>', '<p>after</p>', DEFAULT_OPTIONS);
+
+    expect(deleted.summary).toMatchObject({ total: 1, deleted: 1, inserted: 0, modified: 0 });
+    expect(deleted.originalHtml).toContain('<del data-diff-id="diff-1">before</del>');
+    expect(deleted.revisedHtml).not.toMatch(/<(?:ins|del)\b/);
+    expect(inserted.summary).toMatchObject({ total: 1, deleted: 0, inserted: 1, modified: 0 });
+    expect(inserted.revisedHtml).toContain('<ins data-diff-id="diff-1">after</ins>');
+    expect(inserted.originalHtml).not.toMatch(/<(?:ins|del)\b/);
+  });
+
   it('keeps table and body changes as separate review differences', async () => {
     const result = await compareDocuments(
       '<table><tr><td>旧表</td></tr></table><p>旧文</p>',

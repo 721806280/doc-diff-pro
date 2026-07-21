@@ -77,7 +77,7 @@ const MAX_SPLIT_ROW_WINDOW = 3;
  * to show, so signatures must always collapse them — independent of the UI
  * compare-level normalization flags. Otherwise a user who disables "ignore
  * spaces" / "normalize width" would see every in-cell space edit fabricate a
- * bogus table-structure hint. See App.vue → updateTableStructureHint callers.
+ * bogus table-structure hint. See App.tsx table hint resolution callers.
  */
 function structureNormalize(text: string): string {
   return normalizeText(text, true, false)

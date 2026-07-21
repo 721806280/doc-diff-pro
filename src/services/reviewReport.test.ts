@@ -48,7 +48,7 @@ describe('reviewReport', () => {
 
   it('downloads an html blob and releases its object url', () => {
     vi.useFakeTimers();
-    const createObjectURL = vi.fn((_blob: Blob) => 'blob:review-report');
+    const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:review-report');
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);

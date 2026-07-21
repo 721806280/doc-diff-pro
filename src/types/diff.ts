@@ -26,6 +26,11 @@ export type DiffMapItem = {
   position: number;
 };
 
+export type DiffActionPosition = {
+  top: number;
+  left: number;
+};
+
 export type IgnoredDiffItem = {
   id: string;
   index: number;

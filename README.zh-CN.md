@@ -5,7 +5,7 @@
       </a>
    </p>
    <p align="center">
-      <img src="https://img.shields.io/badge/Vue-3.5-42b883?logo=vue.js&amp;logoColor=white" alt="Vue">
+      <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&amp;logoColor=white" alt="React">
       <img src="https://img.shields.io/badge/Vite-8.0-646CFF?logo=vite&amp;logoColor=white" alt="Vite">
       <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&amp;logoColor=white" alt="TypeScript">
       <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
