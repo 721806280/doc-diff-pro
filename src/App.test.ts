@@ -1,5 +1,6 @@
 import { nextTick } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_USER_SETTINGS } from '@/config/userSettings';
 import type { ParsedDocx } from '@/services/docxParser';
 import { createMountRegistry } from '@/test-utils/mountComponent';
 import App from './App.vue';
@@ -8,7 +9,8 @@ const mocks = vi.hoisted(() => ({
   parseDocx: vi.fn(),
   compareDocuments: vi.fn(),
   cancelPendingTextDiffs: vi.fn(),
-  downloadReviewReport: vi.fn<(html: string, fileName: string) => void>()
+  downloadReviewReport: vi.fn<(html: string, fileName: string) => void>(),
+  writeSavedUserSettings: vi.fn()
 }));
 
 vi.mock('@/services/docxParser', () => ({ parseDocx: mocks.parseDocx }));
@@ -30,7 +32,7 @@ vi.mock('@/config/userSettings', async (importOriginal) => {
       enableDiffIgnore: true,
       showReportExport: true
     }),
-    writeSavedUserSettings: vi.fn()
+    writeSavedUserSettings: mocks.writeSavedUserSettings
   };
 });
 
@@ -43,6 +45,7 @@ describe('App document workflow', () => {
     mocks.compareDocuments.mockReset();
     mocks.cancelPendingTextDiffs.mockReset();
     mocks.downloadReviewReport.mockReset();
+    mocks.writeSavedUserSettings.mockReset();
     mocks.compareDocuments.mockResolvedValue(emptyComparison());
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
@@ -224,6 +227,42 @@ describe('App document workflow', () => {
     expect(root.textContent).not.toContain('baseline.docx');
     expect(root.textContent).not.toContain('revised.docx');
     expect(root.querySelector('.floating-navigator')).toBeNull();
+  });
+
+  it('clears review state immediately when a result document is replaced', async () => {
+    const { root } = await mountComparedApp();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', cancelable: true }));
+    await nextTick();
+    expect(root.querySelector('.ignored-diff')).toBeTruthy();
+
+    const replacement = deferred<ParsedDocx>();
+    mocks.parseDocx.mockReturnValueOnce(replacement.promise);
+    await selectFile(root, 0, new File(['replacement'], 'replacement.docx'));
+
+    expect(root.querySelector('.floating-navigator')).toBeNull();
+    expect(root.querySelector('.diff-map, .focus-diff, .ignored-diff')).toBeNull();
+
+    replacement.resolve(parsed('<p>replacement</p>'));
+    await flushUpdates();
+  });
+
+  it('persists each settings change as a complete snapshot', async () => {
+    const { root } = mounts.mount(App);
+    root.querySelector<HTMLButtonElement>('.settings-trigger')?.click();
+    await nextTick();
+
+    const reportToggle = root.querySelector<HTMLButtonElement>(
+      '.settings-toggle-list--plain > .settings-toggle:nth-child(3)'
+    );
+    expect(reportToggle).toBeTruthy();
+    reportToggle!.click();
+    await nextTick();
+
+    expect(mocks.writeSavedUserSettings).toHaveBeenLastCalledWith({
+      ...DEFAULT_USER_SETTINGS,
+      enableDiffIgnore: true,
+      showReportExport: false
+    });
   });
 
   it('debounces rapid comparison-setting changes', async () => {

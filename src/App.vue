@@ -103,8 +103,8 @@
           :highlighted-html="documents.A.highlightedHtml"
           @file-select="handleFile('A', $event)"
           @pane-scroll="onScrollA"
-          @diff-click="handleDiffClick"
-          @diff-activate="handleDiffActivate"
+          @diff-click="handleDiffInteraction"
+          @diff-activate="handleDiffInteraction"
           @activate="setActiveDriver('A')"
       />
 
@@ -140,8 +140,8 @@
           :highlighted-html="documents.B.highlightedHtml"
           @file-select="handleFile('B', $event)"
           @pane-scroll="onScrollB"
-          @diff-click="handleDiffClick"
-          @diff-activate="handleDiffActivate"
+          @diff-click="handleDiffInteraction"
+          @diff-activate="handleDiffInteraction"
           @activate="setActiveDriver('B')"
       />
     </div>
@@ -197,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, toRefs, watch } from 'vue';
 import { deploymentConfig } from '@/config/deploymentConfig';
 import { useI18n } from '@/i18n';
 import AppHeader from './components/AppHeader.vue';
@@ -208,7 +208,7 @@ import DiffNavigator from './components/DiffNavigator.vue';
 import DocumentPane from './components/DocumentPane.vue';
 import MobilePaneSwitch from './components/MobilePaneSwitch.vue';
 import SimilarDiffModal from './components/SimilarDiffModal.vue';
-import type { DiffGranularity, DiffMapItem, DiffSummary, DiffTableContextHint, IgnoredDiffItem, SimilarDiffLevel } from './types/diff';
+import type { DiffMapItem, DiffSummary, DiffTableContextHint, IgnoredDiffItem } from './types/diff';
 import {
   buildDiffElementIndex,
   DIFF_ELEMENT_SELECTOR,
@@ -224,7 +224,7 @@ import { buildReviewReportHtml, downloadReviewReport, type ReviewReportChange } 
 import { loadSampleDocuments } from './services/sampleDocuments';
 import { resolveTableStructureHint, type TableStructureResolution } from './utils/tableStructureHint';
 import { resolveSyncScrollTop, type ScrollAnchor } from './utils/scrollSync';
-import { applyThemeVariables, clearThemeVariables, getThemeStyle, type AppearanceMode, type ThemeColor } from './utils/themeColor';
+import { applyThemeVariables, clearThemeVariables, getThemeStyle } from './utils/themeColor';
 import {
   activeReviewCount,
   activeReviewPosition,
@@ -304,22 +304,23 @@ const mobilePane = ref<PaneKey>('A');
 const similarDiffPanelOpen = ref(false);
 const activeTableHint = ref<DiffTableContextHint | null>(null);
 const tableHintPanelOpen = ref(false);
-const initialSettings = readSavedUserSettings();
-const themeColor = ref<ThemeColor>(initialSettings.themeColor);
-const appearanceMode = ref<AppearanceMode>(initialSettings.appearanceMode);
-const syncScroll = ref(initialSettings.syncScroll);
-const showReportExport = ref(initialSettings.showReportExport);
-const showTableHints = ref(initialSettings.showTableHints);
-const showDiffMap = ref(initialSettings.showDiffMap);
-const enableDiffIgnore = ref(initialSettings.enableDiffIgnore);
-const enableSimilarDiffs = ref(initialSettings.enableSimilarDiffs);
-const similarDiffLevel = ref<SimilarDiffLevel>(initialSettings.similarDiffLevel);
+const userSettings = reactive(readSavedUserSettings());
+const {
+  diffGranularity,
+  themeColor,
+  appearanceMode,
+  ignoreSpaces,
+  ignoreFullHalfWidth,
+  filterLayoutNoise,
+  syncScroll,
+  showReportExport,
+  showTableHints,
+  showDiffMap,
+  enableDiffIgnore,
+  enableSimilarDiffs,
+  similarDiffLevel
+} = toRefs(userSettings);
 const settingsPanelOpen = ref(false);
-
-const ignoreSpaces = ref(initialSettings.ignoreSpaces);
-const ignoreFullHalfWidth = ref(initialSettings.ignoreFullHalfWidth);
-const filterLayoutNoise = ref(initialSettings.filterLayoutNoise);
-const diffGranularity = ref<DiffGranularity>(initialSettings.diffGranularity);
 
 const paneA = ref<DocumentPaneExpose | null>(null);
 const paneB = ref<DocumentPaneExpose | null>(null);
@@ -610,38 +611,8 @@ watch(enableSimilarDiffs, (enabled) => {
   if (!enabled) closeSimilarDiffs();
 });
 
-watch([diffGranularity, themeColor, appearanceMode, ignoreSpaces, ignoreFullHalfWidth, filterLayoutNoise, syncScroll, showReportExport, showTableHints, showDiffMap, enableDiffIgnore, enableSimilarDiffs, similarDiffLevel], (
-    [
-      nextDiffGranularity,
-      nextThemeColor,
-      nextAppearanceMode,
-      nextIgnoreSpaces,
-      nextIgnoreFullHalfWidth,
-      nextFilterLayoutNoise,
-      nextSyncScroll,
-      nextShowReportExport,
-      nextShowTableHints,
-      nextShowDiffMap,
-      nextEnableDiffIgnore,
-      nextEnableSimilarDiffs,
-      nextSimilarDiffLevel
-    ]
-) => {
-  writeSavedUserSettings({
-    diffGranularity: nextDiffGranularity,
-    themeColor: nextThemeColor,
-    appearanceMode: nextAppearanceMode,
-    ignoreSpaces: nextIgnoreSpaces,
-    ignoreFullHalfWidth: nextIgnoreFullHalfWidth,
-    filterLayoutNoise: nextFilterLayoutNoise,
-    syncScroll: nextSyncScroll,
-    showReportExport: nextShowReportExport,
-    showTableHints: nextShowTableHints,
-    showDiffMap: nextShowDiffMap,
-    enableDiffIgnore: nextEnableDiffIgnore,
-    enableSimilarDiffs: nextEnableSimilarDiffs,
-    similarDiffLevel: nextSimilarDiffLevel
-  });
+watch(userSettings, (nextSettings) => {
+  writeSavedUserSettings({ ...nextSettings });
 });
 
 watch(locale, () => {
@@ -1127,6 +1098,10 @@ function focusOnDiff(
 }
 
 function clearFocusedDiffElements(): void {
+  if (diffActionRaf !== null) {
+    cancelAnimationFrame(diffActionRaf);
+    diffActionRaf = null;
+  }
   focusedDiffElements.forEach((element) => {
     if (element) {
       element.classList.remove('focus-diff');
@@ -1336,22 +1311,7 @@ function smoothViewportAlign(container: HTMLElement, element: Element, behavior:
   return targetScrollTop;
 }
 
-function handleDiffClick(event: MouseEvent): void {
-  if (!(event.target instanceof Element)) return;
-
-  const diffElement = event.target.closest<HTMLElement>(DIFF_ELEMENT_SELECTOR);
-  const rawId = diffElement?.dataset.diffId;
-  if (!rawId) return;
-
-  const index = diffReviewIndex(rawId);
-  if (Number.isNaN(index)) return;
-
-  currentDiffIndex.value = index;
-  focusOnDiff(index, 'smooth', diffElement);
-  if (activeTableHint.value) showTableHintTip();
-}
-
-function handleDiffActivate(event: KeyboardEvent): void {
+function handleDiffInteraction(event: MouseEvent | KeyboardEvent): void {
   if (!(event.target instanceof Element)) return;
 
   const diffElement = event.target.closest<HTMLElement>(DIFF_ELEMENT_SELECTOR);
