@@ -41,6 +41,8 @@ describe('presentation components', () => {
     expect(markers).toHaveLength(3);
     expect(markers[1]?.classList).toContain('is-active');
     expect(markers[2]?.classList).toContain('is-ignored');
+    expect(markers[1]?.tabIndex).toBe(0);
+    expect(markers[0]?.tabIndex).toBe(-1);
     act(() => markers[0]?.click());
     expect(selected).toEqual([1]);
   });

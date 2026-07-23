@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useI18n } from '@/i18n';
 import type { DocumentPaneState, PaneSide } from '@/types/document';
 export type { DocumentPaneState, PaneSide } from '@/types/document';
@@ -21,6 +21,7 @@ export default function DocumentPane({ side, document, active, hasResult, compar
   const { locale, messages: i18n } = useI18n();
   const [dragging, setDragging] = useState(false);
   const copy = i18n.app.documents[side];
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const sideClass = side === 'A' ? 'side-original' : 'side-revision';
   const statusLabel = i18n.documentPane.status[document.status];
   const fileSize = document.size <= 0
@@ -30,8 +31,8 @@ export default function DocumentPane({ side, document, active, hasResult, compar
       : `${(document.size / 1024 / 1024).toFixed(1)} MB`;
   const meta = [
     fileSize,
-    document.textLength > 0 ? i18n.documentPane.textLength(new Intl.NumberFormat(locale).format(document.textLength), document.textLength) : '',
-    document.imageCount > 0 ? i18n.documentPane.imageCount(new Intl.NumberFormat(locale).format(document.imageCount), document.imageCount) : ''
+    document.textLength > 0 ? i18n.documentPane.textLength(numberFormatter.format(document.textLength), document.textLength) : '',
+    document.imageCount > 0 ? i18n.documentPane.imageCount(numberFormatter.format(document.imageCount), document.imageCount) : ''
   ].filter(Boolean).join(' · ');
 
   function selectFile(input: HTMLInputElement): void {
