@@ -1315,6 +1315,11 @@
   .diff-action-popover__label {
     display: none;
   }
+
+  .diff-action-popover__button {
+    min-height: 32px;
+    padding-inline: 10px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1702,10 +1707,17 @@ button.summary-chip {
 }
 
 @media (max-width: 440px) {
-  .summary-chip.modified,
-  .summary-chip.inserted,
-  .summary-chip.deleted,
-  .summary-chip.similarity {
+  .navigator-summary,
+  .summary-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .navigator-summary::-webkit-scrollbar,
+  .summary-strip::-webkit-scrollbar {
     display: none;
   }
 
