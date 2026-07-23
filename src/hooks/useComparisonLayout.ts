@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type MutableRefObject, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import type { PaneSide } from '@/types/document';
 
 type ComparisonLayoutOptions = {
@@ -11,8 +11,8 @@ type ComparisonLayoutOptions = {
   scheduleDiffActionUpdate: () => void;
   syncPaneFrom: (side: PaneSide) => void;
   syncScroll: boolean;
-  activeDriver: MutableRefObject<PaneSide | null>;
-  syncInProgress: MutableRefObject<boolean>;
+  activeDriver: RefObject<PaneSide | null>;
+  syncInProgress: RefObject<boolean>;
   scheduleSyncRelease: () => void;
 };
 

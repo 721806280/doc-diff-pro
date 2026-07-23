@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import type { DiffSummary, IgnoredDiffItem } from '@/types/diff';
 import type { DiffElementIndex } from '@/utils/diffElementIndex';
 import { clearReviewClass, createReviewItem, diffReviewId, diffReviewIndex, findActiveReviewIndex, setReviewClass } from '@/utils/diffReview';
@@ -9,7 +9,7 @@ type ReviewActionsOptions = {
   setCurrentDiff: Dispatch<SetStateAction<number>>;
   ignoredDiffs: Map<string, IgnoredDiffItem>;
   setIgnoredDiffs: Dispatch<SetStateAction<Map<string, IgnoredDiffItem>>>;
-  diffIndex: React.MutableRefObject<DiffElementIndex>;
+  diffIndex: RefObject<DiffElementIndex>;
   focusDiff: (index: number, behavior?: ScrollBehavior) => void;
   onIgnore: () => void;
   onNoActiveDiff: () => void;

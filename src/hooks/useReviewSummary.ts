@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type RefObject } from 'react';
 import type { DiffSummary, IgnoredDiffItem, SimilarDiffItem, SimilarDiffLevel } from '@/types/diff';
 import type { DiffElementIndex } from '@/utils/diffElementIndex';
 import {
@@ -14,7 +14,7 @@ type ReviewSummaryOptions = {
   summary: DiffSummary;
   currentDiff: number;
   ignoredDiffs: Map<string, IgnoredDiffItem>;
-  diffIndex: React.MutableRefObject<DiffElementIndex>;
+  diffIndex: RefObject<DiffElementIndex>;
   indexVersion: number;
   enableDiffIgnore: boolean;
   enableSimilarDiffs: boolean;
