@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
+import prettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -67,5 +68,7 @@ export default tseslint.config(
     languageOptions: {
       globals: globals.node
     }
-  }
+  },
+  // Last: switches off the stylistic rules Prettier owns.
+  prettier
 );
