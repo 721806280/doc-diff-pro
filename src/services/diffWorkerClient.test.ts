@@ -57,7 +57,7 @@ describe('diffWorkerClient', () => {
 
     await expect(pendingDiff).rejects.toThrow('Diff request canceled');
     expect(mocks.createTextDiffs).not.toHaveBeenCalled();
-    expect(workers[0].terminate).toHaveBeenCalledTimes(1);
+    expect(workers[0]!.terminate).toHaveBeenCalledTimes(1);
   });
 
   it('resolves a successful worker response without using the fallback', async () => {
@@ -65,14 +65,14 @@ describe('diffWorkerClient', () => {
     const { createTextDiffsAsync } = await import('./diffWorkerClient');
 
     const pendingDiff = createTextDiffsAsync('before', 'after', 'word');
-    expect(workers[0].postMessage).toHaveBeenCalledWith({
+    expect(workers[0]!.postMessage).toHaveBeenCalledWith({
       id: 1,
       originalText: 'before',
       revisedText: 'after',
       granularity: 'word'
     });
 
-    workers[0].onmessage?.({ data: { id: 1, diffs: [[1, 'after']] } } as MessageEvent);
+    workers[0]!.onmessage?.({ data: { id: 1, diffs: [[1, 'after']] } } as MessageEvent);
 
     await expect(pendingDiff).resolves.toEqual([[1, 'after']]);
     expect(mocks.createTextDiffs).not.toHaveBeenCalled();
@@ -86,10 +86,10 @@ describe('diffWorkerClient', () => {
     const second = createTextDiffsAsync('c', 'd', 'char');
 
     expect(workers).toHaveLength(1);
-    const firstId = workers[0].postMessage.mock.calls[0][0].id as number;
-    const secondId = workers[0].postMessage.mock.calls[1][0].id as number;
-    workers[0].onmessage?.({ data: { id: secondId, diffs: [[1, 'd']] } } as MessageEvent);
-    workers[0].onmessage?.({ data: { id: firstId, diffs: [[-1, 'a']] } } as MessageEvent);
+    const firstId = workers[0]!.postMessage.mock.calls[0]![0].id as number;
+    const secondId = workers[0]!.postMessage.mock.calls[1]![0].id as number;
+    workers[0]!.onmessage?.({ data: { id: secondId, diffs: [[1, 'd']] } } as MessageEvent);
+    workers[0]!.onmessage?.({ data: { id: firstId, diffs: [[-1, 'a']] } } as MessageEvent);
 
     await expect(first).resolves.toEqual([[-1, 'a']]);
     await expect(second).resolves.toEqual([[1, 'd']]);
@@ -100,8 +100,8 @@ describe('diffWorkerClient', () => {
     const { createTextDiffsAsync } = await import('./diffWorkerClient');
 
     const pendingDiff = createTextDiffsAsync('a', 'b', 'char');
-    const id = workers[0].postMessage.mock.calls[0][0].id as number;
-    workers[0].onmessage?.({ data: { id, error: 'worker failed' } } as MessageEvent);
+    const id = workers[0]!.postMessage.mock.calls[0]![0].id as number;
+    workers[0]!.onmessage?.({ data: { id, error: 'worker failed' } } as MessageEvent);
 
     await expect(pendingDiff).resolves.toEqual([[0, 'fallback']]);
     expect(mocks.createTextDiffs).toHaveBeenCalledWith('a', 'b', 'char');
@@ -112,11 +112,11 @@ describe('diffWorkerClient', () => {
     const { createTextDiffsAsync } = await import('./diffWorkerClient');
 
     const pendingDiff = createTextDiffsAsync('a', 'b', 'char');
-    workers[0].onerror?.({ message: 'boom' } as ErrorEvent);
+    workers[0]!.onerror?.({ message: 'boom' } as ErrorEvent);
 
     await expect(pendingDiff).resolves.toEqual([[0, 'fallback']]);
     expect(mocks.createTextDiffs).toHaveBeenCalledWith('a', 'b', 'char');
-    expect(workers[0].terminate).toHaveBeenCalledTimes(1);
+    expect(workers[0]!.terminate).toHaveBeenCalledTimes(1);
   });
 
   it('ignores late errors from a canceled worker after its replacement starts', async () => {
@@ -128,12 +128,12 @@ describe('diffWorkerClient', () => {
     await expect(canceledDiff).rejects.toThrow('Diff request canceled');
 
     const currentDiff = createTextDiffsAsync('new', 'request', 'word');
-    const currentId = workers[1].postMessage.mock.calls[0][0].id as number;
-    workers[0].onerror?.({ message: 'late worker error' } as ErrorEvent);
-    workers[1].onmessage?.({ data: { id: currentId, diffs: [[1, 'request']] } } as MessageEvent);
+    const currentId = workers[1]!.postMessage.mock.calls[0]![0].id as number;
+    workers[0]!.onerror?.({ message: 'late worker error' } as ErrorEvent);
+    workers[1]!.onmessage?.({ data: { id: currentId, diffs: [[1, 'request']] } } as MessageEvent);
 
     await expect(currentDiff).resolves.toEqual([[1, 'request']]);
-    expect(workers[1].terminate).not.toHaveBeenCalled();
+    expect(workers[1]!.terminate).not.toHaveBeenCalled();
     expect(mocks.createTextDiffs).not.toHaveBeenCalled();
   });
 
@@ -148,7 +148,7 @@ describe('diffWorkerClient', () => {
 
     await expectation;
     expect(mocks.createTextDiffs).not.toHaveBeenCalled();
-    expect(workers[0].terminate).toHaveBeenCalledTimes(1);
+    expect(workers[0]!.terminate).toHaveBeenCalledTimes(1);
   });
 
   it('rejects large synchronous fallback requests when workers are unavailable', async () => {

@@ -49,7 +49,7 @@ describe('parseDocx', () => {
     });
 
     const parsed = await parseDocx(new File(['docx'], 'review.docx'));
-    const [input, config] = convertToHtml.mock.calls[0];
+    const [input, config] = convertToHtml.mock.calls[0]!;
 
     expect(input.arrayBuffer.byteLength).toBe(4);
     expect(config).toEqual({

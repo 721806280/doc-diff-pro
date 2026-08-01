@@ -40,11 +40,7 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
   const mapping: TextMappingEntry[] = [];
   const orderedListCounters = new WeakMap<HTMLElement, number>();
 
-  const endsWithNewline = (): boolean => {
-    if (textBuffer.length === 0) return false;
-    const lastChunk = textBuffer[textBuffer.length - 1];
-    return lastChunk[lastChunk.length - 1] === '\n';
-  };
+  const endsWithNewline = (): boolean => textBuffer.at(-1)?.at(-1) === '\n';
 
   function walk(node: Node): void {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -100,7 +96,8 @@ export function collapseWhitespace({ text, mapping }: TextMapping): TextMapping 
 
   for (let index = 0; index < text.length; index++) {
     let ch = text[index];
-
+    const mapped = mapping[index];
+    if (ch === undefined || mapped === undefined) continue;
     if (isTextWhitespace(ch)) {
       const nextChar = nextNonTextWhitespace(text, index + 1);
       if (
@@ -115,7 +112,7 @@ export function collapseWhitespace({ text, mapping }: TextMapping): TextMapping 
       ch = ' ';
     }
 
-    appendResult(ch, mapping[index], text[index] === '\n');
+    appendResult(ch, mapped, text[index] === '\n');
   }
 
   while (resultTextChunks.at(-1) === ' ') {
@@ -235,11 +232,11 @@ function formatRomanListMarker(value: number): string {
   return marker;
 }
 
-function isInlineWhitespace(ch: string): boolean {
-  return INLINE_WHITESPACE_PATTERN.test(ch);
+function isInlineWhitespace(ch: string | undefined): boolean {
+  return ch !== undefined && INLINE_WHITESPACE_PATTERN.test(ch);
 }
 
-function isTextWhitespace(ch: string): boolean {
+function isTextWhitespace(ch: string | undefined): boolean {
   return ch === '\n' || isInlineWhitespace(ch);
 }
 
@@ -364,14 +361,15 @@ function isStructuralMarkerBeforeWhitespace(lineText: string): boolean {
   return isStructuralLinePrefix(lineText) || STRUCTURAL_LINE_SUFFIX_PATTERN.test(lineText);
 }
 
-function normalizeCharForWhitespaceBoundary(ch: string): string {
+function normalizeCharForWhitespaceBoundary(ch: string | undefined): string {
+  if (ch === undefined) return '';
   const code = ch.charCodeAt(0);
   if (code === 12288) return ' ';
   if (code >= 65281 && code <= 65374) return String.fromCharCode(code - 65248);
   return normalizePunctuationVariant(ch);
 }
 
-function normalizePunctuationVariant(ch: string): string {
+function normalizePunctuationVariant(ch: string | undefined): string {
   switch (ch) {
     case '“':
     case '”':
@@ -391,6 +389,6 @@ function normalizePunctuationVariant(ch: string): string {
     case '―':
       return '-';
     default:
-      return ch;
+      return ch ?? '';
   }
 }

@@ -292,7 +292,7 @@ describe('React app workflow', () => {
     const exportButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent?.includes('Export report'));
     await act(async () => exportButton?.click());
     expect(mocks.downloadReviewReport).toHaveBeenCalledTimes(1);
-    const [html, fileName] = mocks.downloadReviewReport.mock.calls[0];
+    const [html, fileName] = mocks.downloadReviewReport.mock.calls[0]!;
     expect(html).toContain('old one');
     expect(html).toContain('new two');
     expect(fileName).toMatch(/^docdiff-report-\d{8}-\d{4}\.html$/);
@@ -329,7 +329,7 @@ describe('React app workflow', () => {
     const input = pane?.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) throw new Error(`Missing file input for pane ${index}`);
     Object.defineProperty(input, 'files', { configurable: true, value: [file] });
-    act(() => input.dispatchEvent(new Event('change', { bubbles: true })));
+    act(() => { input.dispatchEvent(new Event('change', { bubbles: true })); });
   }
 });
 

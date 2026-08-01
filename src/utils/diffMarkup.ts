@@ -158,6 +158,7 @@ function mergeNearbyDiffFragments(domElement: HTMLElement, wrapperTag: WrapperTa
   while (index < fragments.length - 1) {
     const current = fragments[index];
     const next = fragments[index + 1];
+    if (!current || !next) break;
 
     if (!current.isConnected) {
       fragments.splice(index, 1);

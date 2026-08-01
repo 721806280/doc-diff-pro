@@ -106,43 +106,64 @@ function alignSequences<T>(
   similarity: (original: T, revised: T) => number,
   matchThreshold: number
 ): Array<AlignmentPair<T>> {
+  type AlignmentChoice = 'match' | 'original' | 'revised';
+
   const scores = Array.from({ length: original.length + 1 }, () =>
-    new Array(revised.length + 1).fill(Number.NEGATIVE_INFINITY)
+    new Array<number>(revised.length + 1).fill(Number.NEGATIVE_INFINITY)
   );
   const choices = Array.from({ length: original.length + 1 }, () =>
-    new Array<'match' | 'original' | 'revised' | null>(revised.length + 1).fill(null)
+    new Array<AlignmentChoice | null>(revised.length + 1).fill(null)
   );
 
-  scores[0][0] = 0;
+  // Both matrices are allocated at (original.length + 1) x (revised.length + 1)
+  // and every index below is derived from those same bounds, so these accessors
+  // never fall back at runtime. They exist to state the invariant once instead
+  // of guarding at each of the dozen index sites in the loops.
+  const scoreAt = (row: number, column: number): number =>
+    scores[row]?.[column] ?? Number.NEGATIVE_INFINITY;
+  const setScore = (row: number, column: number, value: number): void => {
+    const line = scores[row];
+    if (line) line[column] = value;
+  };
+  const setChoice = (row: number, column: number, value: AlignmentChoice): void => {
+    const line = choices[row];
+    if (line) line[column] = value;
+  };
+  // Loop bounds keep these element reads in range; T itself may legitimately be
+  // a nullable type, so a value guard would be wrong here.
+  const originalAt = (index: number): T => original[index] as T;
+  const revisedAt = (index: number): T => revised[index] as T;
+
+  setScore(0, 0, 0);
   for (let index = 1; index <= original.length; index++) {
-    scores[index][0] = scores[index - 1][0] - TABLE_GAP_PENALTY;
-    choices[index][0] = 'original';
+    setScore(index, 0, scoreAt(index - 1, 0) - TABLE_GAP_PENALTY);
+    setChoice(index, 0, 'original');
   }
   for (let index = 1; index <= revised.length; index++) {
-    scores[0][index] = scores[0][index - 1] - TABLE_GAP_PENALTY;
-    choices[0][index] = 'revised';
+    setScore(0, index, scoreAt(0, index - 1) - TABLE_GAP_PENALTY);
+    setChoice(0, index, 'revised');
   }
 
   for (let originalIndex = 1; originalIndex <= original.length; originalIndex++) {
     for (let revisedIndex = 1; revisedIndex <= revised.length; revisedIndex++) {
-      const matchScore = similarity(original[originalIndex - 1], revised[revisedIndex - 1]);
-      let bestScore = scores[originalIndex - 1][revisedIndex] - TABLE_GAP_PENALTY;
-      let bestChoice: 'match' | 'original' | 'revised' = 'original';
-      const revisedScore = scores[originalIndex][revisedIndex - 1] - TABLE_GAP_PENALTY;
+      const matchScore = similarity(originalAt(originalIndex - 1), revisedAt(revisedIndex - 1));
+      let bestScore = scoreAt(originalIndex - 1, revisedIndex) - TABLE_GAP_PENALTY;
+      let bestChoice: AlignmentChoice = 'original';
+      const revisedScore = scoreAt(originalIndex, revisedIndex - 1) - TABLE_GAP_PENALTY;
       if (revisedScore > bestScore) {
         bestScore = revisedScore;
         bestChoice = 'revised';
       }
       if (matchScore >= matchThreshold) {
-        const alignedScore = scores[originalIndex - 1][revisedIndex - 1] + matchScore;
+        const alignedScore = scoreAt(originalIndex - 1, revisedIndex - 1) + matchScore;
         if (alignedScore > bestScore) {
           bestScore = alignedScore;
           bestChoice = 'match';
         }
       }
 
-      scores[originalIndex][revisedIndex] = bestScore;
-      choices[originalIndex][revisedIndex] = bestChoice;
+      setScore(originalIndex, revisedIndex, bestScore);
+      setChoice(originalIndex, revisedIndex, bestChoice);
     }
   }
 
@@ -150,16 +171,16 @@ function alignSequences<T>(
   let originalIndex = original.length;
   let revisedIndex = revised.length;
   while (originalIndex > 0 || revisedIndex > 0) {
-    const choice = choices[originalIndex][revisedIndex];
+    const choice = choices[originalIndex]?.[revisedIndex] ?? null;
     if (choice === 'match') {
-      reversed.push({ original: original[originalIndex - 1], revised: revised[revisedIndex - 1] });
+      reversed.push({ original: originalAt(originalIndex - 1), revised: revisedAt(revisedIndex - 1) });
       originalIndex--;
       revisedIndex--;
     } else if (choice === 'original') {
-      reversed.push({ original: original[originalIndex - 1] });
+      reversed.push({ original: originalAt(originalIndex - 1) });
       originalIndex--;
     } else {
-      reversed.push({ revised: revised[revisedIndex - 1] });
+      reversed.push({ revised: revisedAt(revisedIndex - 1) });
       revisedIndex--;
     }
   }
@@ -255,8 +276,10 @@ function buildStructureIndex(
 
   blocks.forEach((block) => {
     const order = elementOrder.get(block) ?? 0;
-    while (pairedTableIndex < pairedTables.length && pairedTables[pairedTableIndex].order < order) {
-      regionId = pairedTables[pairedTableIndex].id;
+    while (pairedTableIndex < pairedTables.length) {
+      const pairedTable = pairedTables[pairedTableIndex];
+      if (!pairedTable || pairedTable.order >= order) break;
+      regionId = pairedTable.id;
       pairedTableIndex++;
     }
 
@@ -333,9 +356,10 @@ function pairScopedBuckets(original: DiffGroupBuckets, revised: DiffGroupBuckets
     const candidates = unmatchedRevised.filter(([revisedKey, revisedBucket]) =>
       !matchedRevised.has(revisedKey) && canPairScopes(originalBucket.scope, revisedBucket.scope)
     );
-    if (candidates.length !== 1) continue;
+    const soleCandidate = candidates[0];
+    if (candidates.length !== 1 || !soleCandidate) continue;
 
-    const [revisedKey, revisedBucket] = candidates[0];
+    const [revisedKey, revisedBucket] = soleCandidate;
     const reverseCandidates = unmatchedOriginal.filter(([candidateKey, candidateBucket]) =>
       !matchedOriginal.has(candidateKey) && canPairScopes(candidateBucket.scope, revisedBucket.scope)
     );
@@ -438,16 +462,18 @@ function mergeMovedTableGroups(
   const revisedCandidates = new Map<string, Array<{ id: string; elements: HTMLElement[]; scope: DiffScope }>>();
 
   originalGroups.forEach((elements, id) => {
-    if (revisedGroups.has(id) || elements.length === 0) return;
-    const scope = resolveScope(elements[0], originalIndex);
+    const first = elements[0];
+    if (revisedGroups.has(id) || !first) return;
+    const scope = resolveScope(first, originalIndex);
     if (scope.kind !== 'table' || scope.rowIndex === undefined) return;
     const key = `${scope.tableId}\u0000${normalizedGroupText(elements)}`;
     originalCandidateCounts.set(key, (originalCandidateCounts.get(key) ?? 0) + 1);
   });
 
   revisedGroups.forEach((elements, id) => {
-    if (originalGroups.has(id) || elements.length === 0) return;
-    const scope = resolveScope(elements[0], revisedIndex);
+    const first = elements[0];
+    if (originalGroups.has(id) || !first) return;
+    const scope = resolveScope(first, revisedIndex);
     if (scope.kind !== 'table' || scope.rowIndex === undefined) return;
     const key = `${scope.tableId}\u0000${normalizedGroupText(elements)}`;
     const candidates = revisedCandidates.get(key) ?? [];
@@ -457,23 +483,26 @@ function mergeMovedTableGroups(
 
   const usedRevisedIds = new Set<string>();
   originalGroups.forEach((elements, id) => {
-    if (revisedGroups.has(id) || elements.length === 0) return;
-    const scope = resolveScope(elements[0], originalIndex);
+    const first = elements[0];
+    if (revisedGroups.has(id) || !first) return;
+    const scope = resolveScope(first, originalIndex);
     if (scope.kind !== 'table' || scope.rowIndex === undefined) return;
 
     const key = `${scope.tableId}\u0000${normalizedGroupText(elements)}`;
     if (originalCandidateCounts.get(key) !== 1) return;
+    const rowIndex = scope.rowIndex;
     const candidates = (revisedCandidates.get(key) ?? []).filter((candidate) =>
       !usedRevisedIds.has(candidate.id) &&
       candidate.scope.rowIndex !== undefined &&
-      Math.abs(candidate.scope.rowIndex - scope.rowIndex!) <= MAX_SCOPE_DISTANCE
+      Math.abs(candidate.scope.rowIndex - rowIndex) <= MAX_SCOPE_DISTANCE
     );
-    if (candidates.length !== 1) return;
+    const match = candidates.length === 1 ? candidates[0] : undefined;
+    if (!match) return;
 
-    candidates[0].elements.forEach((element) => {
+    match.elements.forEach((element) => {
       element.dataset.diffId = id;
     });
-    usedRevisedIds.add(candidates[0].id);
+    usedRevisedIds.add(match.id);
   });
 }
 

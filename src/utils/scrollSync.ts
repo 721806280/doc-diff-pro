@@ -32,10 +32,15 @@ export function resolveSyncScrollTop({
   if (currentTop >= sourceMax - EDGE_TOLERANCE) return targetMax;
 
   if (anchors.length === 0) {
-    return sourceMax > 0 ? Math.round((currentTop / sourceMax) * targetMax) : 0;
+    return proportionalTop(currentTop, sourceMax, targetMax);
   }
 
   return resolveAnchoredTop(sourceKey, currentTop, sourceMax, targetMax, anchors);
+}
+
+/** Straight ratio mapping, used whenever no usable anchor pair is available. */
+function proportionalTop(currentTop: number, sourceMax: number, targetMax: number): number {
+  return sourceMax > 0 ? Math.round((currentTop / sourceMax) * targetMax) : 0;
 }
 
 export function findNextAnchorIndex(
@@ -49,8 +54,10 @@ export function findNextAnchorIndex(
 
   while (start <= end) {
     const middle = Math.floor((start + end) / 2);
+    const anchor = anchors[middle];
+    if (!anchor) break;
 
-    if (anchors[middle][key] >= sourceTop) {
+    if (anchor[key] >= sourceTop) {
       nextIndex = middle;
       end = middle - 1;
     } else {
@@ -74,22 +81,26 @@ function resolveAnchoredTop(
 
   if (nextIndex === 0) {
     const first = anchors[0];
-    return interpolateScrollTop(currentTop, 0, first[sourceTopKey], 0, first[targetTopKey]);
+    if (first) return interpolateScrollTop(currentTop, 0, first[sourceTopKey], 0, first[targetTopKey]);
   }
 
   if (nextIndex === -1) {
     const last = anchors[anchors.length - 1];
-    return interpolateScrollTop(
-      currentTop,
-      last[sourceTopKey],
-      maxSourceTop,
-      last[targetTopKey],
-      maxTargetTop
-    );
+    if (last) {
+      return interpolateScrollTop(
+        currentTop,
+        last[sourceTopKey],
+        maxSourceTop,
+        last[targetTopKey],
+        maxTargetTop
+      );
+    }
   }
 
   const previous = anchors[nextIndex - 1];
   const next = anchors[nextIndex];
+  if (!previous || !next) return proportionalTop(currentTop, maxSourceTop, maxTargetTop);
+
   return interpolateScrollTop(
     currentTop,
     previous[sourceTopKey],

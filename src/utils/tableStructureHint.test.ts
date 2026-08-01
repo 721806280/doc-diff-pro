@@ -44,7 +44,7 @@ describe('resolveTableStructureHint', () => {
       missing: true,
       role: 'missing'
     });
-    expect(insight?.candidateRows[0].textContent).toContain('行B');
+    expect(insight?.candidateRows[0]!.textContent).toContain('行B');
   });
 
   it('keeps the existing table paired when another table is inserted before it', () => {
@@ -110,7 +110,7 @@ describe('resolveTableStructureHint', () => {
       candidateRow: 2,
       candidatePreview: '行B | 值2'
     });
-    expect(insight?.candidateRows[0].textContent).toContain('行B');
+    expect(insight?.candidateRows[0]!.textContent).toContain('行B');
   });
 
   it('does not show a generic table hint when the structure change cannot be localized', () => {

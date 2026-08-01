@@ -31,13 +31,13 @@ describe('DocumentPane', () => {
     const selectedFile = new File(['docx'], 'review.docx');
     Object.defineProperty(input, 'files', { configurable: true, value: [selectedFile] });
     Object.defineProperty(input, 'value', { configurable: true, writable: true, value: 'review.docx' });
-    act(() => input.dispatchEvent(new Event('change', { bubbles: true })));
+    act(() => { input.dispatchEvent(new Event('change', { bubbles: true })); });
     expect(input.value).toBe('');
 
     const dropped = new File(['docx'], 'drop.docx');
-    act(() => local.host.querySelector('.render-viewport')?.dispatchEvent(dropEvent(dropped)));
+    act(() => { local.host.querySelector('.render-viewport')?.dispatchEvent(dropEvent(dropped)); });
     const external = mountPane(false, emptyDocument(), (file) => selected.push(file));
-    act(() => external.host.querySelector('.render-viewport')?.dispatchEvent(dropEvent(dropped)));
+    act(() => { external.host.querySelector('.render-viewport')?.dispatchEvent(dropEvent(dropped)); });
     expect(selected).toEqual([selectedFile, dropped]);
   });
 
@@ -46,11 +46,11 @@ describe('DocumentPane', () => {
     const viewport = host.querySelector<HTMLElement>('.render-viewport')!;
     const child = viewport.querySelector<HTMLElement>('.pane-upload-zone')!;
 
-    act(() => viewport.dispatchEvent(dragStateEvent('dragenter')));
+    act(() => { viewport.dispatchEvent(dragStateEvent('dragenter')); });
     expect(viewport.classList.contains('is-dragging')).toBe(true);
-    act(() => viewport.dispatchEvent(dragStateEvent('dragleave', child)));
+    act(() => { viewport.dispatchEvent(dragStateEvent('dragleave', child)); });
     expect(viewport.classList.contains('is-dragging')).toBe(true);
-    act(() => viewport.dispatchEvent(dragStateEvent('dragleave')));
+    act(() => { viewport.dispatchEvent(dragStateEvent('dragleave')); });
     expect(viewport.classList.contains('is-dragging')).toBe(false);
   });
 
@@ -60,8 +60,8 @@ describe('DocumentPane', () => {
     const { host } = mountPane(true, document, undefined, (event) => events.push(event));
     const difference = host.querySelector<HTMLElement>('[data-diff-id]')!;
     const accepted = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
-    act(() => difference.dispatchEvent(accepted));
-    act(() => host.querySelector('.render-viewport')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    act(() => { difference.dispatchEvent(accepted); });
+    act(() => { host.querySelector('.render-viewport')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
     expect(events).toHaveLength(1);
     expect(accepted.defaultPrevented).toBe(true);
   });

@@ -57,7 +57,9 @@ function assignDiffGroups(
   const groupOperations = new Map<string, Set<DiffOperation>>();
 
   for (let index = 0; index < diffs.length; index++) {
-    const [operation, text] = diffs[index];
+    const entry = diffs[index];
+    if (!entry) continue;
+    const [operation, text] = entry;
 
     if (operation !== DIFF_EQUAL) {
       if (!inGroup) {
@@ -68,7 +70,7 @@ function assignDiffGroups(
       const operations = groupOperations.get(groupId) ?? new Set<DiffOperation>();
 
       operations.add(operation);
-      diffs[index].groupId = groupId;
+      entry.groupId = groupId;
       groupOperations.set(groupId, operations);
       continue;
     }

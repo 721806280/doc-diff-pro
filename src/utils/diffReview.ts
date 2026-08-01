@@ -203,19 +203,21 @@ function canReachSimilarityThreshold(left: string, right: string, threshold: num
 }
 
 function longestCommonSubsequenceLength(left: string, right: string): number {
-  const previous = new Array(right.length + 1).fill(0);
-  const current = new Array(right.length + 1).fill(0);
+  // Rolling two-row LCS. Both rows are sized right.length + 1 and every index
+  // below is within bounds, so the `?? 0` fallbacks never trigger at runtime.
+  const previous = new Array<number>(right.length + 1).fill(0);
+  const current = new Array<number>(right.length + 1).fill(0);
 
   for (let leftIndex = 1; leftIndex <= left.length; leftIndex++) {
     for (let rightIndex = 1; rightIndex <= right.length; rightIndex++) {
       current[rightIndex] = left[leftIndex - 1] === right[rightIndex - 1]
-        ? previous[rightIndex - 1] + 1
-        : Math.max(previous[rightIndex], current[rightIndex - 1]);
+        ? (previous[rightIndex - 1] ?? 0) + 1
+        : Math.max(previous[rightIndex] ?? 0, current[rightIndex - 1] ?? 0);
     }
 
     previous.splice(0, previous.length, ...current);
     current.fill(0);
   }
 
-  return previous[right.length];
+  return previous[right.length] ?? 0;
 }

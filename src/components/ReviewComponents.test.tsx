@@ -81,7 +81,7 @@ describe('review components', () => {
     act(() => document.body.querySelector<HTMLButtonElement>('.ignored-diff-row-actions .restore')?.click());
     act(() => document.body.querySelector<HTMLButtonElement>('.ignored-diff-restore-all')?.click());
     act(() => document.body.querySelector<HTMLElement>('.ignored-diff-overlay')?.click());
-    act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
 
     expect(document.body.textContent).toContain('旧条款');
     expect(events).toEqual(['locate:diff-2', 'restore:diff-2', 'restoreAll', 'close', 'close']);
@@ -97,7 +97,7 @@ describe('review components', () => {
 
     act(() => document.body.querySelector<HTMLButtonElement>('.layout-noise-panel__close')?.click());
     act(() => document.body.querySelector<HTMLElement>('.layout-noise-overlay')?.click());
-    act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
     expect(closes).toEqual(['close', 'close', 'close']);
   });
 
@@ -114,7 +114,7 @@ describe('review components', () => {
     act(() => document.body.querySelector<HTMLButtonElement>('.similar-diff-locate')?.click());
     act(() => document.body.querySelector<HTMLButtonElement>('.similar-diff-footer .primary')?.click());
     expect(ignored).toEqual([['diff-1', 'diff-2']]);
-    act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
     expect(events).toEqual(['locate:diff-2', 'close']);
   });
 });

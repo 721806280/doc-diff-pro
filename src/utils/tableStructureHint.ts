@@ -198,6 +198,7 @@ function detectSingleRowChange(context: TableContext, candidateSide: LayoutNoise
   if (candidates.length !== 1) return null;
 
   const candidateIndex = candidates[0];
+  if (candidateIndex === undefined) return null;
   const candidateRow = candidateData.rows[candidateIndex];
   if (!candidateRow || !touchesContextRows([candidateRow], context.contextRows)) return null;
 
@@ -207,7 +208,7 @@ function detectSingleRowChange(context: TableContext, candidateSide: LayoutNoise
     candidateSide,
     candidateRow: candidateIndex + 1,
     candidateIndex,
-    candidatePreview: rowPreview(candidateData.rows[candidateIndex]),
+    candidatePreview: rowPreview(candidateRow),
     previewSources: [
       actualRowPreviewSource(candidateSide, candidateData.rows, candidateIndex, 'candidate'),
       {
@@ -237,10 +238,11 @@ function findAdjacentRowShift(
 
   for (let compactIndex = 0; compactIndex < compactData.cellSignatures.length; compactIndex++) {
     const compactCells = compactData.cellSignatures[compactIndex];
-    if (compactCells.length < 2) continue;
+    const compactRow = compactData.rows[compactIndex];
+    if (!compactCells || !compactRow || compactCells.length < 2) continue;
 
     for (let splitIndex = 0; splitIndex < splitData.rows.length - 1; splitIndex++) {
-      const splitMatch = scoreSplitWindow(context, compactData.rows[compactIndex], compactCells, splitData, splitIndex);
+      const splitMatch = scoreSplitWindow(context, compactRow, compactCells, splitData, splitIndex);
       if (!splitMatch || splitMatch.score <= (bestMatch?.score ?? 0)) continue;
 
       bestMatch = {
@@ -541,9 +543,10 @@ function cellCoverageScore(sourceCells: string[], targetCells: string[]): number
 
   for (const sourceCell of sourceCells) {
     const bestIndex = findBestCellMatch(sourceCell, availableTargets);
-    if (bestIndex < 0) continue;
+    const bestTarget = bestIndex < 0 ? undefined : availableTargets[bestIndex];
+    if (bestTarget === undefined) continue;
 
-    score += textSimilarity(sourceCell, availableTargets[bestIndex]);
+    score += textSimilarity(sourceCell, bestTarget);
     availableTargets.splice(bestIndex, 1);
   }
 
@@ -587,14 +590,14 @@ function longestCommonSubsequenceLength(left: string, right: string): number {
   for (let leftIndex = 0; leftIndex < left.length; leftIndex++) {
     for (let rightIndex = 0; rightIndex < right.length; rightIndex++) {
       current[rightIndex + 1] = left[leftIndex] === right[rightIndex]
-        ? previous[rightIndex] + 1
-        : Math.max(previous[rightIndex + 1], current[rightIndex]);
+        ? (previous[rightIndex] ?? 0) + 1
+        : Math.max(previous[rightIndex + 1] ?? 0, current[rightIndex] ?? 0);
     }
     [previous, current] = [current, previous];
     current.fill(0);
   }
 
-  return previous[right.length];
+  return previous[right.length] ?? 0;
 }
 
 function removableIndexes(source: string[], target: string[]): number[] {
@@ -606,12 +609,12 @@ function removableIndexes(source: string[], target: string[]): number[] {
 
   prefixMatches[0] = true;
   for (let index = 0; index < target.length; index++) {
-    prefixMatches[index + 1] = prefixMatches[index] && source[index] === target[index];
+    prefixMatches[index + 1] = (prefixMatches[index] ?? false) && source[index] === target[index];
   }
 
   suffixMatches[target.length] = true;
   for (let index = target.length - 1; index >= 0; index--) {
-    suffixMatches[index] = suffixMatches[index + 1] && source[index + 1] === target[index];
+    suffixMatches[index] = (suffixMatches[index + 1] ?? false) && source[index + 1] === target[index];
   }
 
   for (let index = 0; index < source.length; index++) {

@@ -21,7 +21,7 @@ describe('buildDiffElementIndex', () => {
     expect(index.get('diff-1')?.A).toHaveLength(2);
     expect(index.get('diff-1')?.B).toHaveLength(1);
     expect(index.get('diff-2')?.A).toHaveLength(0);
-    expect(index.get('diff-2')?.B[0].textContent).toBe('d');
+    expect(index.get('diff-2')?.B[0]!.textContent).toBe('d');
   });
 
   it('ignores empty ids and unrelated elements', () => {

@@ -5,9 +5,22 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['coverage/', 'dist/'] },
+  { ignores: ['coverage/', 'dist/', 'playwright-report/', 'test-results/'] },
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname
+      }
+    }
+  },
+  {
+    // Config files authored in plain JS have no type information to draw on.
+    files: ['**/*.js'],
+    ...tseslint.configs.disableTypeChecked
+  },
   {
     files: ['src/**/*.{ts,tsx}'],
     languageOptions: {
@@ -35,10 +48,22 @@ export default tseslint.config(
     files: ['src/**/*.test.{ts,tsx}', 'src/test-utils/**/*.{ts,tsx}'],
     languageOptions: {
       globals: globals.vitest
+    },
+    rules: {
+      // Test doubles routinely pass partial shapes and detached methods, and
+      // vitest callbacks are often declared `async` without awaiting. Holding
+      // fixtures to the production type-safety bar adds noise, not safety.
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off'
     }
   },
   {
-    files: ['vite.config.ts'],
+    files: ['e2e/**/*.ts', 'playwright.config.ts', 'vite.config.ts'],
     languageOptions: {
       globals: globals.node
     }

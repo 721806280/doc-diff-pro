@@ -45,7 +45,7 @@ describe('AppHeader', () => {
     expect(events).toContain('swapDocuments');
     expect(events).not.toContain('resetDocuments');
     expect(brand.classList.contains('is-resetting')).toBe(true);
-    act(() => vi.advanceTimersByTime(240));
+    act(() => { vi.advanceTimersByTime(240); });
     expect(events).toContain('resetDocuments');
     expect(brand.classList.contains('is-resetting')).toBe(false);
   });
@@ -55,7 +55,7 @@ describe('AppHeader', () => {
     const trigger = host.querySelector<HTMLButtonElement>('.settings-trigger')!;
     trigger.focus();
     act(() => trigger.click());
-    act(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
     expect(host.querySelector('.settings-popover')).toBeNull();
     expect(document.activeElement).toBe(trigger);
 
@@ -63,7 +63,7 @@ describe('AppHeader', () => {
     document.body.append(outside);
     act(() => trigger.click());
     outside.focus();
-    act(() => outside.dispatchEvent(new Event('pointerdown', { bubbles: true })));
+    act(() => { outside.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
     expect(host.querySelector('.settings-popover')).toBeNull();
     expect(document.activeElement).toBe(outside);
     outside.remove();
