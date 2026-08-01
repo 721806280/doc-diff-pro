@@ -13,3 +13,4 @@ playwright-report/
 
 .idea/
 *.log
+*.tmp.mjs

@@ -14,6 +14,19 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.test.{ts,tsx}'],
-    setupFiles: ['./src/test-utils/setup.ts']
+    setupFiles: ['./src/test-utils/setup.ts'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/test-utils/**', 'src/types/**', 'src/main.tsx', 'src/vite-env.d.ts'],
+      // Floors sit just under the measured baseline: they guard against
+      // regression rather than mandating an increase.
+      thresholds: {
+        statements: 85,
+        branches: 76,
+        functions: 82,
+        lines: 89
+      }
+    }
   }
 });

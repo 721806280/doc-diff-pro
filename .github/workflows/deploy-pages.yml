@@ -1,5 +1,8 @@
 name: Deploy GitHub Pages
 
+# Quality gates (lint, typecheck, tests, e2e) live in ci.yml, which runs on the
+# same push. This workflow only builds and publishes.
+
 on:
   push:
     branches:
@@ -32,12 +35,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        run: pnpm test
 
       - name: Build
         run: pnpm build
