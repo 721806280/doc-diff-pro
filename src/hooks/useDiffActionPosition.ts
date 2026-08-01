@@ -68,9 +68,10 @@ export function useDiffActionPosition({
   return { position, schedule, clear };
 }
 
-function isVisibleTarget(element: HTMLElement, rect = element.getBoundingClientRect()): boolean {
+function isVisibleTarget(element: HTMLElement): boolean {
   const viewport = element.closest<HTMLElement>('.render-viewport');
   if (!viewport) return false;
+  const rect = element.getBoundingClientRect();
   const viewportRect = viewport.getBoundingClientRect();
   const visibleTop = Math.max(viewportRect.top, 0);
   const visibleBottom = Math.min(viewportRect.bottom, window.innerHeight);

@@ -144,7 +144,10 @@ export function selectReviewElement(
   if (preferredElement && elements.includes(preferredElement) && predicate(preferredElement)) {
     return preferredElement;
   }
-  return elements.find(predicate) ?? null;
+  // Wrapped rather than passed directly: Array.find invokes its callback with
+  // (element, index, array), and a predicate with a defaulted second parameter
+  // would silently receive the index instead of its default.
+  return elements.find((element) => predicate(element)) ?? null;
 }
 
 function resolveReviewKind(group: DiffElementGroup): DiffChangeKind {
