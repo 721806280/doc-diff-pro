@@ -56,10 +56,8 @@ describe('compareDocuments', () => {
       modified: 2
     });
 
-    const originalIds = [...result.originalHtml.matchAll(/<del data-diff-id="(diff-\d+)">/g)]
-      .map((match) => match[1]);
-    const revisedIds = [...result.revisedHtml.matchAll(/<ins data-diff-id="(diff-\d+)">/g)]
-      .map((match) => match[1]);
+    const originalIds = [...result.originalHtml.matchAll(/<del data-diff-id="(diff-\d+)">/g)].map((match) => match[1]);
+    const revisedIds = [...result.revisedHtml.matchAll(/<ins data-diff-id="(diff-\d+)">/g)].map((match) => match[1]);
 
     expect(originalIds).toHaveLength(2);
     expect(revisedIds).toEqual(originalIds);
@@ -146,16 +144,8 @@ describe('compareDocuments', () => {
   });
 
   it('does not report empty block insertion as a difference', async () => {
-    const emptyParagraph = await compareDocuments(
-      '<p>内容A</p>',
-      '<p>内容A</p><p></p>',
-      DEFAULT_OPTIONS
-    );
-    const emptyTable = await compareDocuments(
-      '<p>内容A</p>',
-      '<p>内容A</p><table></table>',
-      DEFAULT_OPTIONS
-    );
+    const emptyParagraph = await compareDocuments('<p>内容A</p>', '<p>内容A</p><p></p>', DEFAULT_OPTIONS);
+    const emptyTable = await compareDocuments('<p>内容A</p>', '<p>内容A</p><table></table>', DEFAULT_OPTIONS);
 
     expect(emptyParagraph.summary.total).toBe(0);
     expect(emptyTable.summary.total).toBe(0);
@@ -164,11 +154,13 @@ describe('compareDocuments', () => {
   });
 
   it('suppresses broad table-grid normalization when row text is stable', async () => {
-    const originalRows = Array.from({ length: 5 }, (_, index) =>
-      `<tr><td colspan="2">行${index}</td><td>值${index}</td></tr>`
+    const originalRows = Array.from(
+      { length: 5 },
+      (_, index) => `<tr><td colspan="2">行${index}</td><td>值${index}</td></tr>`
     ).join('');
-    const revisedRows = Array.from({ length: 5 }, (_, index) =>
-      `<tr><td>行${index}</td><td colspan="2">值${index}</td></tr>`
+    const revisedRows = Array.from(
+      { length: 5 },
+      (_, index) => `<tr><td>行${index}</td><td colspan="2">值${index}</td></tr>`
     ).join('');
 
     const result = await compareDocuments(
@@ -207,8 +199,10 @@ describe('compareDocuments', () => {
       deleted: 0,
       modified: 1
     });
-    expect([...result.revisedHtml.matchAll(/data-diff-id="(diff-\d+)"/g)].map((match) => match[1]))
-      .toEqual(['diff-1', 'diff-2']);
+    expect([...result.revisedHtml.matchAll(/data-diff-id="(diff-\d+)"/g)].map((match) => match[1])).toEqual([
+      'diff-1',
+      'diff-2'
+    ]);
   });
 
   it('uses full-width normalization but keeps case differences', async () => {
@@ -221,15 +215,11 @@ describe('compareDocuments', () => {
   });
 
   it('filters converted footer text when it matches layout hints', async () => {
-    const result = await compareDocuments(
-      '<p>正文内容</p>',
-      '<p>正文内容</p><p>示例公司保密页脚</p>',
-      {
-        ...DEFAULT_OPTIONS,
-        filterLayoutNoise: true,
-        layoutNoise: createLayoutNoiseWithHints({ exact: ['示例公司保密页脚'], fragments: [] })
-      }
-    );
+    const result = await compareDocuments('<p>正文内容</p>', '<p>正文内容</p><p>示例公司保密页脚</p>', {
+      ...DEFAULT_OPTIONS,
+      filterLayoutNoise: true,
+      layoutNoise: createLayoutNoiseWithHints({ exact: ['示例公司保密页脚'], fragments: [] })
+    });
 
     expect(result.summary.total).toBe(0);
     expect(result.summary.layoutNoiseFiltered).toBe(1);
@@ -252,19 +242,13 @@ describe('compareDocuments', () => {
       { reason: 'hint', text: '基准保密页眉' },
       { reason: 'hint', text: '第 1 页' }
     ];
-    layoutNoise.revised.nativeItems = [
-      { reason: 'hint', text: '修订保密页脚' }
-    ];
+    layoutNoise.revised.nativeItems = [{ reason: 'hint', text: '修订保密页脚' }];
 
-    const result = await compareDocuments(
-      '<p>正文内容</p>',
-      '<p>正文内容</p>',
-      {
-        ...DEFAULT_OPTIONS,
-        filterLayoutNoise: true,
-        layoutNoise
-      }
-    );
+    const result = await compareDocuments('<p>正文内容</p>', '<p>正文内容</p>', {
+      ...DEFAULT_OPTIONS,
+      filterLayoutNoise: true,
+      layoutNoise
+    });
 
     expect(result.summary.total).toBe(0);
     expect(result.summary.layoutNoiseFiltered).toBe(4);
@@ -277,21 +261,13 @@ describe('compareDocuments', () => {
 
   it('keeps native header and footer details in the summary when layout filtering is disabled', async () => {
     const layoutNoise = createEmptyLayoutNoiseBySide();
-    layoutNoise.original.nativeItems = [
-      { reason: 'hint', text: '基准保密页眉' }
-    ];
-    layoutNoise.revised.nativeItems = [
-      { reason: 'hint', text: '修订保密页脚' }
-    ];
+    layoutNoise.original.nativeItems = [{ reason: 'hint', text: '基准保密页眉' }];
+    layoutNoise.revised.nativeItems = [{ reason: 'hint', text: '修订保密页脚' }];
 
-    const result = await compareDocuments(
-      '<p>正文内容</p>',
-      '<p>正文内容</p>',
-      {
-        ...DEFAULT_OPTIONS,
-        layoutNoise
-      }
-    );
+    const result = await compareDocuments('<p>正文内容</p>', '<p>正文内容</p>', {
+      ...DEFAULT_OPTIONS,
+      layoutNoise
+    });
 
     expect(result.summary.total).toBe(0);
     expect(result.summary.layoutNoiseFiltered).toBe(2);
@@ -326,18 +302,14 @@ describe('compareDocuments', () => {
 
   it('keeps body contact lines that only share footer fragments', async () => {
     const bodyContact = '供应商:示例科技有限公司地址:示例市示例路1号联系人:张三邮箱:review@example.com电话:13800000000';
-    const result = await compareDocuments(
-      `<p>${bodyContact}</p>`,
-      `<p>${bodyContact}</p>`,
-      {
-        ...DEFAULT_OPTIONS,
-        filterLayoutNoise: true,
-        layoutNoise: createLayoutNoiseWithHints({
-          exact: ['第3/5页示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'],
-          fragments: ['示例联系人：张三', '联系电话：13800000000', '邮箱：review@example.com']
-        })
-      }
-    );
+    const result = await compareDocuments(`<p>${bodyContact}</p>`, `<p>${bodyContact}</p>`, {
+      ...DEFAULT_OPTIONS,
+      filterLayoutNoise: true,
+      layoutNoise: createLayoutNoiseWithHints({
+        exact: ['第3/5页示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'],
+        fragments: ['示例联系人：张三', '联系电话：13800000000', '邮箱：review@example.com']
+      })
+    });
 
     expect(result.summary.total).toBe(0);
     expect(result.summary.layoutNoiseFiltered).toBe(0);

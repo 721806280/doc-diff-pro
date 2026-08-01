@@ -1,4 +1,10 @@
-import type { DiffChangeKind, DiffReviewContext, IgnoredDiffItem, SimilarDiffItem, SimilarDiffLevel } from '@/types/diff';
+import type {
+  DiffChangeKind,
+  DiffReviewContext,
+  IgnoredDiffItem,
+  SimilarDiffItem,
+  SimilarDiffLevel
+} from '@/types/diff';
 import type { DiffElementGroup, DiffElementIndex } from './diffElementIndex';
 import { diffId, parseDiffId } from './textDiffCore';
 
@@ -13,7 +19,9 @@ const PREVIEW_LIMIT = 86;
 
 export type ReviewShortcut = 'previous' | 'next' | 'toggle-ignore';
 
-export function resolveReviewShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>): ReviewShortcut | null {
+export function resolveReviewShortcut(
+  event: Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>
+): ReviewShortcut | null {
   if (event.ctrlKey || event.metaKey || event.shiftKey) return null;
 
   if (event.altKey) {
@@ -164,11 +172,13 @@ function resolveReviewContext(group: DiffElementGroup): DiffReviewContext {
 }
 
 function previewElements(elements: HTMLElement[]): string {
-  return truncateReviewPreview(elements
-    .map((element) => element.textContent ?? '')
-    .join(' / ')
-    .replace(/\s+/g, ' ')
-    .trim());
+  return truncateReviewPreview(
+    elements
+      .map((element) => element.textContent ?? '')
+      .join(' / ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 function truncateReviewPreview(text: string): string {
@@ -176,11 +186,12 @@ function truncateReviewPreview(text: string): string {
 }
 
 function createReviewSignature(item: IgnoredDiffItem): string {
-  const source = item.kind === 'inserted'
-    ? item.revisedPreview
-    : item.kind === 'deleted'
-      ? item.originalPreview
-      : `${item.originalPreview}\u0000${item.revisedPreview}`;
+  const source =
+    item.kind === 'inserted'
+      ? item.revisedPreview
+      : item.kind === 'deleted'
+        ? item.originalPreview
+        : `${item.originalPreview}\u0000${item.revisedPreview}`;
 
   return normalizeReviewText(source);
 }
@@ -213,9 +224,10 @@ function longestCommonSubsequenceLength(left: string, right: string): number {
 
   for (let leftIndex = 1; leftIndex <= left.length; leftIndex++) {
     for (let rightIndex = 1; rightIndex <= right.length; rightIndex++) {
-      current[rightIndex] = left[leftIndex - 1] === right[rightIndex - 1]
-        ? (previous[rightIndex - 1] ?? 0) + 1
-        : Math.max(previous[rightIndex] ?? 0, current[rightIndex - 1] ?? 0);
+      current[rightIndex] =
+        left[leftIndex - 1] === right[rightIndex - 1]
+          ? (previous[rightIndex - 1] ?? 0) + 1
+          : Math.max(previous[rightIndex] ?? 0, current[rightIndex - 1] ?? 0);
     }
 
     previous.splice(0, previous.length, ...current);

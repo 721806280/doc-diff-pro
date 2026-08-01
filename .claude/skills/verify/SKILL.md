@@ -44,25 +44,33 @@ driving the settings panel:
 
 ```js
 await page.addInitScript(() => {
-  window.localStorage.setItem('doc-diff-settings', JSON.stringify({
-    diffGranularity: 'char', themeColor: 'indigo', appearanceMode: 'light',
-    showTableHints: true, enableDiffIgnore: true, showDiffMap: true, syncScroll: true
-  }));
+  window.localStorage.setItem(
+    'doc-diff-settings',
+    JSON.stringify({
+      diffGranularity: 'char',
+      themeColor: 'indigo',
+      appearanceMode: 'light',
+      showTableHints: true,
+      enableDiffIgnore: true,
+      showDiffMap: true,
+      syncScroll: true
+    })
+  );
 });
 ```
 
 ## Selectors that matter
 
-| Thing | Selector |
-|---|---|
-| Scroll container per pane | `.render-viewport` (index 0 = A, 1 = B) |
-| Active difference | `.diff-progress` → `aria-valuenow` / `aria-valuemax` |
-| Diff elements | `[data-diff-id]` |
-| Ignore popover | `.diff-action-popover`, main button `--main` |
-| Difference map dot | `.diff-map__marker` (`aria-current="true"` = active) |
-| Settings trigger | `button:has(.settings-sliders-icon)` |
-| Toast | `.compare-toast` |
-| Table hint tip | `.table-hint-tip`, close `.table-hint-tip__close` |
+| Thing                     | Selector                                             |
+| ------------------------- | ---------------------------------------------------- |
+| Scroll container per pane | `.render-viewport` (index 0 = A, 1 = B)              |
+| Active difference         | `.diff-progress` → `aria-valuenow` / `aria-valuemax` |
+| Diff elements             | `[data-diff-id]`                                     |
+| Ignore popover            | `.diff-action-popover`, main button `--main`         |
+| Difference map dot        | `.diff-map__marker` (`aria-current="true"` = active) |
+| Settings trigger          | `button:has(.settings-sliders-icon)`                 |
+| Toast                     | `.compare-toast`                                     |
+| Table hint tip            | `.table-hint-tip`, close `.table-hint-tip__close`    |
 
 ## Gotchas
 

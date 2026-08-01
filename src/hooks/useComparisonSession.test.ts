@@ -17,7 +17,15 @@ vi.mock('@/services/diffWorkerClient', () => ({ cancelPendingTextDiffs: mocks.ca
 const i18n = messages.en;
 
 function summaryWith(total: number): DiffSummary {
-  return { total, inserted: total, deleted: 0, modified: 0, similarity: 0.9, layoutNoiseFiltered: 0, layoutNoiseItems: [] };
+  return {
+    total,
+    inserted: total,
+    deleted: 0,
+    modified: 0,
+    similarity: 0.9,
+    layoutNoiseFiltered: 0,
+    layoutNoiseItems: []
+  };
 }
 
 function comparisonResult(total = 2) {

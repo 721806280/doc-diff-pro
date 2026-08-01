@@ -19,11 +19,7 @@ export function parseDiffId(id: string): number {
   return Number.parseInt(id.slice(DIFF_ID_PREFIX.length), 10);
 }
 
-export function createTextDiffs(
-  originalText: string,
-  revisedText: string,
-  granularity: DiffGranularity
-): DiffTuple[] {
+export function createTextDiffs(originalText: string, revisedText: string, granularity: DiffGranularity): DiffTuple[] {
   const diffs = diffMatchPatch.diff_main(originalText, revisedText) as DiffTuple[];
 
   cleanupDiffs(diffs, granularity);
@@ -120,7 +116,7 @@ function calculateSimilarity(diffs: DiffTuple[], originalLength: number, revised
   if (baselineLength === 0) return MAX_SIMILARITY;
 
   const editDistance = estimateEditDistance(diffs);
-  const similarity = 1 - (editDistance / baselineLength);
+  const similarity = 1 - editDistance / baselineLength;
   return clampSimilarity(similarity);
 }
 

@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  DEFAULT_USER_SETTINGS,
-  readSavedUserSettings,
-  writeSavedUserSettings
-} from './userSettings';
+import { DEFAULT_USER_SETTINGS, readSavedUserSettings, writeSavedUserSettings } from './userSettings';
 
 type FakeStorage = {
   getItem(key: string): string | null;
@@ -44,21 +40,24 @@ describe('userSettings', () => {
   });
 
   it('reads and validates saved settings', () => {
-    storage.setItem('doc-diff-settings', JSON.stringify({
-      diffGranularity: 'word',
-      themeColor: 'teal',
-      appearanceMode: 'dark',
-      ignoreSpaces: false,
-      ignoreFullHalfWidth: false,
-      filterLayoutNoise: true,
-      syncScroll: false,
-      showReportExport: true,
-      showTableHints: true,
-      showDiffMap: false,
-      enableDiffIgnore: false,
-      enableSimilarDiffs: false,
-      similarDiffLevel: 'strict'
-    }));
+    storage.setItem(
+      'doc-diff-settings',
+      JSON.stringify({
+        diffGranularity: 'word',
+        themeColor: 'teal',
+        appearanceMode: 'dark',
+        ignoreSpaces: false,
+        ignoreFullHalfWidth: false,
+        filterLayoutNoise: true,
+        syncScroll: false,
+        showReportExport: true,
+        showTableHints: true,
+        showDiffMap: false,
+        enableDiffIgnore: false,
+        enableSimilarDiffs: false,
+        similarDiffLevel: 'strict'
+      })
+    );
 
     expect(readSavedUserSettings()).toEqual({
       diffGranularity: 'word',
@@ -78,21 +77,24 @@ describe('userSettings', () => {
   });
 
   it('falls back field-by-field for malformed saved settings', () => {
-    storage.setItem('doc-diff-settings', JSON.stringify({
-      diffGranularity: 'line',
-      themeColor: 'purple',
-      appearanceMode: 'midnight',
-      ignoreSpaces: 'nope',
-      ignoreFullHalfWidth: false,
-      filterLayoutNoise: null,
-      syncScroll: true,
-      showReportExport: 'yes',
-      showTableHints: 'yes',
-      showDiffMap: 'yes',
-      enableDiffIgnore: 'sure',
-      enableSimilarDiffs: 1,
-      similarDiffLevel: 'wide'
-    }));
+    storage.setItem(
+      'doc-diff-settings',
+      JSON.stringify({
+        diffGranularity: 'line',
+        themeColor: 'purple',
+        appearanceMode: 'midnight',
+        ignoreSpaces: 'nope',
+        ignoreFullHalfWidth: false,
+        filterLayoutNoise: null,
+        syncScroll: true,
+        showReportExport: 'yes',
+        showTableHints: 'yes',
+        showDiffMap: 'yes',
+        enableDiffIgnore: 'sure',
+        enableSimilarDiffs: 1,
+        similarDiffLevel: 'wide'
+      })
+    );
 
     expect(readSavedUserSettings()).toEqual({
       diffGranularity: 'char',

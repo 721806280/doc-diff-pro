@@ -52,7 +52,9 @@ function mountActions(total: number, startAt = 1) {
     state.currentDiff = typeof value === 'function' ? value(state.currentDiff) : value;
   });
   const setIgnoredDiffs = vi.fn(
-    (value: Map<string, IgnoredDiffItem> | ((previous: Map<string, IgnoredDiffItem>) => Map<string, IgnoredDiffItem>)) => {
+    (
+      value: Map<string, IgnoredDiffItem> | ((previous: Map<string, IgnoredDiffItem>) => Map<string, IgnoredDiffItem>)
+    ) => {
       state.ignoredDiffs = typeof value === 'function' ? value(state.ignoredDiffs) : value;
     }
   );

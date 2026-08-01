@@ -42,7 +42,8 @@ export function useReviewSummary({
   }, [currentDiff, diffIndex, indexVersion]);
   const similarItems = useMemo<SimilarDiffItem[]>(() => {
     void indexVersion;
-    if (!enableDiffIgnore || !enableSimilarDiffs || !currentReviewItem || ignoredDiffIds.has(currentReviewItem.id)) return [];
+    if (!enableDiffIgnore || !enableSimilarDiffs || !currentReviewItem || ignoredDiffIds.has(currentReviewItem.id))
+      return [];
     return findSimilarReviewItems({
       currentIndex: currentDiff,
       total: summary.total,
@@ -50,7 +51,17 @@ export function useReviewSummary({
       level: similarDiffLevel,
       getGroup: (index) => diffIndex.current.get(diffReviewId(index))
     });
-  }, [currentDiff, currentReviewItem, diffIndex, enableDiffIgnore, enableSimilarDiffs, ignoredDiffIds, indexVersion, similarDiffLevel, summary.total]);
+  }, [
+    currentDiff,
+    currentReviewItem,
+    diffIndex,
+    enableDiffIgnore,
+    enableSimilarDiffs,
+    ignoredDiffIds,
+    indexVersion,
+    similarDiffLevel,
+    summary.total
+  ]);
 
   return { ignoredDiffIds, ignoredList, ignoredIndices, activeCount, activePosition, currentReviewItem, similarItems };
 }

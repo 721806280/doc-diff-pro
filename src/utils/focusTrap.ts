@@ -21,9 +21,7 @@ export function createFocusTrap(): FocusTrap {
     if (!nextContainer || typeof document === 'undefined') return;
 
     container = nextContainer;
-    previousFocus = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
+    previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     focusInitialElement(container);
   }
@@ -79,8 +77,7 @@ function focusInitialElement(container: HTMLElement): void {
 }
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
-    .filter(isVisibleFocusableElement);
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisibleFocusableElement);
 }
 
 function isVisibleFocusableElement(element: HTMLElement): boolean {

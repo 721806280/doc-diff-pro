@@ -47,7 +47,11 @@
   border-radius: 999px;
   background: var(--modified-text);
   box-shadow: 0 0 0 1px var(--bg-panel-solid);
-  transition: width 0.16s ease, height 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+  transition:
+    width 0.16s ease,
+    height 0.16s ease,
+    box-shadow 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .diff-map__marker.is-inserted span {
@@ -67,7 +71,9 @@
   width: 10px;
   height: 6px;
   opacity: 1;
-  box-shadow: 0 0 0 2px var(--bg-panel-solid), 0 1px 5px rgba(15, 23, 42, 0.24);
+  box-shadow:
+    0 0 0 2px var(--bg-panel-solid),
+    0 1px 5px rgba(15, 23, 42, 0.24);
 }
 
 .diff-map__marker.is-active {

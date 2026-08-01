@@ -117,10 +117,7 @@ export const APPEARANCE_STYLE_PROPERTIES = [
   '--brand-revision-line'
 ] as const;
 
-export const THEME_STYLE_PROPERTIES = [
-  ...ACCENT_STYLE_PROPERTIES,
-  ...APPEARANCE_STYLE_PROPERTIES
-] as const;
+export const THEME_STYLE_PROPERTIES = [...ACCENT_STYLE_PROPERTIES, ...APPEARANCE_STYLE_PROPERTIES] as const;
 
 export type ThemeStyle = Record<(typeof THEME_STYLE_PROPERTIES)[number], string>;
 type AppearanceStyle = Record<(typeof APPEARANCE_STYLE_PROPERTIES)[number], string>;
@@ -259,8 +256,10 @@ const APPEARANCE_STYLES: Record<AppearanceMode, AppearanceStyle> = {
     '--popup-surface-soft': 'rgba(248, 250, 252, 0.94)',
     '--popup-border': 'rgba(203, 213, 225, 0.8)',
     '--popup-border-strong': 'rgba(148, 163, 184, 0.6)',
-    '--popup-shadow': '0 24px 48px -12px rgba(15, 23, 42, 0.18), 0 8px 16px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04)',
-    '--popup-shadow-sm': '0 12px 20px -8px rgba(15, 23, 42, 0.12), 0 4px 10px -6px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.04)',
+    '--popup-shadow':
+      '0 24px 48px -12px rgba(15, 23, 42, 0.18), 0 8px 16px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04)',
+    '--popup-shadow-sm':
+      '0 12px 20px -8px rgba(15, 23, 42, 0.12), 0 4px 10px -6px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.04)',
     '--warning': '#d97706',
     '--warning-rgb': '217, 119, 6',
     '--warning-strong': '#92400e',
@@ -345,8 +344,10 @@ const APPEARANCE_STYLES: Record<AppearanceMode, AppearanceStyle> = {
     '--popup-surface-soft': 'rgba(30, 41, 59, 0.88)',
     '--popup-border': 'rgba(148, 163, 184, 0.24)',
     '--popup-border-strong': 'rgba(203, 213, 225, 0.34)',
-    '--popup-shadow': '0 28px 60px -16px rgba(0, 0, 0, 0.62), 0 10px 20px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04)',
-    '--popup-shadow-sm': '0 16px 28px -10px rgba(0, 0, 0, 0.56), 0 4px 12px -6px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(255, 255, 255, 0.04)',
+    '--popup-shadow':
+      '0 28px 60px -16px rgba(0, 0, 0, 0.62), 0 10px 20px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04)',
+    '--popup-shadow-sm':
+      '0 16px 28px -10px rgba(0, 0, 0, 0.56), 0 4px 12px -6px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(255, 255, 255, 0.04)',
     '--warning': '#f59e0b',
     '--warning-rgb': '245, 158, 11',
     '--warning-strong': '#fbbf24',
@@ -401,7 +402,11 @@ export function getThemeStyle(theme: ThemeColor, appearance: AppearanceMode = 'l
   };
 }
 
-export function applyThemeVariables(style: CSSStyleDeclaration, theme: ThemeColor, appearance: AppearanceMode = 'light'): void {
+export function applyThemeVariables(
+  style: CSSStyleDeclaration,
+  theme: ThemeColor,
+  appearance: AppearanceMode = 'light'
+): void {
   const themeStyle = getThemeStyle(theme, appearance);
 
   for (const property of THEME_STYLE_PROPERTIES) {

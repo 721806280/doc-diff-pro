@@ -14,14 +14,34 @@ function buildPane(total: number, geometry: PaneGeometry, spacing = 100): HTMLDi
   Object.defineProperty(pane, 'scrollHeight', { configurable: true, value: geometry.scrollHeight });
   Object.defineProperty(pane, 'clientHeight', { configurable: true, value: geometry.clientHeight });
   pane.scrollTop = 0;
-  pane.getBoundingClientRect = () => ({ top: 0, left: 0, width: 800, height: geometry.clientHeight, right: 800, bottom: geometry.clientHeight, x: 0, y: 0, toJSON: () => ({}) });
+  pane.getBoundingClientRect = () => ({
+    top: 0,
+    left: 0,
+    width: 800,
+    height: geometry.clientHeight,
+    right: 800,
+    bottom: geometry.clientHeight,
+    x: 0,
+    y: 0,
+    toJSON: () => ({})
+  });
 
   for (let position = 1; position <= total; position++) {
     const element = document.createElement('ins');
     element.dataset.diffId = diffReviewId(position);
     element.textContent = `difference ${position}`;
     const top = position * spacing;
-    element.getBoundingClientRect = () => ({ top, left: 0, width: 200, height: 20, right: 200, bottom: top + 20, x: 0, y: top, toJSON: () => ({}) });
+    element.getBoundingClientRect = () => ({
+      top,
+      left: 0,
+      width: 200,
+      height: 20,
+      right: 200,
+      bottom: top + 20,
+      x: 0,
+      y: top,
+      toJSON: () => ({})
+    });
     pane.append(element);
   }
   document.body.append(pane);

@@ -32,7 +32,9 @@ describe('AppHeader', () => {
     const { host } = mountHeader();
     act(() => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
     expect(host.querySelector('.settings-reset-button')).toBeNull();
-    expect(Array.from(host.querySelectorAll('.settings-section--framed > legend')).map((node) => node.textContent?.trim())).toEqual(['比对粒度', '比对规则', '查看方式']);
+    expect(
+      Array.from(host.querySelectorAll('.settings-section--framed > legend')).map((node) => node.textContent?.trim())
+    ).toEqual(['比对粒度', '比对规则', '查看方式']);
   });
 
   it('resets from the brand after its motion', () => {
@@ -45,7 +47,9 @@ describe('AppHeader', () => {
     expect(events).toContain('swapDocuments');
     expect(events).not.toContain('resetDocuments');
     expect(brand.classList.contains('is-resetting')).toBe(true);
-    act(() => { vi.advanceTimersByTime(240); });
+    act(() => {
+      vi.advanceTimersByTime(240);
+    });
     expect(events).toContain('resetDocuments');
     expect(brand.classList.contains('is-resetting')).toBe(false);
   });
@@ -55,7 +59,9 @@ describe('AppHeader', () => {
     const trigger = host.querySelector<HTMLButtonElement>('.settings-trigger')!;
     trigger.focus();
     act(() => trigger.click());
-    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
     expect(host.querySelector('.settings-popover')).toBeNull();
     expect(document.activeElement).toBe(trigger);
 
@@ -63,7 +69,9 @@ describe('AppHeader', () => {
     document.body.append(outside);
     act(() => trigger.click());
     outside.focus();
-    act(() => { outside.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+    act(() => {
+      outside.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    });
     expect(host.querySelector('.settings-popover')).toBeNull();
     expect(document.activeElement).toBe(outside);
     outside.remove();
@@ -80,7 +88,12 @@ describe('AppHeader', () => {
   });
 });
 
-function mountHeader(overrides: Partial<HeaderSettings & { canSwapDocuments: boolean; canResetDocuments: boolean; showGithubLink: boolean }> = {}, events: string[] = []) {
+function mountHeader(
+  overrides: Partial<
+    HeaderSettings & { canSwapDocuments: boolean; canResetDocuments: boolean; showGithubLink: boolean }
+  > = {},
+  events: string[] = []
+) {
   const settings: HeaderSettings = { ...DEFAULT_USER_SETTINGS, ...overrides };
   const settingsChanges: HeaderSettings[] = [];
   const onSettingsChange = (nextSettings: HeaderSettings) => {
@@ -90,7 +103,19 @@ function mountHeader(overrides: Partial<HeaderSettings & { canSwapDocuments: boo
     });
   };
   return {
-    ...renders.render(<AppHeader canSwapDocuments={Boolean(overrides.canSwapDocuments)} canResetDocuments={Boolean(overrides.canResetDocuments)} showGithubLink={overrides.showGithubLink ?? true} settings={settings} onSettingsChange={onSettingsChange} onSwapDocuments={() => events.push('swapDocuments')} onResetDocuments={() => events.push('resetDocuments')} onSettingsReset={() => events.push('settingsReset')} onSettingsOpenChange={(value) => events.push(`settingsOpen:${value}`)} />),
+    ...renders.render(
+      <AppHeader
+        canSwapDocuments={Boolean(overrides.canSwapDocuments)}
+        canResetDocuments={Boolean(overrides.canResetDocuments)}
+        showGithubLink={overrides.showGithubLink ?? true}
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+        onSwapDocuments={() => events.push('swapDocuments')}
+        onResetDocuments={() => events.push('resetDocuments')}
+        onSettingsReset={() => events.push('settingsReset')}
+        onSettingsOpenChange={(value) => events.push(`settingsOpen:${value}`)}
+      />
+    ),
     settingsChanges
   };
 }

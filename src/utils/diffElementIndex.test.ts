@@ -12,9 +12,7 @@ describe('buildDiffElementIndex', () => {
     const paneA = elementFromHtml(
       '<del data-diff-id="diff-1">a</del><strong><del data-diff-id="diff-1">b</del></strong>'
     );
-    const paneB = elementFromHtml(
-      '<ins data-diff-id="diff-1">c</ins><ins data-diff-id="diff-2">d</ins>'
-    );
+    const paneB = elementFromHtml('<ins data-diff-id="diff-1">c</ins><ins data-diff-id="diff-2">d</ins>');
 
     const index = buildDiffElementIndex(paneA, paneB);
 
@@ -25,9 +23,7 @@ describe('buildDiffElementIndex', () => {
   });
 
   it('ignores empty ids and unrelated elements', () => {
-    const paneA = elementFromHtml(
-      '<del data-diff-id="">empty</del><span data-diff-id="diff-1">not a diff</span>'
-    );
+    const paneA = elementFromHtml('<del data-diff-id="">empty</del><span data-diff-id="diff-1">not a diff</span>');
 
     expect(buildDiffElementIndex(paneA, null).size).toBe(0);
   });

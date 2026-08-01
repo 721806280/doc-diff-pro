@@ -59,8 +59,10 @@ export function useRecompareOnSettingsChange({
 }
 
 function sameRules(left: ComparisonRules, right: ComparisonRules): boolean {
-  return left.diffGranularity === right.diffGranularity
-    && left.filterLayoutNoise === right.filterLayoutNoise
-    && left.ignoreFullHalfWidth === right.ignoreFullHalfWidth
-    && left.ignoreSpaces === right.ignoreSpaces;
+  return (
+    left.diffGranularity === right.diffGranularity &&
+    left.filterLayoutNoise === right.filterLayoutNoise &&
+    left.ignoreFullHalfWidth === right.ignoreFullHalfWidth &&
+    left.ignoreSpaces === right.ignoreSpaces
+  );
 }

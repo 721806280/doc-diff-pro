@@ -1,9 +1,4 @@
-import type {
-  DiffTableContextHint,
-  DiffTableRowPreview,
-  DiffTableRowPreviewRole,
-  LayoutNoiseSide
-} from '@/types/diff';
+import type { DiffTableContextHint, DiffTableRowPreview, DiffTableRowPreviewRole, LayoutNoiseSide } from '@/types/diff';
 import { normalizeText } from './documentText';
 import { alignDocumentTables } from './diffGroupStructure';
 
@@ -37,10 +32,7 @@ type TableContext = {
   contextRows: HTMLElement[];
 };
 
-type TableDiagnosis = Omit<
-  DiffTableContextHint,
-  'tableNumber' | 'originalRows' | 'revisedRows' | 'rowPreviews'
-> & {
+type TableDiagnosis = Omit<DiffTableContextHint, 'tableNumber' | 'originalRows' | 'revisedRows' | 'rowPreviews'> & {
   candidateIndex?: number;
   candidateRows?: HTMLTableRowElement[];
   previewSources?: RowPreviewSource[];
@@ -156,9 +148,10 @@ function findTablePair(
   if (!originalInfo && !revisedInfo) return null;
 
   const alignment = alignDocumentTables(originalRoot, revisedRoot);
-  const entry = alignment.find((candidate) =>
-    (!originalInfo || candidate.original === originalInfo.table) &&
-    (!revisedInfo || candidate.revised === revisedInfo.table)
+  const entry = alignment.find(
+    (candidate) =>
+      (!originalInfo || candidate.original === originalInfo.table) &&
+      (!revisedInfo || candidate.revised === revisedInfo.table)
   );
   if (!entry?.original || !entry.revised) return null;
 
@@ -183,10 +176,12 @@ function createTableSideData(table: HTMLTableElement): TableSideData {
 }
 
 function diagnoseTableStructure(context: TableContext): TableDiagnosis | null {
-  return detectSingleRowChange(context, 'revised')
-    ?? detectSingleRowChange(context, 'original')
-    ?? detectAdjacentRowShift(context)
-    ?? detectCellCountMismatch(context);
+  return (
+    detectSingleRowChange(context, 'revised') ??
+    detectSingleRowChange(context, 'original') ??
+    detectAdjacentRowShift(context) ??
+    detectCellCountMismatch(context)
+  );
 }
 
 function detectSingleRowChange(context: TableContext, candidateSide: LayoutNoiseSide): TableDiagnosis | null {
@@ -223,8 +218,7 @@ function detectSingleRowChange(context: TableContext, candidateSide: LayoutNoise
 }
 
 function detectAdjacentRowShift(context: TableContext): TableDiagnosis | null {
-  return findAdjacentRowShift(context, 'original', 'revised')
-    ?? findAdjacentRowShift(context, 'revised', 'original');
+  return findAdjacentRowShift(context, 'original', 'revised') ?? findAdjacentRowShift(context, 'revised', 'original');
 }
 
 function findAdjacentRowShift(
@@ -284,9 +278,7 @@ function scoreSplitWindow(
     if (splitRows.length < windowSize) continue;
     if (!touchesContextRows([compactRow, ...splitRows], context.contextRows)) continue;
 
-    const mergedSplitCells = splitData.cellSignatures
-      .slice(splitIndex, splitIndex + windowSize)
-      .flat();
+    const mergedSplitCells = splitData.cellSignatures.slice(splitIndex, splitIndex + windowSize).flat();
     const score = cellCoverageScore(compactCells, mergedSplitCells);
     if (score < MIN_SPLIT_ROW_SCORE || score <= (bestMatch?.score ?? 0)) continue;
 
@@ -495,23 +487,19 @@ function pairContextRows(context: TableContext): Array<[number, number]> {
 
   if (originalIndexes.length > 0) {
     return originalIndexes
-      .map((originalIndex) =>
-        [originalIndex, Math.min(originalIndex, context.revised.rows.length - 1)] as [number, number]
+      .map(
+        (originalIndex) => [originalIndex, Math.min(originalIndex, context.revised.rows.length - 1)] as [number, number]
       )
       .filter(([, revisedIndex]) => revisedIndex >= 0);
   }
 
   return revisedIndexes
-    .map((revisedIndex) =>
-      [Math.min(revisedIndex, context.original.rows.length - 1), revisedIndex] as [number, number]
-    )
+    .map((revisedIndex) => [Math.min(revisedIndex, context.original.rows.length - 1), revisedIndex] as [number, number])
     .filter(([originalIndex]) => originalIndex >= 0);
 }
 
 function contextRowIndexes(rows: HTMLTableRowElement[], contextRows: HTMLElement[]): number[] {
-  return rows
-    .map((row, index) => contextRows.includes(row) ? index : -1)
-    .filter((index) => index >= 0);
+  return rows.map((row, index) => (contextRows.includes(row) ? index : -1)).filter((index) => index >= 0);
 }
 
 function touchesContextRows(rows: HTMLTableRowElement[], contextRows: HTMLElement[]): boolean {
@@ -589,9 +577,10 @@ function longestCommonSubsequenceLength(left: string, right: string): number {
 
   for (let leftIndex = 0; leftIndex < left.length; leftIndex++) {
     for (let rightIndex = 0; rightIndex < right.length; rightIndex++) {
-      current[rightIndex + 1] = left[leftIndex] === right[rightIndex]
-        ? (previous[rightIndex] ?? 0) + 1
-        : Math.max(previous[rightIndex + 1] ?? 0, current[rightIndex] ?? 0);
+      current[rightIndex + 1] =
+        left[leftIndex] === right[rightIndex]
+          ? (previous[rightIndex] ?? 0) + 1
+          : Math.max(previous[rightIndex + 1] ?? 0, current[rightIndex] ?? 0);
     }
     [previous, current] = [current, previous];
     current.fill(0);
@@ -642,8 +631,7 @@ function tableElements(root: HTMLElement): HTMLTableElement[] {
 }
 
 function directTableRows(table: HTMLTableElement): HTMLTableRowElement[] {
-  return Array.from(table.querySelectorAll<HTMLTableRowElement>('tr'))
-    .filter((row) => row.closest('table') === table);
+  return Array.from(table.querySelectorAll<HTMLTableRowElement>('tr')).filter((row) => row.closest('table') === table);
 }
 
 function rowPreview(row: HTMLTableRowElement): string {
@@ -660,9 +648,7 @@ function rowsPreview(rows: HTMLTableRowElement[]): string {
 }
 
 function truncatePreview(preview: string): string {
-  return preview.length > PREVIEW_LIMIT
-    ? `${preview.slice(0, PREVIEW_LIMIT - 1)}...`
-    : preview;
+  return preview.length > PREVIEW_LIMIT ? `${preview.slice(0, PREVIEW_LIMIT - 1)}...` : preview;
 }
 
 function collectContextRows(originalElements: HTMLElement[], revisedElements: HTMLElement[]): HTMLElement[] {
@@ -700,7 +686,5 @@ function singleSharedRowIndex(positions: TableCellPosition[]): number | null {
   const [first] = positions;
   if (!first) return null;
 
-  return positions.every((position) => position.rowIndex === first.rowIndex)
-    ? first.rowIndex
-    : null;
+  return positions.every((position) => position.rowIndex === first.rowIndex) ? first.rowIndex : null;
 }

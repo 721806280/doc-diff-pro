@@ -39,11 +39,21 @@ export type ReviewReportInput = {
 };
 
 export function buildReviewReportHtml(report: ReviewReportInput): string {
-  const settings = report.settings.map((field) => `
-        <tr><th>${escapeHtml(field.label)}</th><td>${escapeHtml(field.value)}</td></tr>`).join('');
-  const summary = report.summary.map((field) => `
-        <div class="summary-card"><span>${escapeHtml(field.label)}</span><strong>${escapeHtml(field.value)}</strong></div>`).join('');
-  const changes = report.changes.map((change) => `
+  const settings = report.settings
+    .map(
+      (field) => `
+        <tr><th>${escapeHtml(field.label)}</th><td>${escapeHtml(field.value)}</td></tr>`
+    )
+    .join('');
+  const summary = report.summary
+    .map(
+      (field) => `
+        <div class="summary-card"><span>${escapeHtml(field.label)}</span><strong>${escapeHtml(field.value)}</strong></div>`
+    )
+    .join('');
+  const changes = report.changes
+    .map(
+      (change) => `
         <article class="change change--${change.kind}${change.ignored ? ' change--ignored' : ''}">
           <header>
             <strong>#${change.index}</strong>
@@ -60,7 +70,9 @@ export function buildReviewReportHtml(report: ReviewReportInput): string {
               <p>${escapeHtml(change.revisedPreview || report.emptyPreviewLabel)}</p>
             </section>
           </div>
-        </article>`).join('');
+        </article>`
+    )
+    .join('');
 
   return `<!doctype html>
 <html lang="${escapeHtml(report.locale)}">

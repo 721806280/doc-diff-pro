@@ -176,7 +176,9 @@ describe('useComparisonLayout', () => {
     });
     expect(view.rebuildResultIndex).not.toHaveBeenCalled();
 
-    act(() => { vi.advanceTimersByTime(120); });
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
 
     expect(view.rebuildResultIndex).toHaveBeenCalledTimes(1);
     expect(view.scheduleDiffActionUpdate).toHaveBeenCalled();
@@ -187,8 +189,12 @@ describe('useComparisonLayout', () => {
     flushFrames();
     view.rebuildResultIndex.mockClear();
 
-    act(() => { window.dispatchEvent(new Event('resize')); });
-    act(() => { vi.advanceTimersByTime(120); });
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
 
     expect(view.rebuildResultIndex).toHaveBeenCalledTimes(1);
   });
@@ -198,8 +204,12 @@ describe('useComparisonLayout', () => {
     flushFrames();
     view.syncPaneFrom.mockClear();
 
-    act(() => { observers[0]?.trigger(); });
-    act(() => { vi.advanceTimersByTime(120); });
+    act(() => {
+      observers[0]?.trigger();
+    });
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
 
     expect(view.syncPaneFrom).toHaveBeenCalledWith('B');
     expect(view.syncInProgress.current).toBe(true);
@@ -211,8 +221,12 @@ describe('useComparisonLayout', () => {
     flushFrames();
     view.syncPaneFrom.mockClear();
 
-    act(() => { observers[0]?.trigger(); });
-    act(() => { vi.advanceTimersByTime(120); });
+    act(() => {
+      observers[0]?.trigger();
+    });
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
 
     expect(view.syncPaneFrom).not.toHaveBeenCalled();
     expect(view.syncInProgress.current).toBe(false);
@@ -221,7 +235,12 @@ describe('useComparisonLayout', () => {
   it('re-observes when the rendered markup changes', () => {
     const view = mountLayout();
 
-    view.rerender({ hasComparisonResult: true, syncScroll: true, originalHtml: '<p>changed</p>', revisedHtml: '<p>b</p>' });
+    view.rerender({
+      hasComparisonResult: true,
+      syncScroll: true,
+      originalHtml: '<p>changed</p>',
+      revisedHtml: '<p>b</p>'
+    });
 
     expect(observers).toHaveLength(2);
     expect(observers[0]?.disconnected).toBe(true);
@@ -232,9 +251,13 @@ describe('useComparisonLayout', () => {
     flushFrames();
     view.rebuildResultIndex.mockClear();
 
-    act(() => { observers[0]?.trigger(); });
+    act(() => {
+      observers[0]?.trigger();
+    });
     view.unmount();
-    act(() => { vi.advanceTimersByTime(500); });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
 
     expect(observers[0]?.disconnected).toBe(true);
     expect(view.rebuildResultIndex).not.toHaveBeenCalled();
@@ -246,8 +269,12 @@ describe('useComparisonLayout', () => {
     view.rebuildResultIndex.mockClear();
     view.unmount();
 
-    act(() => { window.dispatchEvent(new Event('resize')); });
-    act(() => { vi.advanceTimersByTime(500); });
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
 
     expect(view.rebuildResultIndex).not.toHaveBeenCalled();
   });

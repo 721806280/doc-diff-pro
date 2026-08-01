@@ -2,10 +2,12 @@
 
 declare module 'mammoth' {
   export const images: {
-    imgElement: (callback: (image: {
-      read: (format: 'base64') => Promise<string>;
-      contentType: string;
-    }) => Promise<{ src: string; alt: string }>) => unknown;
+    imgElement: (
+      callback: (image: {
+        read: (format: 'base64') => Promise<string>;
+        contentType: string;
+      }) => Promise<{ src: string; alt: string }>
+    ) => unknown;
   };
 
   export function convertToHtml(

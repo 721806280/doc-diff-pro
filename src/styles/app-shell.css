@@ -1,6 +1,10 @@
 .app-container {
   color-scheme: var(--color-scheme);
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   width: 100%;
   max-width: 100vw;
   height: 100vh;
@@ -73,7 +77,10 @@
   color: var(--accent);
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .local-processing-strip button:hover:not(:disabled) {
@@ -124,7 +131,10 @@
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease;
 }
 
 .app-error-banner button:hover {
@@ -191,7 +201,10 @@
   background: var(--warning-soft);
   color: var(--warning-strong);
   cursor: pointer;
-  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    color 0.16s ease,
+    background 0.16s ease;
 }
 
 .table-hint-tip__close:hover {
@@ -207,7 +220,9 @@
 
 .table-hint-tip-enter-active,
 .table-hint-tip-leave-active {
-  transition: opacity var(--popup-motion), transform var(--popup-motion);
+  transition:
+    opacity var(--popup-motion),
+    transform var(--popup-motion);
 }
 
 .table-hint-tip-enter-from,

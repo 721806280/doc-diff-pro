@@ -43,7 +43,7 @@ export function exportComparisonReport({
     });
   }
 
-  const enabled = (value: boolean) => value ? i18n.reviewReport.enabled : i18n.reviewReport.disabled;
+  const enabled = (value: boolean) => (value ? i18n.reviewReport.enabled : i18n.reviewReport.disabled);
   const html = buildReviewReportHtml({
     locale,
     title: i18n.reviewReport.title,
@@ -63,7 +63,10 @@ export function exportComparisonReport({
     ],
     summaryLabel: i18n.reviewReport.summary,
     summary: [
-      { label: i18n.diffNavigator.similarity, value: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(summary.similarity) },
+      {
+        label: i18n.diffNavigator.similarity,
+        value: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(summary.similarity)
+      },
       { label: i18n.diffNavigator.difference, value: String(summary.total) },
       { label: i18n.diffNavigator.modified, value: String(summary.modified) },
       { label: i18n.diffNavigator.inserted, value: String(summary.inserted) },

@@ -43,11 +43,7 @@ function proportionalTop(currentTop: number, sourceMax: number, targetMax: numbe
   return sourceMax > 0 ? Math.round((currentTop / sourceMax) * targetMax) : 0;
 }
 
-export function findNextAnchorIndex(
-  anchors: readonly ScrollAnchor[],
-  key: AnchorTopKey,
-  sourceTop: number
-): number {
+export function findNextAnchorIndex(anchors: readonly ScrollAnchor[], key: AnchorTopKey, sourceTop: number): number {
   let start = 0;
   let end = anchors.length - 1;
   let nextIndex = -1;
@@ -87,13 +83,7 @@ function resolveAnchoredTop(
   if (nextIndex === -1) {
     const last = anchors[anchors.length - 1];
     if (last) {
-      return interpolateScrollTop(
-        currentTop,
-        last[sourceTopKey],
-        maxSourceTop,
-        last[targetTopKey],
-        maxTargetTop
-      );
+      return interpolateScrollTop(currentTop, last[sourceTopKey], maxSourceTop, last[targetTopKey], maxTargetTop);
     }
   }
 
@@ -125,5 +115,5 @@ function interpolateScrollTop(
   if (sourceDistance <= 0) return targetStart;
 
   const ratio = (sourceTop - sourceStart) / sourceDistance;
-  return targetStart + (ratio * (targetEnd - targetStart));
+  return targetStart + ratio * (targetEnd - targetStart);
 }

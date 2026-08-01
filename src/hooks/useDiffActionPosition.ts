@@ -42,10 +42,11 @@ export function useDiffActionPosition({
     }
     const rect = target.getBoundingClientRect();
     const edge = window.innerWidth <= 520 ? 96 : 132;
-    const left = window.innerWidth <= edge * 2
-      ? window.innerWidth / 2
-      : Math.min(Math.max(rect.left + rect.width / 2, edge), window.innerWidth - edge);
-    setPosition((current) => current?.top === rect.top && current.left === left ? current : { top: rect.top, left });
+    const left =
+      window.innerWidth <= edge * 2
+        ? window.innerWidth / 2
+        : Math.min(Math.max(rect.left + rect.width / 2, edge), window.innerWidth - edge);
+    setPosition((current) => (current?.top === rect.top && current.left === left ? current : { top: rect.top, left }));
   }, [currentDiff, diffIndex, enabled, hasComparisonResult, preferredElement, settingsOpen]);
 
   const schedule = useCallback(() => {
@@ -77,9 +78,11 @@ function isVisibleTarget(element: HTMLElement): boolean {
   const visibleBottom = Math.min(viewportRect.bottom, window.innerHeight);
   const visibleLeft = Math.max(viewportRect.left, 0);
   const visibleRight = Math.min(viewportRect.right, window.innerWidth);
-  return rect.bottom > visibleTop
-    && rect.top < visibleBottom
-    && rect.right > visibleLeft
-    && rect.left < visibleRight
-    && rect.top >= visibleTop + POPOVER_CLEARANCE;
+  return (
+    rect.bottom > visibleTop &&
+    rect.top < visibleBottom &&
+    rect.right > visibleLeft &&
+    rect.left < visibleRight &&
+    rect.top >= visibleTop + POPOVER_CLEARANCE
+  );
 }

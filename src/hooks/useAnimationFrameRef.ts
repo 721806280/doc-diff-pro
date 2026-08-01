@@ -15,13 +15,16 @@ export function useAnimationFrameRef() {
     frame.current = null;
   }, []);
 
-  const schedule = useCallback((callback: () => void) => {
-    cancel();
-    frame.current = requestAnimationFrame(() => {
-      frame.current = null;
-      callback();
-    });
-  }, [cancel]);
+  const schedule = useCallback(
+    (callback: () => void) => {
+      cancel();
+      frame.current = requestAnimationFrame(() => {
+        frame.current = null;
+        callback();
+      });
+    },
+    [cancel]
+  );
 
   useEffect(() => cancel, [cancel]);
 

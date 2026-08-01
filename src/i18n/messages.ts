@@ -101,7 +101,8 @@ const en = {
     ignoreSpaces: 'Ignore spaces',
     ignoreFullHalfWidthTitle: 'Treat full-width and half-width letters, numbers, and common symbols as equivalent.',
     ignoreFullHalfWidth: 'Normalize width',
-    filterLayoutNoiseTitle: 'Filter converted body text that looks like page headers, footers, page numbers, or repeated layout text.',
+    filterLayoutNoiseTitle:
+      'Filter converted body text that looks like page headers, footers, page numbers, or repeated layout text.',
     filterLayoutNoise: 'Layout filter',
     viewOptionsLabel: 'View options',
     themeColorLabel: 'Theme color',
@@ -183,7 +184,8 @@ const en = {
     layoutNoiseFiltered(count: number): string {
       return `Layout ${count}`;
     },
-    layoutNoiseTitle: 'Headers, footers, page numbers, or repeated layout text excluded from the comparison. Click to view.',
+    layoutNoiseTitle:
+      'Headers, footers, page numbers, or repeated layout text excluded from the comparison. Click to view.',
     layoutNoiseDetailsTitle: 'Layout details',
     layoutNoiseDetailsCount(count: number): string {
       return `${count} ${count === 1 ? 'item' : 'items'}`;

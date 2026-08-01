@@ -29,15 +29,17 @@ describe('reviewReport', () => {
       emptyPreviewLabel: '无内容',
       emptyDifferencesLabel: '未发现差异',
       privacyNote: '报告在浏览器本地生成。',
-      changes: [{
-        index: 1,
-        kind: 'modified',
-        kindLabel: '修改',
-        statusLabel: '待审阅',
-        originalPreview: '<script>alert(1)</script>',
-        revisedPreview: '新内容',
-        ignored: false
-      }]
+      changes: [
+        {
+          index: 1,
+          kind: 'modified',
+          kindLabel: '修改',
+          statusLabel: '待审阅',
+          originalPreview: '<script>alert(1)</script>',
+          revisedPreview: '新内容',
+          ignored: false
+        }
+      ]
     });
 
     expect(html).toContain('<!doctype html>');

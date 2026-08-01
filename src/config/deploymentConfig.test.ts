@@ -10,14 +10,16 @@ describe('deploymentConfig', () => {
   });
 
   it('merges valid runtime overrides field by field', () => {
-    expect(resolveDeploymentConfig({
-      documentInput: 'external',
-      showHeader: false,
-      showSampleDocuments: false,
-      showGithubLink: false,
-      locale: 'zh-CN',
-      maxDocxSizeMb: 40
-    })).toEqual({
+    expect(
+      resolveDeploymentConfig({
+        documentInput: 'external',
+        showHeader: false,
+        showSampleDocuments: false,
+        showGithubLink: false,
+        locale: 'zh-CN',
+        maxDocxSizeMb: 40
+      })
+    ).toEqual({
       documentInput: 'external',
       showHeader: false,
       showSampleDocuments: false,

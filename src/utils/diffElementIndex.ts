@@ -6,10 +6,7 @@ export type DiffElementIndex = Map<string, DiffElementGroup>;
 
 export const DIFF_ELEMENT_SELECTOR = 'ins[data-diff-id], del[data-diff-id]';
 
-export function buildDiffElementIndex(
-  paneA: HTMLElement | null,
-  paneB: HTMLElement | null
-): DiffElementIndex {
+export function buildDiffElementIndex(paneA: HTMLElement | null, paneB: HTMLElement | null): DiffElementIndex {
   const index: DiffElementIndex = new Map();
 
   indexPaneDiffElements(index, paneA, 'A');
@@ -17,11 +14,7 @@ export function buildDiffElementIndex(
   return index;
 }
 
-function indexPaneDiffElements(
-  index: DiffElementIndex,
-  pane: HTMLElement | null,
-  paneKey: DiffPaneKey
-): void {
+function indexPaneDiffElements(index: DiffElementIndex, pane: HTMLElement | null, paneKey: DiffPaneKey): void {
   if (!pane) return;
 
   pane.querySelectorAll<HTMLElement>(DIFF_ELEMENT_SELECTOR).forEach((element) => {

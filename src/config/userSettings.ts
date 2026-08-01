@@ -69,39 +69,29 @@ function normalizeUserSettings(value: unknown): UserSettings {
     diffGranularity: isDiffGranularity(value.diffGranularity)
       ? value.diffGranularity
       : DEFAULT_USER_SETTINGS.diffGranularity,
-    themeColor: isThemeColor(value.themeColor)
-      ? value.themeColor
-      : DEFAULT_USER_SETTINGS.themeColor,
+    themeColor: isThemeColor(value.themeColor) ? value.themeColor : DEFAULT_USER_SETTINGS.themeColor,
     appearanceMode: isAppearanceMode(value.appearanceMode)
       ? value.appearanceMode
       : DEFAULT_USER_SETTINGS.appearanceMode,
-    ignoreSpaces: typeof value.ignoreSpaces === 'boolean'
-      ? value.ignoreSpaces
-      : DEFAULT_USER_SETTINGS.ignoreSpaces,
-    ignoreFullHalfWidth: typeof value.ignoreFullHalfWidth === 'boolean'
-      ? value.ignoreFullHalfWidth
-      : DEFAULT_USER_SETTINGS.ignoreFullHalfWidth,
-    filterLayoutNoise: typeof value.filterLayoutNoise === 'boolean'
-      ? value.filterLayoutNoise
-      : DEFAULT_USER_SETTINGS.filterLayoutNoise,
-    syncScroll: typeof value.syncScroll === 'boolean'
-      ? value.syncScroll
-      : DEFAULT_USER_SETTINGS.syncScroll,
-    showReportExport: typeof value.showReportExport === 'boolean'
-      ? value.showReportExport
-      : DEFAULT_USER_SETTINGS.showReportExport,
-    showTableHints: typeof value.showTableHints === 'boolean'
-      ? value.showTableHints
-      : DEFAULT_USER_SETTINGS.showTableHints,
-    showDiffMap: typeof value.showDiffMap === 'boolean'
-      ? value.showDiffMap
-      : DEFAULT_USER_SETTINGS.showDiffMap,
-    enableDiffIgnore: typeof value.enableDiffIgnore === 'boolean'
-      ? value.enableDiffIgnore
-      : DEFAULT_USER_SETTINGS.enableDiffIgnore,
-    enableSimilarDiffs: typeof value.enableSimilarDiffs === 'boolean'
-      ? value.enableSimilarDiffs
-      : DEFAULT_USER_SETTINGS.enableSimilarDiffs,
+    ignoreSpaces: typeof value.ignoreSpaces === 'boolean' ? value.ignoreSpaces : DEFAULT_USER_SETTINGS.ignoreSpaces,
+    ignoreFullHalfWidth:
+      typeof value.ignoreFullHalfWidth === 'boolean'
+        ? value.ignoreFullHalfWidth
+        : DEFAULT_USER_SETTINGS.ignoreFullHalfWidth,
+    filterLayoutNoise:
+      typeof value.filterLayoutNoise === 'boolean' ? value.filterLayoutNoise : DEFAULT_USER_SETTINGS.filterLayoutNoise,
+    syncScroll: typeof value.syncScroll === 'boolean' ? value.syncScroll : DEFAULT_USER_SETTINGS.syncScroll,
+    showReportExport:
+      typeof value.showReportExport === 'boolean' ? value.showReportExport : DEFAULT_USER_SETTINGS.showReportExport,
+    showTableHints:
+      typeof value.showTableHints === 'boolean' ? value.showTableHints : DEFAULT_USER_SETTINGS.showTableHints,
+    showDiffMap: typeof value.showDiffMap === 'boolean' ? value.showDiffMap : DEFAULT_USER_SETTINGS.showDiffMap,
+    enableDiffIgnore:
+      typeof value.enableDiffIgnore === 'boolean' ? value.enableDiffIgnore : DEFAULT_USER_SETTINGS.enableDiffIgnore,
+    enableSimilarDiffs:
+      typeof value.enableSimilarDiffs === 'boolean'
+        ? value.enableSimilarDiffs
+        : DEFAULT_USER_SETTINGS.enableSimilarDiffs,
     similarDiffLevel: isSimilarDiffLevel(value.similarDiffLevel)
       ? value.similarDiffLevel
       : DEFAULT_USER_SETTINGS.similarDiffLevel

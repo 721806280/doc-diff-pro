@@ -88,7 +88,11 @@
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .diff-action-popover__button--main {
@@ -175,7 +179,9 @@
 
 .diff-action-popover-enter-active,
 .diff-action-popover-leave-active {
-  transition: opacity var(--popup-motion), transform var(--popup-motion);
+  transition:
+    opacity var(--popup-motion),
+    transform var(--popup-motion);
 }
 
 .diff-action-popover-enter-from,

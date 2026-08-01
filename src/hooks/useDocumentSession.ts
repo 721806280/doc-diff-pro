@@ -55,7 +55,9 @@ export function useDocumentSession({
   }, [i18n, maxSizeMb]);
 
   useEffect(() => {
-    const hasActiveSession = Object.values(documents).some((document) => document.status === 'parsing' || document.status === 'ready');
+    const hasActiveSession = Object.values(documents).some(
+      (document) => document.status === 'parsing' || document.status === 'ready'
+    );
     if (!hasActiveSession) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -65,65 +67,78 @@ export function useDocumentSession({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [documents]);
 
-  useEffect(() => () => {
-    fileSequences.current.A++;
-    fileSequences.current.B++;
-    sampleSequence.current++;
-  }, []);
+  useEffect(
+    () => () => {
+      fileSequences.current.A++;
+      fileSequences.current.B++;
+      sampleSequence.current++;
+    },
+    []
+  );
 
-  const handleFile = useCallback(async (side: PaneSide, file: File) => {
-    const fileSequence = ++fileSequences.current[side];
-    onBeforeDocumentChange();
-    const validationError = validateDocumentFile(file, maxSizeMb);
-    if (validationError) {
-      documentErrors.current[side] = { kind: validationError };
-      const message = resolveDocumentError(i18n, maxSizeMb, validationError);
-      setDocuments((current) => ({ ...current, [side]: { ...createEmptyDocument(), name: file.name, size: file.size, status: 'error', error: message } }));
-      onNotice(message);
-      return;
-    }
+  const handleFile = useCallback(
+    async (side: PaneSide, file: File) => {
+      const fileSequence = ++fileSequences.current[side];
+      onBeforeDocumentChange();
+      const validationError = validateDocumentFile(file, maxSizeMb);
+      if (validationError) {
+        documentErrors.current[side] = { kind: validationError };
+        const message = resolveDocumentError(i18n, maxSizeMb, validationError);
+        setDocuments((current) => ({
+          ...current,
+          [side]: { ...createEmptyDocument(), name: file.name, size: file.size, status: 'error', error: message }
+        }));
+        onNotice(message);
+        return;
+      }
 
-    delete documentErrors.current[side];
-    setDocuments((current) => ({ ...current, [side]: { ...createEmptyDocument(), name: file.name, size: file.size, status: 'parsing' } }));
-    try {
-      const parsed = await parseDocx(file, {
-        embeddedImageAlt: i18n.documentPane.embeddedImageAlt,
-        emptyDocumentHtml: i18n.documentPane.emptyDocumentHtml
-      });
-      if (fileSequence !== fileSequences.current[side]) return;
+      delete documentErrors.current[side];
       setDocuments((current) => ({
         ...current,
-        [side]: {
-          name: file.name,
-          size: file.size,
-          originalHtml: parsed.html,
-          highlightedHtml: '',
-          textLength: parsed.textLength,
-          imageCount: parsed.imageCount,
-          warnings: parsed.warnings,
-          layoutNoise: parsed.layoutNoise,
-          status: 'ready',
-          error: ''
-        }
+        [side]: { ...createEmptyDocument(), name: file.name, size: file.size, status: 'parsing' }
       }));
-      if (parsed.warnings.length) onNotice(i18n.app.notices.parseCompleteWithWarnings(file.name, parsed.warnings.length));
-    } catch (reason) {
-      if (fileSequence !== fileSequences.current[side]) return;
-      const detail = reason instanceof Error ? reason.message : String(reason);
-      documentErrors.current[side] = { kind: 'parseFailed', detail };
-      setDocuments((current) => ({
-        ...current,
-        [side]: {
-          ...createEmptyDocument(),
-          name: file.name,
-          size: file.size,
-          status: 'error',
-          error: resolveDocumentError(i18n, maxSizeMb, 'parseFailed', detail)
-        }
-      }));
-      onNotice(i18n.app.notices.parseFailed);
-    }
-  }, [i18n, maxSizeMb, onBeforeDocumentChange, onNotice]);
+      try {
+        const parsed = await parseDocx(file, {
+          embeddedImageAlt: i18n.documentPane.embeddedImageAlt,
+          emptyDocumentHtml: i18n.documentPane.emptyDocumentHtml
+        });
+        if (fileSequence !== fileSequences.current[side]) return;
+        setDocuments((current) => ({
+          ...current,
+          [side]: {
+            name: file.name,
+            size: file.size,
+            originalHtml: parsed.html,
+            highlightedHtml: '',
+            textLength: parsed.textLength,
+            imageCount: parsed.imageCount,
+            warnings: parsed.warnings,
+            layoutNoise: parsed.layoutNoise,
+            status: 'ready',
+            error: ''
+          }
+        }));
+        if (parsed.warnings.length)
+          onNotice(i18n.app.notices.parseCompleteWithWarnings(file.name, parsed.warnings.length));
+      } catch (reason) {
+        if (fileSequence !== fileSequences.current[side]) return;
+        const detail = reason instanceof Error ? reason.message : String(reason);
+        documentErrors.current[side] = { kind: 'parseFailed', detail };
+        setDocuments((current) => ({
+          ...current,
+          [side]: {
+            ...createEmptyDocument(),
+            name: file.name,
+            size: file.size,
+            status: 'error',
+            error: resolveDocumentError(i18n, maxSizeMb, 'parseFailed', detail)
+          }
+        }));
+        onNotice(i18n.app.notices.parseFailed);
+      }
+    },
+    [i18n, maxSizeMb, onBeforeDocumentChange, onNotice]
+  );
 
   useEffect(() => {
     if (allowLocalInput) return;

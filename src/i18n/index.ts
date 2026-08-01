@@ -4,9 +4,7 @@ import { messages, SUPPORTED_LOCALES, type Locale } from './messages';
 
 const STORAGE_KEY = 'doc-diff-locale';
 
-let locale = detectInitialLocale(
-  deploymentConfig.locale
-);
+let locale = detectInitialLocale(deploymentConfig.locale);
 const listeners = new Set<() => void>();
 
 export function useI18n() {
@@ -42,9 +40,7 @@ export function detectInitialLocale(configuredLocale: ConfiguredLocale = 'auto')
 function detectBrowserLocale(): Locale {
   if (typeof navigator === 'undefined') return 'en';
 
-  const browserLocales = navigator.languages?.length
-    ? navigator.languages
-    : [navigator.language];
+  const browserLocales = navigator.languages?.length ? navigator.languages : [navigator.language];
 
   for (const browserLocale of browserLocales) {
     const normalized = normalizeLocale(browserLocale);

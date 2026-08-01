@@ -188,8 +188,9 @@ function mergeNearbyDiffFragments(domElement: HTMLElement, wrapperTag: WrapperTa
 
 function getTopLevelDiffFragments(domElement: HTMLElement, wrapperTag: WrapperTag): HTMLElement[] {
   const selector = `${wrapperTag}[data-diff-id]`;
-  return Array.from(domElement.querySelectorAll<HTMLElement>(selector))
-    .filter((element) => !element.parentElement?.closest(selector));
+  return Array.from(domElement.querySelectorAll<HTMLElement>(selector)).filter(
+    (element) => !element.parentElement?.closest(selector)
+  );
 }
 
 function canMergeDiffFragments(root: HTMLElement, current: HTMLElement, next: HTMLElement): boolean {
@@ -240,11 +241,9 @@ function mergeDiffFragments(current: HTMLElement, next: HTMLElement, wrapperTag:
 }
 
 function unwrapNestedDiffFragments(container: HTMLElement, wrapperTag: WrapperTag, groupId: string): void {
-  container
-    .querySelectorAll<HTMLElement>(`${wrapperTag}[data-diff-id]`)
-    .forEach((element) => {
-      if (element.dataset.diffId === groupId) unwrapElement(element);
-    });
+  container.querySelectorAll<HTMLElement>(`${wrapperTag}[data-diff-id]`).forEach((element) => {
+    if (element.dataset.diffId === groupId) unwrapElement(element);
+  });
 }
 
 function unwrapElement(element: HTMLElement): void {
@@ -258,10 +257,7 @@ function unwrapElement(element: HTMLElement): void {
 }
 
 function collectCleanupAncestors(current: HTMLElement, next: HTMLElement): HTMLElement[] {
-  return [
-    ...collectInlineAncestors(current),
-    ...collectInlineAncestors(next)
-  ];
+  return [...collectInlineAncestors(current), ...collectInlineAncestors(next)];
 }
 
 function collectInlineAncestors(element: HTMLElement): HTMLElement[] {
@@ -283,6 +279,8 @@ function removeEmptyElements(elements: HTMLElement[]): void {
 }
 
 function isEmptyElement(element: HTMLElement): boolean {
-  return (element.textContent ?? '').trim().length === 0 &&
-    element.querySelector('img, br, input, textarea, select, canvas, svg, video, audio') === null;
+  return (
+    (element.textContent ?? '').trim().length === 0 &&
+    element.querySelector('img, br, input, textarea, select, canvas, svg, video, audio') === null
+  );
 }

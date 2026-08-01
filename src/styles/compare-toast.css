@@ -38,7 +38,9 @@
 
 .compare-toast-enter-active,
 .compare-toast-leave-active {
-  transition: opacity var(--popup-motion), transform var(--popup-motion);
+  transition:
+    opacity var(--popup-motion),
+    transform var(--popup-motion);
 }
 
 .compare-toast-enter-from,

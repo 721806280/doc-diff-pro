@@ -20,7 +20,11 @@ export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResu
   const rebuild = useCallback(() => {
     const nextIndex = buildDiffElementIndex(paneA.current, paneB.current);
     diffIndex.current = nextIndex;
-    nextIndex.forEach((group) => [...group.A, ...group.B].forEach((element) => { element.tabIndex = 0; }));
+    nextIndex.forEach((group) =>
+      [...group.A, ...group.B].forEach((element) => {
+        element.tabIndex = 0;
+      })
+    );
     const anchors: ScrollAnchor[] = [];
     const nextItems: DiffMapItem[] = [];
     for (let index = 1; index <= total; index++) {
@@ -36,25 +40,36 @@ export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResu
         paneA.current && elementA ? scrollTop(paneA.current, elementA) / Math.max(1, paneA.current.scrollHeight) : null,
         paneB.current && elementB ? scrollTop(paneB.current, elementB) / Math.max(1, paneB.current.scrollHeight) : null
       ].filter((value): value is number => value !== null);
-      if (positions.length) nextItems.push({ index, kind: item.kind, position: Math.min(99, Math.max(1, positions.reduce((sum, value) => sum + value, 0) / positions.length * 100)) });
+      if (positions.length)
+        nextItems.push({
+          index,
+          kind: item.kind,
+          position: Math.min(
+            99,
+            Math.max(1, (positions.reduce((sum, value) => sum + value, 0) / positions.length) * 100)
+          )
+        });
     }
     alignmentAnchors.current = anchors;
     setItems(nextItems);
     setVersion((value) => value + 1);
   }, [paneA, paneB, total]);
 
-  const syncPaneFrom = useCallback((sourceKey: PaneSide, sourceTop?: number) => {
-    const source = sourceKey === 'A' ? paneA.current : paneB.current;
-    const target = sourceKey === 'A' ? paneB.current : paneA.current;
-    if (!source || !target) return;
-    target.scrollTop = resolveSyncScrollTop({
-      sourceKey,
-      sourceTop: sourceTop ?? source.scrollTop,
-      maxSourceTop: Math.max(0, source.scrollHeight - source.clientHeight),
-      maxTargetTop: Math.max(0, target.scrollHeight - target.clientHeight),
-      anchors: alignmentAnchors.current
-    });
-  }, [paneA, paneB]);
+  const syncPaneFrom = useCallback(
+    (sourceKey: PaneSide, sourceTop?: number) => {
+      const source = sourceKey === 'A' ? paneA.current : paneB.current;
+      const target = sourceKey === 'A' ? paneB.current : paneA.current;
+      if (!source || !target) return;
+      target.scrollTop = resolveSyncScrollTop({
+        sourceKey,
+        sourceTop: sourceTop ?? source.scrollTop,
+        maxSourceTop: Math.max(0, source.scrollHeight - source.clientHeight),
+        maxTargetTop: Math.max(0, target.scrollHeight - target.clientHeight),
+        anchors: alignmentAnchors.current
+      });
+    },
+    [paneA, paneB]
+  );
 
   const clear = useCallback(() => {
     diffIndex.current.clear();

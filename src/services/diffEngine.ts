@@ -48,12 +48,7 @@ export async function compareDocuments(
   const originalTrack = prepareDocumentText(originalDom, options);
   const revisedTrack = prepareDocumentText(revisedDom, options);
   const diffs = await createTextDiffsAsync(originalTrack.text, revisedTrack.text, options.granularity);
-  const summary = summarizeDiffs(
-    diffs,
-    options.granularity,
-    originalTrack.text.length,
-    revisedTrack.text.length
-  );
+  const summary = summarizeDiffs(diffs, options.granularity, originalTrack.text.length, revisedTrack.text.length);
   const nativeNoiseItems = [
     ...withSide(options.layoutNoise.original.nativeItems, 'original', 'native'),
     ...withSide(options.layoutNoise.revised.nativeItems, 'revised', 'native')
@@ -92,24 +87,14 @@ export function createEmptyLayoutNoiseBySide(): LayoutNoiseBySide {
 
 function mergeHints(layoutNoise: LayoutNoiseBySide): LayoutNoiseHints {
   return {
-    exact: [
-      ...layoutNoise.original.hints.exact,
-      ...layoutNoise.revised.hints.exact
-    ],
-    fragments: [
-      ...layoutNoise.original.hints.fragments,
-      ...layoutNoise.revised.hints.fragments
-    ]
+    exact: [...layoutNoise.original.hints.exact, ...layoutNoise.revised.hints.exact],
+    fragments: [...layoutNoise.original.hints.fragments, ...layoutNoise.revised.hints.fragments]
   };
 }
 
 type SidedNoiseItem = Omit<LayoutNoiseItem, 'count'>;
 
-function withSide(
-  items: LayoutNoiseEntry[],
-  side: LayoutNoiseSide,
-  source: LayoutNoiseSource
-): SidedNoiseItem[] {
+function withSide(items: LayoutNoiseEntry[], side: LayoutNoiseSide, source: LayoutNoiseSource): SidedNoiseItem[] {
   return items.map((item) => ({ ...item, side, source }));
 }
 

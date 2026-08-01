@@ -5,8 +5,8 @@ describe('sanitizeDocumentHtml', () => {
   it('removes executable markup and unsafe URLs', async () => {
     const sanitized = await sanitizeDocumentHtml(
       '<p onclick="alert(1)">正文<script>alert(1)</script></p>' +
-      '<a href="javascript:alert(1)">链接</a>' +
-      '<img src="https://tracker.example/pixel.png" onerror="alert(1)">'
+        '<a href="javascript:alert(1)">链接</a>' +
+        '<img src="https://tracker.example/pixel.png" onerror="alert(1)">'
     );
     const body = new DOMParser().parseFromString(sanitized, 'text/html').body;
 
@@ -33,8 +33,8 @@ describe('sanitizeDocumentHtml', () => {
   it('keeps safe links with noopener but removes non-html active content', async () => {
     const sanitized = await sanitizeDocumentHtml(
       '<a href="https://example.com/report">报告</a>' +
-      '<svg><a href="javascript:alert(1)"><text>x</text></a></svg>' +
-      '<math><mtext>formula</mtext></math>'
+        '<svg><a href="javascript:alert(1)"><text>x</text></a></svg>' +
+        '<math><mtext>formula</mtext></math>'
     );
     const body = new DOMParser().parseFromString(sanitized, 'text/html').body;
 

@@ -41,7 +41,16 @@ export function useComparisonLayout({
       syncPaneFrom(activeDriver.current);
       scheduleSyncRelease();
     }
-  }, [activeDriver, hasComparisonResult, rebuildResultIndex, scheduleDiffActionUpdate, scheduleSyncRelease, syncInProgress, syncPaneFrom, syncScroll]);
+  }, [
+    activeDriver,
+    hasComparisonResult,
+    rebuildResultIndex,
+    scheduleDiffActionUpdate,
+    scheduleSyncRelease,
+    syncInProgress,
+    syncPaneFrom,
+    syncScroll
+  ]);
 
   const scheduleRefresh = useCallback(() => {
     if (!hasComparisonResult) return;

@@ -27,7 +27,9 @@ describe('presentation components', () => {
 
   it('marks the active mobile pane and emits selection', () => {
     const selected: string[] = [];
-    const { host } = renders.render(<MobilePaneSwitch activePane="A" i18n={messages['zh-CN']} onChange={(pane) => selected.push(pane)} />);
+    const { host } = renders.render(
+      <MobilePaneSwitch activePane="A" i18n={messages['zh-CN']} onChange={(pane) => selected.push(pane)} />
+    );
     const buttons = host.querySelectorAll<HTMLButtonElement>('button');
     expect(buttons[0]?.getAttribute('aria-checked')).toBe('true');
     act(() => buttons[1]?.click());
@@ -36,7 +38,20 @@ describe('presentation components', () => {
 
   it('renders active and ignored map markers and selects one', () => {
     const selected: number[] = [];
-    const { host } = renders.render(<DiffMap items={[{ index: 1, kind: 'deleted', position: 10 }, { index: 2, kind: 'modified', position: 52 }, { index: 3, kind: 'inserted', position: 88 }]} currentIndex={2} ignoredIndices={new Set([3])} collapsed={false} i18n={messages['zh-CN']} onSelect={(index) => selected.push(index)} />);
+    const { host } = renders.render(
+      <DiffMap
+        items={[
+          { index: 1, kind: 'deleted', position: 10 },
+          { index: 2, kind: 'modified', position: 52 },
+          { index: 3, kind: 'inserted', position: 88 }
+        ]}
+        currentIndex={2}
+        ignoredIndices={new Set([3])}
+        collapsed={false}
+        i18n={messages['zh-CN']}
+        onSelect={(index) => selected.push(index)}
+      />
+    );
     const markers = host.querySelectorAll<HTMLButtonElement>('.diff-map__marker');
     expect(markers).toHaveLength(3);
     expect(markers[1]?.classList).toContain('is-active');

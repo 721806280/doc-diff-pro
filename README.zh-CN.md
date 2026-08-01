@@ -126,25 +126,25 @@ DocDiff Pro 会在正式比对前把版面内容和正文内容分离：
 
 ```html
 <script>
-window.__DOC_DIFF_CONFIG__ = {
-  documentInput: 'external',
-  showHeader: false,
-  showSampleDocuments: false,
-  showGithubLink: false,
-  locale: 'zh-CN',
-  maxDocxSizeMb: 40
-};
+  window.__DOC_DIFF_CONFIG__ = {
+    documentInput: 'external',
+    showHeader: false,
+    showSampleDocuments: false,
+    showGithubLink: false,
+    locale: 'zh-CN',
+    maxDocxSizeMb: 40
+  };
 </script>
 ```
 
-| 配置项 | 默认值 | 说明 |
-| --- | --- | --- |
-| `documentInput` | `local` | `local` 显示本地文件入口；`external` 关闭本地上传并启用 `window.DocDiffPro` API。 |
-| `showHeader` | `true` | 是否显示顶部工具栏。 |
-| `showSampleDocuments` | `true` | 是否显示内置示例文档入口。 |
-| `showGithubLink` | `true` | 是否在顶部工具栏显示作者仓库入口。 |
-| `locale` | `auto` | 支持 `auto`、`zh-CN` 和 `en`。`auto` 优先使用已保存语言，再检测浏览器语言。 |
-| `maxDocxSizeMb` | `25` | 单个文件大小上限，必须是大于 0 的有限数字。 |
+| 配置项                | 默认值  | 说明                                                                              |
+| --------------------- | ------- | --------------------------------------------------------------------------------- |
+| `documentInput`       | `local` | `local` 显示本地文件入口；`external` 关闭本地上传并启用 `window.DocDiffPro` API。 |
+| `showHeader`          | `true`  | 是否显示顶部工具栏。                                                              |
+| `showSampleDocuments` | `true`  | 是否显示内置示例文档入口。                                                        |
+| `showGithubLink`      | `true`  | 是否在顶部工具栏显示作者仓库入口。                                                |
+| `locale`              | `auto`  | 支持 `auto`、`zh-CN` 和 `en`。`auto` 优先使用已保存语言，再检测浏览器语言。       |
+| `maxDocxSizeMb`       | `25`    | 单个文件大小上限，必须是大于 0 的有限数字。                                       |
 
 `documentInput: 'external'` 不支持 URL 输入。接入方应先完成鉴权、来源验证和文件获取，再在 DocDiff Pro 挂载完成后传入浏览器 `File` 对象：
 

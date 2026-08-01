@@ -59,10 +59,7 @@ export type LayoutNoiseItem = {
 };
 
 export type DiffTableContextHintKind =
-  | 'single-row-inserted'
-  | 'single-row-deleted'
-  | 'row-content-shift'
-  | 'cell-count-mismatch';
+  'single-row-inserted' | 'single-row-deleted' | 'row-content-shift' | 'cell-count-mismatch';
 
 export type DiffTableContextHintConfidence = 'high' | 'medium';
 

@@ -24,7 +24,8 @@ describe('sampleDocuments', () => {
   it('rejects a missing sample document', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
 
-    await expect(loadSampleDocuments('/', { A: 'a.docx', B: 'b.docx' }))
-      .rejects.toThrow('Could not load sample document');
+    await expect(loadSampleDocuments('/', { A: 'a.docx', B: 'b.docx' })).rejects.toThrow(
+      'Could not load sample document'
+    );
   });
 });

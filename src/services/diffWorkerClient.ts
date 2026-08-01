@@ -118,11 +118,7 @@ function rejectPendingRequests(error: Error): void {
   pendingRequests.clear();
 }
 
-function createMainThreadDiffs(
-  originalText: string,
-  revisedText: string,
-  granularity: DiffGranularity
-): DiffTuple[] {
+function createMainThreadDiffs(originalText: string, revisedText: string, granularity: DiffGranularity): DiffTuple[] {
   if (originalText.length + revisedText.length > MAX_MAIN_THREAD_DIFF_CHARS) {
     throw new Error('Document is too large to compare safely without a Web Worker.');
   }

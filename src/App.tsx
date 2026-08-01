@@ -51,9 +51,8 @@ function elementScrollTop(container: HTMLElement, element: HTMLElement): number 
 }
 
 function alignElement(container: HTMLElement, element: HTMLElement, behavior: ScrollBehavior): number {
-  const top = elementScrollTop(container, element)
-    - (container.clientHeight * FOCUS_VIEWPORT_OFFSET)
-    + (element.offsetHeight / 2);
+  const top =
+    elementScrollTop(container, element) - container.clientHeight * FOCUS_VIEWPORT_OFFSET + element.offsetHeight / 2;
   container.scrollTo({ top, behavior });
   return top;
 }
@@ -157,24 +156,30 @@ export default function App() {
     setMobilePane('A');
   }, []);
 
-  const {
-    comparing,
-    error,
-    summary,
-    runCompare,
-    clearComparison
-  } = useComparisonSession({
+  const { comparing, error, summary, runCompare, clearComparison } = useComparisonSession({
     documents,
     i18n,
     ready,
-    rules: { diffGranularity: granularity, filterLayoutNoise: filterLayout, ignoreFullHalfWidth: ignoreWidth, ignoreSpaces },
+    rules: {
+      diffGranularity: granularity,
+      filterLayoutNoise: filterLayout,
+      ignoreFullHalfWidth: ignoreWidth,
+      ignoreSpaces
+    },
     setDocuments,
     onClearReviewState: clearReviewState,
     onResult: handleComparisonResult,
     onNotice: setNotice
   });
   const hasComparisonResult = documents.A.highlightedHtml.length > 0 && documents.B.highlightedHtml.length > 0;
-  const { diffIndex, items: diffMapItems, version: indexVersion, rebuild: rebuildResultIndex, syncPaneFrom, clear: clearResultIndex } = useComparisonResultIndex({ paneA, paneB, total: summary.total });
+  const {
+    diffIndex,
+    items: diffMapItems,
+    version: indexVersion,
+    rebuild: rebuildResultIndex,
+    syncPaneFrom,
+    clear: clearResultIndex
+  } = useComparisonResultIndex({ paneA, paneB, total: summary.total });
   const {
     position: diffActionPosition,
     schedule: scheduleDiffActionUpdate,
@@ -222,16 +227,17 @@ export default function App() {
   const clearNotice = useCallback(() => setNotice(''), []);
   useAutoClearNotice(notice, comparing, clearNotice);
 
-  const { ignoredDiffIds, ignoredList, ignoredIndices, activeCount, activePosition, currentReviewItem, similarItems } = useReviewSummary({
-    summary,
-    currentDiff,
-    ignoredDiffs,
-    diffIndex,
-    indexVersion,
-    enableDiffIgnore,
-    enableSimilarDiffs,
-    similarDiffLevel
-  });
+  const { ignoredDiffIds, ignoredList, ignoredIndices, activeCount, activePosition, currentReviewItem, similarItems } =
+    useReviewSummary({
+      summary,
+      currentDiff,
+      ignoredDiffs,
+      diffIndex,
+      indexVersion,
+      enableDiffIgnore,
+      enableSimilarDiffs,
+      similarDiffLevel
+    });
 
   useRecompareOnSettingsChange({
     documents,
@@ -262,24 +268,27 @@ export default function App() {
     scheduleSyncRelease
   });
 
-  const focusDiff = useCallback((index: number, behavior: ScrollBehavior = 'smooth', preferredElement: HTMLElement | null = null) => {
-    clearReviewClass(diffIndex.current, 'focus-diff');
-    clearTableHintMarkers();
-    const group = diffIndex.current.get(diffReviewId(index));
-    preferredDiffActionElement.current = preferredElement;
-    clearDiffActionPosition();
-    if (!group) return;
-    setReviewClass(group, 'focus-diff', true);
-    const targetA = firstReviewElement(group, 'A');
-    const targetB = firstReviewElement(group, 'B');
-    const alignedTopA = paneA.current && targetA ? alignElement(paneA.current, targetA, behavior) : null;
-    const alignedTopB = paneB.current && targetB ? alignElement(paneB.current, targetB, behavior) : null;
-    activeDriver.current = null;
-    resolveTableHintFor(group);
-    if (targetA && targetB) return;
-    if (syncScroll && alignedTopA !== null) syncPaneFrom('A', alignedTopA);
-    else if (syncScroll && alignedTopB !== null) syncPaneFrom('B', alignedTopB);
-  }, [clearDiffActionPosition, clearTableHintMarkers, diffIndex, resolveTableHintFor, syncPaneFrom, syncScroll]);
+  const focusDiff = useCallback(
+    (index: number, behavior: ScrollBehavior = 'smooth', preferredElement: HTMLElement | null = null) => {
+      clearReviewClass(diffIndex.current, 'focus-diff');
+      clearTableHintMarkers();
+      const group = diffIndex.current.get(diffReviewId(index));
+      preferredDiffActionElement.current = preferredElement;
+      clearDiffActionPosition();
+      if (!group) return;
+      setReviewClass(group, 'focus-diff', true);
+      const targetA = firstReviewElement(group, 'A');
+      const targetB = firstReviewElement(group, 'B');
+      const alignedTopA = paneA.current && targetA ? alignElement(paneA.current, targetA, behavior) : null;
+      const alignedTopB = paneB.current && targetB ? alignElement(paneB.current, targetB, behavior) : null;
+      activeDriver.current = null;
+      resolveTableHintFor(group);
+      if (targetA && targetB) return;
+      if (syncScroll && alignedTopA !== null) syncPaneFrom('A', alignedTopA);
+      else if (syncScroll && alignedTopB !== null) syncPaneFrom('B', alignedTopB);
+    },
+    [clearDiffActionPosition, clearTableHintMarkers, diffIndex, resolveTableHintFor, syncPaneFrom, syncScroll]
+  );
 
   useEffect(() => {
     const index = latestCurrentDiff.current;
@@ -311,26 +320,32 @@ export default function App() {
     onNoActiveDiff: clearNoActiveDiff
   });
 
-  const onDiffInteraction = useCallback((event: React.MouseEvent | React.KeyboardEvent): void => {
-    if ('key' in event && event.key !== 'Enter' && event.key !== ' ') return;
-    const target = event.target instanceof Element ? event.target.closest<HTMLElement>(DIFF_ELEMENT_SELECTOR) : null;
-    const id = target?.dataset.diffId;
-    if (!id) return;
-    if ('key' in event) event.preventDefault();
-    const index = diffReviewIndex(id);
-    setCurrentDiff(index);
-    focusDiff(index, 'smooth', target);
-    scheduleDiffActionUpdate();
-    showTableHint();
-  }, [focusDiff, scheduleDiffActionUpdate, showTableHint]);
+  const onDiffInteraction = useCallback(
+    (event: React.MouseEvent | React.KeyboardEvent): void => {
+      if ('key' in event && event.key !== 'Enter' && event.key !== ' ') return;
+      const target = event.target instanceof Element ? event.target.closest<HTMLElement>(DIFF_ELEMENT_SELECTOR) : null;
+      const id = target?.dataset.diffId;
+      if (!id) return;
+      if ('key' in event) event.preventDefault();
+      const index = diffReviewIndex(id);
+      setCurrentDiff(index);
+      focusDiff(index, 'smooth', target);
+      scheduleDiffActionUpdate();
+      showTableHint();
+    },
+    [focusDiff, scheduleDiffActionUpdate, showTableHint]
+  );
 
-  const onPaneScroll = useCallback((side: Side): void => {
-    scheduleDiffActionUpdate();
-    if (!syncScroll || syncInProgress.current || !hasComparisonResult || activeDriver.current !== side) return;
-    syncInProgress.current = true;
-    syncPaneFrom(side);
-    scheduleSyncRelease();
-  }, [hasComparisonResult, scheduleDiffActionUpdate, scheduleSyncRelease, syncPaneFrom, syncScroll]);
+  const onPaneScroll = useCallback(
+    (side: Side): void => {
+      scheduleDiffActionUpdate();
+      if (!syncScroll || syncInProgress.current || !hasComparisonResult || activeDriver.current !== side) return;
+      syncInProgress.current = true;
+      syncPaneFrom(side);
+      scheduleSyncRelease();
+    },
+    [hasComparisonResult, scheduleDiffActionUpdate, scheduleSyncRelease, syncPaneFrom, syncScroll]
+  );
 
   const onPaneActivate = useCallback((side: Side): void => {
     activeDriver.current = side;
@@ -348,13 +363,16 @@ export default function App() {
     }
   });
 
-  const changeMobilePane = useCallback((side: Side): void => {
-    setMobilePane(side);
-    activeDriver.current = side;
-    mobilePaneFrame.schedule(() => {
-      if (latestCurrentDiff.current > 0) focusDiff(latestCurrentDiff.current, 'auto');
-    });
-  }, [focusDiff, latestCurrentDiff, mobilePaneFrame]);
+  const changeMobilePane = useCallback(
+    (side: Side): void => {
+      setMobilePane(side);
+      activeDriver.current = side;
+      mobilePaneFrame.schedule(() => {
+        if (latestCurrentDiff.current > 0) focusDiff(latestCurrentDiff.current, 'auto');
+      });
+    },
+    [focusDiff, latestCurrentDiff, mobilePaneFrame]
+  );
 
   // Deferred so the notice lands after the settings panel has finished
   // applying the reset, which itself sets a notice.
@@ -379,16 +397,19 @@ export default function App() {
   const nextAvailable = findActiveReviewIndex(currentDiff + 1, 1, summary.total, ignoredDiffIds) !== null;
   const themeStyle = getThemeStyle(themeColor, appearance) as React.CSSProperties;
 
-  const changeSettings = useCallback((nextSettings: UserSettings): void => {
-    const disablesDiffIgnore = settings.enableDiffIgnore && !nextSettings.enableDiffIgnore;
-    setSettings(nextSettings);
-    if (!disablesDiffIgnore) return;
-    clearReviewClass(diffIndex.current, 'ignored-diff');
-    setIgnoredDiffs(new Map());
-    setSimilarOpen(false);
-    clearDiffActionPosition();
-    if (!currentDiff && summary.total) locateDiff(1, 'auto');
-  }, [clearDiffActionPosition, currentDiff, diffIndex, locateDiff, settings.enableDiffIgnore, summary.total]);
+  const changeSettings = useCallback(
+    (nextSettings: UserSettings): void => {
+      const disablesDiffIgnore = settings.enableDiffIgnore && !nextSettings.enableDiffIgnore;
+      setSettings(nextSettings);
+      if (!disablesDiffIgnore) return;
+      clearReviewClass(diffIndex.current, 'ignored-diff');
+      setIgnoredDiffs(new Map());
+      setSimilarOpen(false);
+      clearDiffActionPosition();
+      if (!currentDiff && summary.total) locateDiff(1, 'auto');
+    },
+    [clearDiffActionPosition, currentDiff, diffIndex, locateDiff, settings.enableDiffIgnore, summary.total]
+  );
 
   return (
     <div className="app-container" style={themeStyle}>
@@ -406,23 +427,119 @@ export default function App() {
         />
       )}
 
-      {!hasDocuments && deploymentConfig.showSampleDocuments && <div className="local-processing-strip"><span className="local-processing-strip__status"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l7 3v5c0 4.6-2.8 8.1-7 10-4.2-1.9-7-5.4-7-10V6z" /><path d="M9 12l2 2 4-4" /></svg>{i18n.app.localProcessingNotice}</span><button type="button" disabled={loadingSample} onClick={() => void loadSamples()}><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>{loadingSample ? i18n.app.loadingSample : i18n.app.loadSample}</button></div>}
+      {!hasDocuments && deploymentConfig.showSampleDocuments && (
+        <div className="local-processing-strip">
+          <span className="local-processing-strip__status">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 3l7 3v5c0 4.6-2.8 8.1-7 10-4.2-1.9-7-5.4-7-10V6z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+            {i18n.app.localProcessingNotice}
+          </span>
+          <button type="button" disabled={loadingSample} onClick={() => void loadSamples()}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+              <path d="M14 3v5h5" />
+              <path d="M9 13h6M9 17h4" />
+            </svg>
+            {loadingSample ? i18n.app.loadingSample : i18n.app.loadSample}
+          </button>
+        </div>
+      )}
       <CompareToast message={notice} comparing={comparing} />
-      {error && <div className="app-error-banner" role="alert"><span>{error}</span><button onClick={() => void runCompare(documents, true)}>{i18n.app.retryCompare}</button></div>}
+      {error && (
+        <div className="app-error-banner" role="alert">
+          <span>{error}</span>
+          <button onClick={() => void runCompare(documents, true)}>{i18n.app.retryCompare}</button>
+        </div>
+      )}
 
-      {hasComparisonResult && <DiffNavigator summary={summary} activeDiffCount={activeCount} activeDiffIndex={activePosition} ignoredDiffs={ignoredList} canPrevious={previousAvailable} canNext={nextAvailable} canExportReport={showReportExport} onPrevious={() => moveDiff(-1)} onNext={() => moveDiff(1)} onLocateIgnored={(id) => locateDiff(diffReviewIndex(id))} onRestoreIgnored={restoreIgnored} onRestoreAllIgnored={restoreAllIgnored} onExportReport={exportReport} />}
+      {hasComparisonResult && (
+        <DiffNavigator
+          summary={summary}
+          activeDiffCount={activeCount}
+          activeDiffIndex={activePosition}
+          ignoredDiffs={ignoredList}
+          canPrevious={previousAvailable}
+          canNext={nextAvailable}
+          canExportReport={showReportExport}
+          onPrevious={() => moveDiff(-1)}
+          onNext={() => moveDiff(1)}
+          onLocateIgnored={(id) => locateDiff(diffReviewIndex(id))}
+          onRestoreIgnored={restoreIgnored}
+          onRestoreAllIgnored={restoreAllIgnored}
+          onExportReport={exportReport}
+        />
+      )}
 
       {hasComparisonResult && <MobilePaneSwitch activePane={mobilePane} i18n={i18n} onChange={changeMobilePane} />}
 
       <main className={`workspace-container ${hasComparisonResult ? 'workspace-container--result' : ''}`}>
-        <DocumentPane side="A" document={documents.A} active={!hasComparisonResult || mobilePane === 'A'} hasResult={hasComparisonResult} comparing={comparing} allowFileInput={allowsLocalInput} paneRef={paneA} onFile={handleFile} onScroll={onPaneScroll} onDiffInteraction={onDiffInteraction} onActivate={onPaneActivate} />
-        <DiffMap items={diffMapItems} currentIndex={currentDiff} ignoredIndices={ignoredIndices} collapsed={!showDiffMap} i18n={i18n} onSelect={locateDiff} />
-        <DocumentPane side="B" document={documents.B} active={!hasComparisonResult || mobilePane === 'B'} hasResult={hasComparisonResult} comparing={comparing} allowFileInput={allowsLocalInput} paneRef={paneB} onFile={handleFile} onScroll={onPaneScroll} onDiffInteraction={onDiffInteraction} onActivate={onPaneActivate} />
+        <DocumentPane
+          side="A"
+          document={documents.A}
+          active={!hasComparisonResult || mobilePane === 'A'}
+          hasResult={hasComparisonResult}
+          comparing={comparing}
+          allowFileInput={allowsLocalInput}
+          paneRef={paneA}
+          onFile={handleFile}
+          onScroll={onPaneScroll}
+          onDiffInteraction={onDiffInteraction}
+          onActivate={onPaneActivate}
+        />
+        <DiffMap
+          items={diffMapItems}
+          currentIndex={currentDiff}
+          ignoredIndices={ignoredIndices}
+          collapsed={!showDiffMap}
+          i18n={i18n}
+          onSelect={locateDiff}
+        />
+        <DocumentPane
+          side="B"
+          document={documents.B}
+          active={!hasComparisonResult || mobilePane === 'B'}
+          hasResult={hasComparisonResult}
+          comparing={comparing}
+          allowFileInput={allowsLocalInput}
+          paneRef={paneB}
+          onFile={handleFile}
+          onScroll={onPaneScroll}
+          onDiffInteraction={onDiffInteraction}
+          onActivate={onPaneActivate}
+        />
       </main>
 
-      <DiffActionPopover open={enableDiffIgnore && currentDiff > 0} position={diffActionPosition} label={`${i18n.diffNavigator.difference} #${currentDiff}`} ignored={ignoredDiffIds.has(diffReviewId(currentDiff))} similarCount={similarItems.length} i18n={i18n} onIgnore={() => ignoreDiffsById([diffReviewId(currentDiff)])} onRestore={() => restoreIgnored(diffReviewId(currentDiff))} onShowSimilar={() => setSimilarOpen(true)} />
-      <SimilarDiffModal open={similarOpen} current={currentReviewItem} items={similarItems} onClose={() => setSimilarOpen(false)} onLocate={(id) => { setSimilarOpen(false); locateDiff(diffReviewIndex(id)); }} onIgnore={ignoreDiffsById} />
-      <TableHintTip hint={tableHint} open={tableHintOpen} i18n={i18n} onHoldOpen={holdTableHintOpen} onDismiss={hideTableHint} />
+      <DiffActionPopover
+        open={enableDiffIgnore && currentDiff > 0}
+        position={diffActionPosition}
+        label={`${i18n.diffNavigator.difference} #${currentDiff}`}
+        ignored={ignoredDiffIds.has(diffReviewId(currentDiff))}
+        similarCount={similarItems.length}
+        i18n={i18n}
+        onIgnore={() => ignoreDiffsById([diffReviewId(currentDiff)])}
+        onRestore={() => restoreIgnored(diffReviewId(currentDiff))}
+        onShowSimilar={() => setSimilarOpen(true)}
+      />
+      <SimilarDiffModal
+        open={similarOpen}
+        current={currentReviewItem}
+        items={similarItems}
+        onClose={() => setSimilarOpen(false)}
+        onLocate={(id) => {
+          setSimilarOpen(false);
+          locateDiff(diffReviewIndex(id));
+        }}
+        onIgnore={ignoreDiffsById}
+      />
+      <TableHintTip
+        hint={tableHint}
+        open={tableHintOpen}
+        i18n={i18n}
+        onHoldOpen={holdTableHintOpen}
+        onDismiss={hideTableHint}
+      />
     </div>
   );
 }

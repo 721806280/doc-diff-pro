@@ -1,41 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DocDiff Pro - DOCX Document Compare</title>
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg"/>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <style>
-        * {
-            box-sizing: border-box;
-        }
+      * {
+        box-sizing: border-box;
+      }
 
-        html,
-        body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        font-family:
+          'Inter',
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
 
-        body {
-            min-height: 100vh;
-            position: relative;
-            overflow: hidden;
-            background: var(--body-bg, #edf1f5);
-        }
+      body {
+        min-height: 100vh;
+        position: relative;
+        overflow: hidden;
+        background: var(--body-bg, #edf1f5);
+      }
 
-        #app {
-            position: relative;
-            z-index: 1;
-            height: 100%;
-        }
+      #app {
+        position: relative;
+        z-index: 1;
+        height: 100%;
+      }
     </style>
-</head>
-<body>
-<div id="app"></div>
-<script type="module" src="/src/main.tsx"></script>
-</body>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

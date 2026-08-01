@@ -58,7 +58,9 @@ describe('useRecompareOnSettingsChange', () => {
   it('does not compare on the first render', () => {
     const { onCompare, onNotice } = mountRecompare();
 
-    act(() => { vi.advanceTimersByTime(1000); });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
 
     expect(onCompare).not.toHaveBeenCalled();
     expect(onNotice).not.toHaveBeenCalled();
@@ -67,12 +69,18 @@ describe('useRecompareOnSettingsChange', () => {
   it('announces immediately but debounces the comparison', () => {
     const view = mountRecompare();
 
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'char' }, ready: true, documents: documentsWith('a.docx') });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'char' },
+      ready: true,
+      documents: documentsWith('a.docx')
+    });
 
     expect(view.onNotice).toHaveBeenCalledWith('settings updated');
     expect(view.onCompare).not.toHaveBeenCalled();
 
-    act(() => { vi.advanceTimersByTime(180); });
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
 
     expect(view.onCompare).toHaveBeenCalledTimes(1);
     expect(view.onCompare).toHaveBeenCalledWith(expect.anything(), true);
@@ -81,12 +89,26 @@ describe('useRecompareOnSettingsChange', () => {
   it('collapses rapid setting changes into one comparison', () => {
     const view = mountRecompare();
 
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'char' }, ready: true, documents: documentsWith('a.docx') });
-    act(() => { vi.advanceTimersByTime(100); });
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'word' }, ready: true, documents: documentsWith('a.docx') });
-    act(() => { vi.advanceTimersByTime(100); });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'char' },
+      ready: true,
+      documents: documentsWith('a.docx')
+    });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'word' },
+      ready: true,
+      documents: documentsWith('a.docx')
+    });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
     view.rerender({ rules: { ...BASE_RULES, ignoreSpaces: false }, ready: true, documents: documentsWith('a.docx') });
-    act(() => { vi.advanceTimersByTime(180); });
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
 
     expect(view.onCompare).toHaveBeenCalledTimes(1);
   });
@@ -95,7 +117,9 @@ describe('useRecompareOnSettingsChange', () => {
     const view = mountRecompare();
 
     view.rerender({ rules: { ...BASE_RULES }, ready: true, documents: documentsWith('b.docx') });
-    act(() => { vi.advanceTimersByTime(500); });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
 
     expect(view.onCompare).not.toHaveBeenCalled();
     expect(view.onNotice).not.toHaveBeenCalled();
@@ -104,8 +128,14 @@ describe('useRecompareOnSettingsChange', () => {
   it('stays quiet while the documents are not ready', () => {
     const view = mountRecompare({ ready: false });
 
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'char' }, ready: false, documents: documentsWith('a.docx') });
-    act(() => { vi.advanceTimersByTime(500); });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'char' },
+      ready: false,
+      documents: documentsWith('a.docx')
+    });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
 
     expect(view.onCompare).not.toHaveBeenCalled();
     expect(view.onNotice).not.toHaveBeenCalled();
@@ -117,9 +147,19 @@ describe('useRecompareOnSettingsChange', () => {
   it('does not replay a rules change that happened before readiness', () => {
     const view = mountRecompare({ ready: false });
 
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'char' }, ready: false, documents: documentsWith('a.docx') });
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'char' }, ready: true, documents: documentsWith('a.docx') });
-    act(() => { vi.advanceTimersByTime(500); });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'char' },
+      ready: false,
+      documents: documentsWith('a.docx')
+    });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'char' },
+      ready: true,
+      documents: documentsWith('a.docx')
+    });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
 
     expect(view.onCompare).not.toHaveBeenCalled();
   });
@@ -128,8 +168,14 @@ describe('useRecompareOnSettingsChange', () => {
     const view = mountRecompare({ ready: false });
 
     view.rerender({ rules: { ...BASE_RULES }, ready: true, documents: documentsWith('a.docx') });
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'char' }, ready: true, documents: documentsWith('a.docx') });
-    act(() => { vi.advanceTimersByTime(180); });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'char' },
+      ready: true,
+      documents: documentsWith('a.docx')
+    });
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
 
     expect(view.onCompare).toHaveBeenCalledTimes(1);
   });
@@ -139,9 +185,19 @@ describe('useRecompareOnSettingsChange', () => {
   it('compares the newest documents rather than the ones captured at change time', () => {
     const view = mountRecompare({ documents: documentsWith('old.docx') });
 
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'char' }, ready: true, documents: documentsWith('old.docx') });
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'char' }, ready: true, documents: documentsWith('new.docx') });
-    act(() => { vi.advanceTimersByTime(180); });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'char' },
+      ready: true,
+      documents: documentsWith('old.docx')
+    });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'char' },
+      ready: true,
+      documents: documentsWith('new.docx')
+    });
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
 
     expect(view.onCompare).toHaveBeenCalledTimes(1);
     const [submitted] = view.onCompare.mock.calls[0] as [DocumentPair, boolean];
@@ -151,9 +207,15 @@ describe('useRecompareOnSettingsChange', () => {
   it('cancels the pending comparison on unmount', () => {
     const view = mountRecompare();
 
-    view.rerender({ rules: { ...BASE_RULES, diffGranularity: 'char' }, ready: true, documents: documentsWith('a.docx') });
+    view.rerender({
+      rules: { ...BASE_RULES, diffGranularity: 'char' },
+      ready: true,
+      documents: documentsWith('a.docx')
+    });
     view.unmount();
-    act(() => { vi.advanceTimersByTime(500); });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
 
     expect(view.onCompare).not.toHaveBeenCalled();
   });

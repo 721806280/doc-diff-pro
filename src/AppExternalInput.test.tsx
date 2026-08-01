@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/docxParser', () => ({ parseDocx: mocks.parseDocx }));
 vi.mock('@/services/diffEngine', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/services/diffEngine')>(),
+  ...(await importOriginal<typeof import('@/services/diffEngine')>()),
   compareDocuments: mocks.compareDocuments
 }));
 
@@ -23,7 +23,15 @@ describe('React app external document input', () => {
     mocks.compareDocuments.mockReset().mockResolvedValue({
       originalHtml: '<p>baseline</p>',
       revisedHtml: '<p>revised</p>',
-      summary: { total: 0, inserted: 0, deleted: 0, modified: 0, similarity: 1, layoutNoiseFiltered: 0, layoutNoiseItems: [] }
+      summary: {
+        total: 0,
+        inserted: 0,
+        deleted: 0,
+        modified: 0,
+        similarity: 1,
+        layoutNoiseFiltered: 0,
+        layoutNoiseItems: []
+      }
     });
     host = document.createElement('div');
     document.body.append(host);
@@ -51,7 +59,10 @@ describe('React app external document input', () => {
     mocks.parseDocx.mockResolvedValueOnce(parsed('<p>baseline</p>')).mockResolvedValueOnce(parsed('<p>revised</p>'));
     await renderApp();
     await act(async () => {
-      await window.DocDiffPro?.loadDocuments({ baseline: externalFile('baseline.docx'), revised: externalFile('revised.docx') });
+      await window.DocDiffPro?.loadDocuments({
+        baseline: externalFile('baseline.docx'),
+        revised: externalFile('revised.docx')
+      });
       await Promise.resolve();
     });
     expect(mocks.parseDocx).toHaveBeenCalledTimes(2);
@@ -65,7 +76,13 @@ describe('React app external document input', () => {
   async function renderApp(): Promise<void> {
     const { default: App } = await import('./App');
     root = createRoot(host!);
-    act(() => root?.render(<StrictMode><App /></StrictMode>));
+    act(() =>
+      root?.render(
+        <StrictMode>
+          <App />
+        </StrictMode>
+      )
+    );
   }
 });
 

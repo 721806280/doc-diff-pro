@@ -9,71 +9,85 @@ const anchors: ScrollAnchor[] = [
 
 describe('resolveSyncScrollTop', () => {
   it('keeps both panes aligned at scroll edges', () => {
-    expect(resolveSyncScrollTop({
-      sourceKey: 'A',
-      sourceTop: 3,
-      maxSourceTop: 1000,
-      maxTargetTop: 800,
-      anchors
-    })).toBe(0);
+    expect(
+      resolveSyncScrollTop({
+        sourceKey: 'A',
+        sourceTop: 3,
+        maxSourceTop: 1000,
+        maxTargetTop: 800,
+        anchors
+      })
+    ).toBe(0);
 
-    expect(resolveSyncScrollTop({
-      sourceKey: 'A',
-      sourceTop: 997,
-      maxSourceTop: 1000,
-      maxTargetTop: 800,
-      anchors
-    })).toBe(800);
+    expect(
+      resolveSyncScrollTop({
+        sourceKey: 'A',
+        sourceTop: 997,
+        maxSourceTop: 1000,
+        maxTargetTop: 800,
+        anchors
+      })
+    ).toBe(800);
   });
 
   it('falls back to proportional scrolling when no anchors are available', () => {
-    expect(resolveSyncScrollTop({
-      sourceKey: 'A',
-      sourceTop: 250,
-      maxSourceTop: 1000,
-      maxTargetTop: 800,
-      anchors: []
-    })).toBe(200);
+    expect(
+      resolveSyncScrollTop({
+        sourceKey: 'A',
+        sourceTop: 250,
+        maxSourceTop: 1000,
+        maxTargetTop: 800,
+        anchors: []
+      })
+    ).toBe(200);
   });
 
   it('interpolates before the first anchor', () => {
-    expect(resolveSyncScrollTop({
-      sourceKey: 'A',
-      sourceTop: 50,
-      maxSourceTop: 1000,
-      maxTargetTop: 800,
-      anchors
-    })).toBe(40);
+    expect(
+      resolveSyncScrollTop({
+        sourceKey: 'A',
+        sourceTop: 50,
+        maxSourceTop: 1000,
+        maxTargetTop: 800,
+        anchors
+      })
+    ).toBe(40);
   });
 
   it('interpolates between anchors', () => {
-    expect(resolveSyncScrollTop({
-      sourceKey: 'A',
-      sourceTop: 200,
-      maxSourceTop: 1000,
-      maxTargetTop: 800,
-      anchors
-    })).toBe(170);
+    expect(
+      resolveSyncScrollTop({
+        sourceKey: 'A',
+        sourceTop: 200,
+        maxSourceTop: 1000,
+        maxTargetTop: 800,
+        anchors
+      })
+    ).toBe(170);
   });
 
   it('interpolates after the last anchor', () => {
-    expect(resolveSyncScrollTop({
-      sourceKey: 'A',
-      sourceTop: 850,
-      maxSourceTop: 1000,
-      maxTargetTop: 800,
-      anchors
-    })).toBe(720);
+    expect(
+      resolveSyncScrollTop({
+        sourceKey: 'A',
+        sourceTop: 850,
+        maxSourceTop: 1000,
+        maxTargetTop: 800,
+        anchors
+      })
+    ).toBe(720);
   });
 
   it('uses the revised pane as the source when requested', () => {
-    expect(resolveSyncScrollTop({
-      sourceKey: 'B',
-      sourceTop: 170,
-      maxSourceTop: 800,
-      maxTargetTop: 1000,
-      anchors
-    })).toBe(200);
+    expect(
+      resolveSyncScrollTop({
+        sourceKey: 'B',
+        sourceTop: 170,
+        maxSourceTop: 800,
+        maxTargetTop: 1000,
+        anchors
+      })
+    ).toBe(200);
   });
 });
 

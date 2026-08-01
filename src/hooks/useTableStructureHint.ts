@@ -36,10 +36,12 @@ export function useTableStructureHint({
   const dismissTimer = useTimeoutRef();
 
   const clearMarkers = useCallback(() => {
-    diffIndex.current.forEach((group) => [...group.A, ...group.B].forEach((element) => {
-      element.classList.remove('table-structure-diff');
-      delete element.dataset.tableHint;
-    }));
+    diffIndex.current.forEach((group) =>
+      [...group.A, ...group.B].forEach((element) => {
+        element.classList.remove('table-structure-diff');
+        delete element.dataset.tableHint;
+      })
+    );
   }, [diffIndex]);
 
   const reset = useCallback(() => {
@@ -50,27 +52,30 @@ export function useTableStructureHint({
   }, [clearMarkers, dismissTimer]);
 
   /** Resolves and marks the hint for a focused group; returns nothing. */
-  const resolveFor = useCallback((group: DiffElementGroup) => {
-    setHint(null);
-    setOpen(false);
-    if (!enabled) return;
+  const resolveFor = useCallback(
+    (group: DiffElementGroup) => {
+      setHint(null);
+      setOpen(false);
+      if (!enabled) return;
 
-    const resolution = resolveTableStructureHint(paneA.current, paneB.current, group.A, group.B, {
-      ignoreSpaces,
-      ignoreFullHalfWidth
-    });
-    if (!resolution) return;
+      const resolution = resolveTableStructureHint(paneA.current, paneB.current, group.A, group.B, {
+        ignoreSpaces,
+        ignoreFullHalfWidth
+      });
+      if (!resolution) return;
 
-    const rows = new Set([...resolution.contextRows, ...resolution.candidateRows]);
-    [...group.A, ...group.B].forEach((element) => {
-      const row = element.closest<HTMLElement>('tr');
-      if (row && rows.has(row)) {
-        element.classList.add('table-structure-diff');
-        element.dataset.tableHint = 'true';
-      }
-    });
-    setHint(resolution.hint);
-  }, [enabled, ignoreFullHalfWidth, ignoreSpaces, paneA, paneB]);
+      const rows = new Set([...resolution.contextRows, ...resolution.candidateRows]);
+      [...group.A, ...group.B].forEach((element) => {
+        const row = element.closest<HTMLElement>('tr');
+        if (row && rows.has(row)) {
+          element.classList.add('table-structure-diff');
+          element.dataset.tableHint = 'true';
+        }
+      });
+      setHint(resolution.hint);
+    },
+    [enabled, ignoreFullHalfWidth, ignoreSpaces, paneA, paneB]
+  );
 
   const show = useCallback(() => {
     if (!enabled) return;

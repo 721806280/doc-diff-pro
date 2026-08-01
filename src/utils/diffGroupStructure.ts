@@ -80,17 +80,13 @@ export function refineDiffGroups(
   return summarizeRefinedGroups(originalRoot, revisedRoot);
 }
 
-export function alignDocumentTables(
-  originalRoot: HTMLElement,
-  revisedRoot: HTMLElement
-): TableAlignmentEntry[] {
+export function alignDocumentTables(originalRoot: HTMLElement, revisedRoot: HTMLElement): TableAlignmentEntry[] {
   const original = Array.from(originalRoot.querySelectorAll<HTMLTableElement>('table'));
   const revised = Array.from(revisedRoot.querySelectorAll<HTMLTableElement>('table'));
   const signatures = new WeakMap<HTMLTableElement, ReturnType<typeof createTableSignature>>();
   [...original, ...revised].forEach((table) => signatures.set(table, createTableSignature(table)));
-  const matchThreshold = original.length === revised.length
-    ? TABLE_MATCH_THRESHOLD
-    : TABLE_COUNT_CHANGE_MATCH_THRESHOLD;
+  const matchThreshold =
+    original.length === revised.length ? TABLE_MATCH_THRESHOLD : TABLE_COUNT_CHANGE_MATCH_THRESHOLD;
 
   return alignSequences(
     original,
@@ -119,8 +115,7 @@ function alignSequences<T>(
   // and every index below is derived from those same bounds, so these accessors
   // never fall back at runtime. They exist to state the invariant once instead
   // of guarding at each of the dozen index sites in the loops.
-  const scoreAt = (row: number, column: number): number =>
-    scores[row]?.[column] ?? Number.NEGATIVE_INFINITY;
+  const scoreAt = (row: number, column: number): number => scores[row]?.[column] ?? Number.NEGATIVE_INFINITY;
   const setScore = (row: number, column: number, value: number): void => {
     const line = scores[row];
     if (line) line[column] = value;
@@ -205,7 +200,7 @@ function tableSimilarity(
   const rowScore = ratioSimilarity(left.rows, right.rows);
   const cellScore = ratioSimilarity(left.cells, right.cells);
   if (!left.text && !right.text) return (rowScore + cellScore) / 2;
-  return (textScore * 0.7) + (rowScore * 0.15) + (cellScore * 0.15);
+  return textScore * 0.7 + rowScore * 0.15 + cellScore * 0.15;
 }
 
 function diceSimilarity(left: string, right: string): number {
@@ -228,7 +223,7 @@ function diceSimilarity(left: string, right: string): number {
     counts.set(pair, count - 1);
   }
 
-  return (matches * 2) / ((left.length - 1) + (right.length - 1));
+  return (matches * 2) / (left.length - 1 + (right.length - 1));
 }
 
 function ratioSimilarity(left: number, right: number): number {
@@ -313,8 +308,7 @@ function collectDiffIds(
   originalElements: Map<string, HTMLElement[]>,
   revisedElements: Map<string, HTMLElement[]>
 ): string[] {
-  return [...new Set([...originalElements.keys(), ...revisedElements.keys()])]
-    .sort(compareDiffIds);
+  return [...new Set([...originalElements.keys(), ...revisedElements.keys()])].sort(compareDiffIds);
 }
 
 function compareDiffIds(left: string, right: string): number {
@@ -353,15 +347,17 @@ function pairScopedBuckets(original: DiffGroupBuckets, revised: DiffGroupBuckets
   const unmatchedRevised = [...revised.entries()].filter(([key]) => !matchedRevised.has(key));
 
   for (const [originalKey, originalBucket] of unmatchedOriginal) {
-    const candidates = unmatchedRevised.filter(([revisedKey, revisedBucket]) =>
-      !matchedRevised.has(revisedKey) && canPairScopes(originalBucket.scope, revisedBucket.scope)
+    const candidates = unmatchedRevised.filter(
+      ([revisedKey, revisedBucket]) =>
+        !matchedRevised.has(revisedKey) && canPairScopes(originalBucket.scope, revisedBucket.scope)
     );
     const soleCandidate = candidates[0];
     if (candidates.length !== 1 || !soleCandidate) continue;
 
     const [revisedKey, revisedBucket] = soleCandidate;
-    const reverseCandidates = unmatchedOriginal.filter(([candidateKey, candidateBucket]) =>
-      !matchedOriginal.has(candidateKey) && canPairScopes(candidateBucket.scope, revisedBucket.scope)
+    const reverseCandidates = unmatchedOriginal.filter(
+      ([candidateKey, candidateBucket]) =>
+        !matchedOriginal.has(candidateKey) && canPairScopes(candidateBucket.scope, revisedBucket.scope)
     );
     if (reverseCandidates.length !== 1) continue;
 
@@ -383,20 +379,25 @@ function pairScopedBuckets(original: DiffGroupBuckets, revised: DiffGroupBuckets
 function canPairScopes(original: DiffScope, revised: DiffScope): boolean {
   if (original.kind !== revised.kind) return false;
   if (original.kind === 'table') {
-    return original.tableId === revised.tableId &&
+    return (
+      original.tableId === revised.tableId &&
       original.rowIndex !== undefined &&
       revised.rowIndex !== undefined &&
-      Math.abs(original.rowIndex - revised.rowIndex) <= MAX_SCOPE_DISTANCE;
+      Math.abs(original.rowIndex - revised.rowIndex) <= MAX_SCOPE_DISTANCE
+    );
   }
-  return original.regionId === revised.regionId &&
+  return (
+    original.regionId === revised.regionId &&
     original.blockIndex !== undefined &&
     revised.blockIndex !== undefined &&
-    Math.abs(original.blockIndex - revised.blockIndex) <= MAX_SCOPE_DISTANCE;
+    Math.abs(original.blockIndex - revised.blockIndex) <= MAX_SCOPE_DISTANCE
+  );
 }
 
 function unitOrder(unit: DiffGroupUnit): number {
-  const orders = [unit.original?.scope.order, unit.revised?.scope.order]
-    .filter((value): value is number => value !== undefined);
+  const orders = [unit.original?.scope.order, unit.revised?.scope.order].filter(
+    (value): value is number => value !== undefined
+  );
   return orders.length > 0 ? Math.min(...orders) : Number.MAX_SAFE_INTEGER;
 }
 
@@ -434,19 +435,18 @@ function resolveBodyBlock(element: HTMLElement): HTMLElement | null {
 }
 
 function collectBodyBlocks(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll<HTMLElement>(BODY_BLOCK_SELECTOR))
-    .filter((element) => {
-      if (element.closest('table')) return false;
-      if (element.tagName.toUpperCase() !== 'LI' && element.closest('li')) return false;
-      if (!element.matches('div, section, article')) return true;
-      if (hasDirectText(element)) return true;
-      return element.querySelector(BODY_BLOCK_SELECTOR) === null;
-    });
+  return Array.from(root.querySelectorAll<HTMLElement>(BODY_BLOCK_SELECTOR)).filter((element) => {
+    if (element.closest('table')) return false;
+    if (element.tagName.toUpperCase() !== 'LI' && element.closest('li')) return false;
+    if (!element.matches('div, section, article')) return true;
+    if (hasDirectText(element)) return true;
+    return element.querySelector(BODY_BLOCK_SELECTOR) === null;
+  });
 }
 
 function hasDirectText(element: HTMLElement): boolean {
-  return Array.from(element.childNodes).some((node) =>
-    node.nodeType === Node.TEXT_NODE && normalizeStructureText(node.nodeValue ?? '').length > 0
+  return Array.from(element.childNodes).some(
+    (node) => node.nodeType === Node.TEXT_NODE && normalizeStructureText(node.nodeValue ?? '').length > 0
   );
 }
 
@@ -491,10 +491,11 @@ function mergeMovedTableGroups(
     const key = `${scope.tableId}\u0000${normalizedGroupText(elements)}`;
     if (originalCandidateCounts.get(key) !== 1) return;
     const rowIndex = scope.rowIndex;
-    const candidates = (revisedCandidates.get(key) ?? []).filter((candidate) =>
-      !usedRevisedIds.has(candidate.id) &&
-      candidate.scope.rowIndex !== undefined &&
-      Math.abs(candidate.scope.rowIndex - rowIndex) <= MAX_SCOPE_DISTANCE
+    const candidates = (revisedCandidates.get(key) ?? []).filter(
+      (candidate) =>
+        !usedRevisedIds.has(candidate.id) &&
+        candidate.scope.rowIndex !== undefined &&
+        Math.abs(candidate.scope.rowIndex - rowIndex) <= MAX_SCOPE_DISTANCE
     );
     const match = candidates.length === 1 ? candidates[0] : undefined;
     if (!match) return;
@@ -511,7 +512,10 @@ function normalizedGroupText(elements: HTMLElement[]): string {
 }
 
 function normalizeStructureText(text: string): string {
-  return text.normalize('NFKC').replace(/[\s\u200b\u200c\u200d\ufeff]+/g, '').toLowerCase();
+  return text
+    .normalize('NFKC')
+    .replace(/[\s\u200b\u200c\u200d\ufeff]+/g, '')
+    .toLowerCase();
 }
 
 function renumberDiffGroups(
@@ -581,13 +585,11 @@ function summarizeRefinedGroups(
 }
 
 function directTableRows(table: HTMLTableElement): HTMLTableRowElement[] {
-  return Array.from(table.querySelectorAll<HTMLTableRowElement>('tr'))
-    .filter((row) => row.closest('table') === table);
+  return Array.from(table.querySelectorAll<HTMLTableRowElement>('tr')).filter((row) => row.closest('table') === table);
 }
 
 function directRowCells(row: HTMLTableRowElement): HTMLTableCellElement[] {
-  return Array.from(row.children)
-    .filter((element): element is HTMLTableCellElement =>
-      element instanceof HTMLTableCellElement
-    );
+  return Array.from(row.children).filter(
+    (element): element is HTMLTableCellElement => element instanceof HTMLTableCellElement
+  );
 }

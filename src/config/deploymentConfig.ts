@@ -36,16 +36,11 @@ export function resolveDeploymentConfig(input: unknown): DeploymentConfig {
     showSampleDocuments: readBoolean(input.showSampleDocuments, 'showSampleDocuments'),
     showGithubLink: readBoolean(input.showGithubLink, 'showGithubLink'),
     locale: isConfiguredLocale(input.locale) ? input.locale : DEFAULT_DEPLOYMENT_CONFIG.locale,
-    maxDocxSizeMb: isValidFileSize(input.maxDocxSizeMb)
-      ? input.maxDocxSizeMb
-      : DEFAULT_DEPLOYMENT_CONFIG.maxDocxSizeMb
+    maxDocxSizeMb: isValidFileSize(input.maxDocxSizeMb) ? input.maxDocxSizeMb : DEFAULT_DEPLOYMENT_CONFIG.maxDocxSizeMb
   };
 }
 
-function readBoolean(
-  value: unknown,
-  key: 'showHeader' | 'showSampleDocuments' | 'showGithubLink'
-): boolean {
+function readBoolean(value: unknown, key: 'showHeader' | 'showSampleDocuments' | 'showGithubLink'): boolean {
   return typeof value === 'boolean' ? value : DEFAULT_DEPLOYMENT_CONFIG[key];
 }
 

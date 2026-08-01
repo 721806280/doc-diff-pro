@@ -44,18 +44,25 @@ const ROMAN_PAGE_VALUE_SOURCE = '[IVXLCDMivxlcdm]+';
 const PAGE_VALUE_OR_ROMAN_SOURCE = `(?:${PAGE_VALUE_SOURCE}|${ROMAN_PAGE_VALUE_SOURCE})`;
 const SIMPLE_PAGE_VALUE_PATTERN = new RegExp(`^(?:${PAGE_VALUE_OR_ROMAN_SOURCE})$`, 'i');
 const PAGE_NUMBER_PATTERNS = [
-  new RegExp(`^(?:page|p)\\.?\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}(?:\\s*(?:/|of)\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?)?)?$`, 'i'),
+  new RegExp(
+    `^(?:page|p)\\.?\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}(?:\\s*(?:/|of)\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?)?)?$`,
+    'i'
+  ),
   new RegExp(`^${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?|page|页)$`, 'i'),
-  new RegExp(`^${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:/|of)\\s*(?:共\\s*)?${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?|page|页)?$`, 'i'),
-  new RegExp(`^第\\s*${PAGE_VALUE_SOURCE}(?:\\s*/\\s*(?:共\\s*)?${PAGE_VALUE_SOURCE})?\\s*页(?:\\s*[,，、]?\\s*(?:/\\s*)?(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页?)?$`),
+  new RegExp(
+    `^${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:/|of)\\s*(?:共\\s*)?${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?|page|页)?$`,
+    'i'
+  ),
+  new RegExp(
+    `^第\\s*${PAGE_VALUE_SOURCE}(?:\\s*/\\s*(?:共\\s*)?${PAGE_VALUE_SOURCE})?\\s*页(?:\\s*[,，、]?\\s*(?:/\\s*)?(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页?)?$`
+  ),
   new RegExp(`^(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页\\s*[,，、]?\\s*第\\s*${PAGE_VALUE_SOURCE}\\s*页$`),
   new RegExp(`^${PAGE_VALUE_SOURCE}\\s*页\\s*[,，、/]?\\s*(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页$`),
   new RegExp(`^(?:页码|页数|page|p)\\s*[:：]\\s*${PAGE_VALUE_OR_ROMAN_SOURCE}$`, 'i')
 ];
 const PAGE_DECORATION_EDGE_PATTERN = /^[\s\-_=–—―·•*~|]+|[\s\-_=–—―·•*~|]+$/g;
 const PAGE_BRACKET_PATTERN = /[()[\]{}（）【】〔〕［］]/g;
-const LAYOUT_KEYWORD_PATTERN =
-  /(confidential|copyright|all rights reserved|内部资料|保密|版权所有|机密|页眉|页脚)/i;
+const LAYOUT_KEYWORD_PATTERN = /(confidential|copyright|all rights reserved|内部资料|保密|版权所有|机密|页眉|页脚)/i;
 const CONTACT_OR_IDENTIFIER_PATTERN =
   /(www\.|https?:\/\/|电话|传真|编号|文件号|版本|tel[:：]|fax[:：]|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i;
 const CANDIDATE_BLOCK_SELECTOR = 'p, div, li, td, th';
@@ -68,7 +75,7 @@ const LEADING_PAGE_TEXT_PATTERN = new RegExp(
     `|${PAGE_VALUE_SOURCE}\\s*页\\s*[,，、/]?\\s*(?:共|总)\\s*${PAGE_VALUE_SOURCE}\\s*页` +
     `|${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:/|of)\\s*(?:共\\s*)?${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?|page|页)?` +
     `|${PAGE_VALUE_OR_ROMAN_SOURCE}\\s*(?:pages?|page|页)` +
-  `)\\s*(?:[\\s\\-_=–—―·•*~|]*\\s*)?`,
+    `)\\s*(?:[\\s\\-_=–—―·•*~|]*\\s*)?`,
   'i'
 );
 
@@ -103,10 +110,7 @@ export function createEmptyLayoutNoise(): LayoutNoiseData {
   };
 }
 
-export function removeLayoutNoise(
-  root: HTMLElement,
-  options: LayoutNoiseFilterOptions
-): LayoutNoiseRemoval {
+export function removeLayoutNoise(root: HTMLElement, options: LayoutNoiseFilterOptions): LayoutNoiseRemoval {
   if (!options.enabled) return { filteredCount: 0, removedItems: [] };
 
   const normalizedHints = normalizeHints(options.hints);
@@ -144,11 +148,7 @@ export function normalizeLayoutText(text: string): string {
   return normalized.replace(/[.,;:!?，。；：！？、'"“”‘’()[\]{}<>《》（）【】\-_–—]/g, '');
 }
 
-function collectHintText(
-  element: HTMLElement,
-  exactHints: Set<string>,
-  fragmentHints: Set<string>
-): void {
+function collectHintText(element: HTMLElement, exactHints: Set<string>, fragmentHints: Set<string>): void {
   collectExactHintsFromText(element.textContent ?? '', exactHints);
   collectFragmentHintsFromText(element.textContent ?? '', fragmentHints);
 
@@ -158,12 +158,10 @@ function collectHintText(
   });
 }
 
-function collectNativeItems(
-  element: HTMLElement,
-  items: LayoutNoiseEntry[]
-): void {
-  const candidateBlocks = Array.from(element.querySelectorAll<HTMLElement>(CANDIDATE_BLOCK_SELECTOR))
-    .filter((child) => !hasCandidateBlockChild(child));
+function collectNativeItems(element: HTMLElement, items: LayoutNoiseEntry[]): void {
+  const candidateBlocks = Array.from(element.querySelectorAll<HTMLElement>(CANDIDATE_BLOCK_SELECTOR)).filter(
+    (child) => !hasCandidateBlockChild(child)
+  );
   const textSources = candidateBlocks.length > 0 ? candidateBlocks : [element];
 
   textSources.forEach((source) => {
@@ -219,23 +217,20 @@ function normalizeHints(hints: LayoutNoiseHints): LayoutHintIndex {
   return normalizedHints;
 }
 
-function addNormalizedHint(
-  hint: string,
-  hints: Set<string>,
-  predicate: (text: string) => boolean
-): void {
+function addNormalizedHint(hint: string, hints: Set<string>, predicate: (text: string) => boolean): void {
   const normalized = normalizeLayoutText(hint);
   if (predicate(normalized)) hints.add(normalized);
 }
 
 function collectCandidateBlocks(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll<HTMLElement>(CANDIDATE_BLOCK_SELECTOR))
-    .filter((element) => !hasCandidateBlockChild(element));
+  return Array.from(root.querySelectorAll<HTMLElement>(CANDIDATE_BLOCK_SELECTOR)).filter(
+    (element) => !hasCandidateBlockChild(element)
+  );
 }
 
 function hasCandidateBlockChild(element: HTMLElement): boolean {
-  return Array.from(element.children).some((child) =>
-    child instanceof HTMLElement && child.matches(CANDIDATE_BLOCK_SELECTOR)
+  return Array.from(element.children).some(
+    (child) => child instanceof HTMLElement && child.matches(CANDIDATE_BLOCK_SELECTOR)
   );
 }
 
@@ -284,17 +279,13 @@ function isPageNumber(text: string): boolean {
 }
 
 function hasPageMarker(text: string): boolean {
-  return isPageNumber(text) ||
-    LEADING_PAGE_TEXT_PATTERN.test(text.normalize('NFKC').replace(PAGE_BRACKET_PATTERN, ' '));
+  return (
+    isPageNumber(text) || LEADING_PAGE_TEXT_PATTERN.test(text.normalize('NFKC').replace(PAGE_BRACKET_PATTERN, ' '))
+  );
 }
 
 function normalizePageText(text: string): string {
-  return text
-    .normalize('NFKC')
-    .replace(PAGE_BRACKET_PATTERN, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+  return text.normalize('NFKC').replace(PAGE_BRACKET_PATTERN, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 function stripPageDecorations(text: string): string {

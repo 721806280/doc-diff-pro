@@ -155,9 +155,9 @@ describe('diffWorkerClient', () => {
     vi.stubGlobal('Worker', undefined);
     const { createTextDiffsAsync, MAX_MAIN_THREAD_DIFF_CHARS } = await import('./diffWorkerClient');
 
-    await expect(
-      createTextDiffsAsync('a'.repeat(MAX_MAIN_THREAD_DIFF_CHARS), 'b', 'char')
-    ).rejects.toThrow('too large');
+    await expect(createTextDiffsAsync('a'.repeat(MAX_MAIN_THREAD_DIFF_CHARS), 'b', 'char')).rejects.toThrow(
+      'too large'
+    );
     expect(mocks.createTextDiffs).not.toHaveBeenCalled();
   });
 

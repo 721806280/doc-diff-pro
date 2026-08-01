@@ -35,8 +35,14 @@ describe('diffReview', () => {
   });
 
   it('builds complete review items for one-sided differences', () => {
-    expect(createReviewItem(1, { A: [textElement('删除内容')], B: [] })).toMatchObject({ kind: 'deleted', revisedPreview: '' });
-    expect(createReviewItem(2, { A: [], B: [textElement('新增内容')] })).toMatchObject({ kind: 'inserted', originalPreview: '' });
+    expect(createReviewItem(1, { A: [textElement('删除内容')], B: [] })).toMatchObject({
+      kind: 'deleted',
+      revisedPreview: ''
+    });
+    expect(createReviewItem(2, { A: [], B: [textElement('新增内容')] })).toMatchObject({
+      kind: 'inserted',
+      originalPreview: ''
+    });
   });
 
   it('finds similar inserted differences by configured threshold', () => {
@@ -72,13 +78,15 @@ describe('diffReview', () => {
       [2, insertedGroup('abcdefghij')]
     ]);
 
-    expect(findSimilarReviewItems({
-      currentIndex: 1,
-      total: 2,
-      ignoredIds: new Set([diffReviewId(2)]),
-      level: 'loose',
-      getGroup: (index) => groups.get(index)
-    })).toEqual([]);
+    expect(
+      findSimilarReviewItems({
+        currentIndex: 1,
+        total: 2,
+        ignoredIds: new Set([diffReviewId(2)]),
+        level: 'loose',
+        getGroup: (index) => groups.get(index)
+      })
+    ).toEqual([]);
   });
 
   it('does not recommend body differences as similar to table differences', () => {
@@ -93,13 +101,15 @@ describe('diffReview', () => {
       [2, insertedGroup('abcdefghij')]
     ]);
 
-    expect(findSimilarReviewItems({
-      currentIndex: 1,
-      total: 2,
-      ignoredIds: new Set(),
-      level: 'loose',
-      getGroup: (index) => groups.get(index)
-    })).toEqual([]);
+    expect(
+      findSimilarReviewItems({
+        currentIndex: 1,
+        total: 2,
+        ignoredIds: new Set(),
+        level: 'loose',
+        getGroup: (index) => groups.get(index)
+      })
+    ).toEqual([]);
 
     table.remove();
   });

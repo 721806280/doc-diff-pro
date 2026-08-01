@@ -15,13 +15,16 @@ export function useTimeoutRef() {
     timer.current = null;
   }, []);
 
-  const set = useCallback((callback: () => void, delayMs: number) => {
-    clear();
-    timer.current = window.setTimeout(() => {
-      timer.current = null;
-      callback();
-    }, delayMs);
-  }, [clear]);
+  const set = useCallback(
+    (callback: () => void, delayMs: number) => {
+      clear();
+      timer.current = window.setTimeout(() => {
+        timer.current = null;
+        callback();
+      }, delayMs);
+    },
+    [clear]
+  );
 
   useEffect(() => clear, [clear]);
 

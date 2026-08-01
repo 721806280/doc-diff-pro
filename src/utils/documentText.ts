@@ -3,8 +3,21 @@ export type TextMappingEntry = { node: Text; offset: number } | null;
 export type TextMapping = { text: string; mapping: TextMappingEntry[] };
 
 const BLOCK_TAGS = new Set([
-  'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'LI',
-  'TR', 'TD', 'TH', 'TABLE', 'SECTION', 'PRE', 'ARTICLE'
+  'P',
+  'DIV',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'LI',
+  'TR',
+  'TD',
+  'TH',
+  'TABLE',
+  'SECTION',
+  'PRE',
+  'ARTICLE'
 ]);
 const INLINE_WHITESPACE_PATTERN = /[ \t\v\f\r\u00a0\u1680\u180e\u2000-\u200a\u202f\u205f\u3000]/;
 const CJK_NUMBER_PATTERN = '零〇一二三四五六七八九十百千万两壹贰叁肆伍陆柒捌玖拾佰仟萬';
@@ -19,7 +32,9 @@ const STRUCTURAL_LINE_PREFIX_SOURCE =
   `|[A-Za-zＡ-Ｚａ-ｚ][.．、)]` +
   `|[IVXLCDMivxlcdm]+[.．、)]`;
 const STRUCTURAL_LINE_PREFIX_PATTERN = new RegExp(`^(?:${STRUCTURAL_LINE_PREFIX_SOURCE})$`);
-const STRUCTURAL_LINE_SUFFIX_PATTERN = new RegExp(`(?:^|[^0-9０-９A-Za-zＡ-Ｚａ-ｚ])(?:${STRUCTURAL_LINE_PREFIX_SOURCE})$`);
+const STRUCTURAL_LINE_SUFFIX_PATTERN = new RegExp(
+  `(?:^|[^0-9０-９A-Za-zＡ-Ｚａ-ｚ])(?:${STRUCTURAL_LINE_PREFIX_SOURCE})$`
+);
 const CJK_OR_FULLWIDTH_PUNCT_PATTERN = /[\u3400-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]/;
 const CJK_PATTERN = /[\u3400-\u9fff\uf900-\ufaff]/;
 const DIGIT_PATTERN = /[0-9０-９]/;
@@ -44,9 +59,7 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
 
   function walk(node: Node): void {
     if (node.nodeType === Node.TEXT_NODE) {
-      const value = (node.nodeValue ?? '')
-        .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
-        .replace(/[\r\n]/g, ' ');
+      const value = (node.nodeValue ?? '').replace(/[\u200b\u200c\u200d\ufeff]/g, '').replace(/[\r\n]/g, ' ');
 
       node.nodeValue = value;
       if (value.length === 0) return;
@@ -163,9 +176,10 @@ function ensureSyntheticListMarkerElement(
 }
 
 function hasDirectListNumberElement(element: HTMLElement): boolean {
-  return Array.from(element.children).some((child) =>
-    child instanceof HTMLElement &&
-    (child.dataset.mammothListNumber === 'true' || child.dataset.ddvSyntheticListNumber === 'true')
+  return Array.from(element.children).some(
+    (child) =>
+      child instanceof HTMLElement &&
+      (child.dataset.mammothListNumber === 'true' || child.dataset.ddvSyntheticListNumber === 'true')
   );
 }
 
@@ -216,9 +230,19 @@ function formatAlphaListMarker(value: number): string {
 
 function formatRomanListMarker(value: number): string {
   const pairs: Array<[number, string]> = [
-    [1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'],
-    [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'],
-    [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']
+    [1000, 'm'],
+    [900, 'cm'],
+    [500, 'd'],
+    [400, 'cd'],
+    [100, 'c'],
+    [90, 'xc'],
+    [50, 'l'],
+    [40, 'xl'],
+    [10, 'x'],
+    [9, 'ix'],
+    [5, 'v'],
+    [4, 'iv'],
+    [1, 'i']
   ];
   let current = Math.max(1, Math.min(value, 3999));
   let marker = '';
@@ -291,8 +315,10 @@ function isTightPunctuationBoundary(beforePrevious: string | undefined, previous
   // Keep ASCII punctuation conservative: remove spaces around ":" or brackets only in
   // Chinese legal-text context, so ordinary English sentences keep their spacing.
   return (
-    (CJK_PUNCTUATION_PATTERN.test(previous) && (JOINABLE_TEXT_PATTERN.test(next) || CJK_PUNCTUATION_PATTERN.test(next))) ||
-    (CJK_PUNCTUATION_PATTERN.test(next) && (JOINABLE_TEXT_PATTERN.test(previous) || CJK_PUNCTUATION_PATTERN.test(previous))) ||
+    (CJK_PUNCTUATION_PATTERN.test(previous) &&
+      (JOINABLE_TEXT_PATTERN.test(next) || CJK_PUNCTUATION_PATTERN.test(next))) ||
+    (CJK_PUNCTUATION_PATTERN.test(next) &&
+      (JOINABLE_TEXT_PATTERN.test(previous) || CJK_PUNCTUATION_PATTERN.test(previous))) ||
     (hasCjkContext && FIELD_SEPARATOR_PATTERN.test(previous) && JOINABLE_TEXT_PATTERN.test(next)) ||
     (hasCjkContext && FIELD_SEPARATOR_PATTERN.test(next) && JOINABLE_TEXT_PATTERN.test(previous)) ||
     (hasCjkContext && OPENING_PUNCTUATION_PATTERN.test(previous) && JOINABLE_TEXT_PATTERN.test(next)) ||

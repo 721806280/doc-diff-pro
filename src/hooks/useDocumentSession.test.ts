@@ -179,7 +179,10 @@ describe('useDocumentSession', () => {
   it('ignores a sample load that finishes after the session was reset', async () => {
     let resolveSamples: ((value: { A: File; B: File }) => void) | undefined;
     mocks.loadSampleDocuments.mockImplementation(
-      () => new Promise<{ A: File; B: File }>((resolve) => { resolveSamples = resolve; })
+      () =>
+        new Promise<{ A: File; B: File }>((resolve) => {
+          resolveSamples = resolve;
+        })
     );
 
     const { result, onNotice } = mountSession();

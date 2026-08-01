@@ -37,19 +37,13 @@ export type ParseDocxOptions = {
 
 export async function parseDocx(file: File, options: ParseDocxOptions = {}): Promise<ParsedDocx> {
   try {
-    const [mammoth, arrayBuffer] = await Promise.all([
-      import('mammoth') as Promise<MammothApi>,
-      file.arrayBuffer()
-    ]);
+    const [mammoth, arrayBuffer] = await Promise.all([import('mammoth') as Promise<MammothApi>, file.arrayBuffer()]);
     const convertImage = mammoth.images.imgElement(async (image) => ({
       src: `data:${image.contentType};base64,${await image.read('base64')}`,
       alt: options.embeddedImageAlt ?? 'Embedded document image'
     }));
-    const result = await mammoth.convertToHtml(
-      { arrayBuffer },
-      { convertImage, includeHeadersAndFooters: true }
-    );
-    const html = result.value ? result.value.trim() : options.emptyDocumentHtml ?? '<p>(Empty document)</p>';
+    const result = await mammoth.convertToHtml({ arrayBuffer }, { convertImage, includeHeadersAndFooters: true });
+    const html = result.value ? result.value.trim() : (options.emptyDocumentHtml ?? '<p>(Empty document)</p>');
     const sanitizedHtml = await sanitizeDocumentHtml(html);
     const { html: contentHtml, layoutNoise } = extractLayoutNoise(sanitizedHtml);
 

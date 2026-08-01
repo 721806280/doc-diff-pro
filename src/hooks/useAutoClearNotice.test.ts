@@ -15,10 +15,14 @@ describe('useAutoClearNotice', () => {
     const clear = vi.fn();
     renderHook(() => useAutoClearNotice('saved', false, clear, 1400));
 
-    act(() => { vi.advanceTimersByTime(1399); });
+    act(() => {
+      vi.advanceTimersByTime(1399);
+    });
     expect(clear).not.toHaveBeenCalled();
 
-    act(() => { vi.advanceTimersByTime(1); });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(clear).toHaveBeenCalledTimes(1);
   });
 
@@ -26,7 +30,9 @@ describe('useAutoClearNotice', () => {
     const clear = vi.fn();
     renderHook(() => useAutoClearNotice('', false, clear, 1400));
 
-    act(() => { vi.advanceTimersByTime(5000); });
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
 
     expect(clear).not.toHaveBeenCalled();
   });
@@ -38,27 +44,36 @@ describe('useAutoClearNotice', () => {
       { initialProps: { paused: true } }
     );
 
-    act(() => { vi.advanceTimersByTime(5000); });
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
     expect(clear).not.toHaveBeenCalled();
 
     view.rerender({ paused: false });
-    act(() => { vi.advanceTimersByTime(1400); });
+    act(() => {
+      vi.advanceTimersByTime(1400);
+    });
     expect(clear).toHaveBeenCalledTimes(1);
   });
 
   it('restarts the timer when the notice changes', () => {
     const clear = vi.fn();
-    const view = renderHook(
-      (props: { notice: string }) => useAutoClearNotice(props.notice, false, clear, 1400),
-      { initialProps: { notice: 'first' } }
-    );
+    const view = renderHook((props: { notice: string }) => useAutoClearNotice(props.notice, false, clear, 1400), {
+      initialProps: { notice: 'first' }
+    });
 
-    act(() => { vi.advanceTimersByTime(1000); });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     view.rerender({ notice: 'second' });
-    act(() => { vi.advanceTimersByTime(1000); });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     expect(clear).not.toHaveBeenCalled();
 
-    act(() => { vi.advanceTimersByTime(400); });
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
     expect(clear).toHaveBeenCalledTimes(1);
   });
 
@@ -67,7 +82,9 @@ describe('useAutoClearNotice', () => {
     const view = renderHook(() => useAutoClearNotice('saved', false, clear, 1400));
 
     view.unmount();
-    act(() => { vi.advanceTimersByTime(5000); });
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
 
     expect(clear).not.toHaveBeenCalled();
   });

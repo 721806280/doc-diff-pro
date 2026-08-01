@@ -18,7 +18,13 @@ export function useReviewShortcuts(options: ReviewShortcutOptions): void {
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
       const current = latestOptions.current;
-      if (!current.enabled || event.defaultPrevented || event.isComposing || document.querySelector('[aria-modal="true"]')) return;
+      if (
+        !current.enabled ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        document.querySelector('[aria-modal="true"]')
+      )
+        return;
       const target = event.target;
       if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"]')) return;
 

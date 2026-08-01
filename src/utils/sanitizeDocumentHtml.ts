@@ -43,8 +43,7 @@ export async function sanitizeDocumentHtml(html: string): Promise<string> {
 }
 
 function getPurifier(): Promise<DOMPurifyInstance> {
-  purifierPromise ??= import('dompurify')
-    .then(({ default: createDOMPurify }) => createDOMPurify(window));
+  purifierPromise ??= import('dompurify').then(({ default: createDOMPurify }) => createDOMPurify(window));
 
   return purifierPromise;
 }

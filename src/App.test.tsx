@@ -14,11 +14,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/docxParser', () => ({ parseDocx: mocks.parseDocx }));
 vi.mock('@/services/diffEngine', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/services/diffEngine')>(),
+  ...(await importOriginal<typeof import('@/services/diffEngine')>()),
   compareDocuments: mocks.compareDocuments
 }));
 vi.mock('@/services/reviewReport', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/services/reviewReport')>(),
+  ...(await importOriginal<typeof import('@/services/reviewReport')>()),
   downloadReviewReport: mocks.downloadReviewReport
 }));
 vi.mock('@/utils/tableStructureHint', () => ({ resolveTableStructureHint: mocks.resolveTableStructureHint }));
@@ -26,7 +26,11 @@ vi.mock('@/config/userSettings', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/config/userSettings')>();
   return {
     ...original,
-    readSavedUserSettings: () => ({ ...original.DEFAULT_USER_SETTINGS, enableDiffIgnore: true, showReportExport: true }),
+    readSavedUserSettings: () => ({
+      ...original.DEFAULT_USER_SETTINGS,
+      enableDiffIgnore: true,
+      showReportExport: true
+    }),
     writeSavedUserSettings: vi.fn()
   };
 });
@@ -69,7 +73,10 @@ describe('React app workflow', () => {
     renderApp();
     await selectFile(0, new File(['text'], 'notes.txt'));
     expect(host.querySelector('.side-original')?.textContent).toContain('Only .docx files are supported');
-    await act(async () => { setLocale('zh-CN'); await Promise.resolve(); });
+    await act(async () => {
+      setLocale('zh-CN');
+      await Promise.resolve();
+    });
     expect(host.querySelector('.side-original')?.textContent).toContain('仅支持上传 .docx 文件');
   });
 
@@ -90,8 +97,14 @@ describe('React app workflow', () => {
     renderApp();
     dispatchFile(0, new File(['old'], 'old.docx'));
     dispatchFile(0, new File(['new'], 'new.docx'));
-    await act(async () => { second.resolve(parsed('<p>new content</p>')); await Promise.resolve(); });
-    await act(async () => { first.resolve(parsed('<p>old content</p>')); await Promise.resolve(); });
+    await act(async () => {
+      second.resolve(parsed('<p>new content</p>'));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      first.resolve(parsed('<p>old content</p>'));
+      await Promise.resolve();
+    });
     expect(host.querySelector('.side-original')?.textContent).toContain('new.docx');
     expect(host.querySelector('.side-original')?.textContent).not.toContain('old.docx');
   });
@@ -99,7 +112,11 @@ describe('React app workflow', () => {
   it('compares automatically when both documents are ready', async () => {
     await mountComparedApp();
     expect(mocks.compareDocuments).toHaveBeenCalledTimes(1);
-    expect(mocks.compareDocuments).toHaveBeenCalledWith('<p>baseline</p>', '<p>revised</p>', expect.objectContaining({ granularity: 'char' }));
+    expect(mocks.compareDocuments).toHaveBeenCalledWith(
+      '<p>baseline</p>',
+      '<p>revised</p>',
+      expect.objectContaining({ granularity: 'char' })
+    );
     expect(host.querySelector('.floating-navigator')).toBeTruthy();
   });
 
@@ -145,7 +162,9 @@ describe('React app workflow', () => {
     expect(host.querySelectorAll('.ignored-diff')).toHaveLength(4);
     expect(host.querySelectorAll('.focus-diff')).toHaveLength(0);
     expect(host.textContent).toContain('All differences are ignored');
-    const restoreAll = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent?.includes('Restore all'));
+    const restoreAll = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+      button.textContent?.includes('Restore all')
+    );
     await act(async () => restoreAll?.click());
     expect(host.querySelectorAll('.ignored-diff')).toHaveLength(0);
     expect(host.querySelector('[data-diff-id="diff-1"]')?.classList).toContain('focus-diff');
@@ -153,7 +172,9 @@ describe('React app workflow', () => {
 
   it('shows a retry action after comparison fails and retries successfully', async () => {
     mocks.parseDocx.mockResolvedValue(parsed('<p>content</p>'));
-    mocks.compareDocuments.mockRejectedValueOnce(new Error('compare exploded')).mockResolvedValueOnce(emptyComparison());
+    mocks.compareDocuments
+      .mockRejectedValueOnce(new Error('compare exploded'))
+      .mockResolvedValueOnce(emptyComparison());
     renderApp();
     await selectFile(0, new File(['a'], 'baseline.docx'));
     await selectFile(1, new File(['b'], 'revised.docx'));
@@ -169,12 +190,22 @@ describe('React app workflow', () => {
     await mountComparedApp();
     const scrollTo = vi.mocked(HTMLElement.prototype.scrollTo);
     scrollTo.mockClear();
-    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, cancelable: true })));
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, cancelable: true }))
+    );
     expect(host.querySelector('[data-diff-id="diff-2"]')?.classList).toContain('focus-diff');
     expect(scrollTo).toHaveBeenCalledTimes(2);
-    expect(scrollTo.mock.calls.every(([options]) => typeof options === 'object' && (options as ScrollToOptions).behavior === 'smooth')).toBe(true);
+    expect(
+      scrollTo.mock.calls.every(
+        ([options]) => typeof options === 'object' && (options as ScrollToOptions).behavior === 'smooth'
+      )
+    ).toBe(true);
     const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
-    await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true, cancelable: true })));
+    await act(async () =>
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true, cancelable: true })
+      )
+    );
     expect(host.querySelector('[data-diff-id="diff-2"]')?.classList).toContain('focus-diff');
   });
 
@@ -183,7 +214,9 @@ describe('React app workflow', () => {
     mocks.compareDocuments.mockResolvedValueOnce(tableComparison());
     mocks.resolveTableStructureHint.mockImplementation((_original, _revised, originalElements, revisedElements) => ({
       hint: { tableNumber: 1, originalRows: 1, revisedRows: 1, kind: 'cell-count-mismatch', confidence: 'high' },
-      contextRows: [...originalElements, ...revisedElements].map((element: HTMLElement) => element.closest('tr')).filter(Boolean),
+      contextRows: [...originalElements, ...revisedElements]
+        .map((element: HTMLElement) => element.closest('tr'))
+        .filter(Boolean),
       candidateRows: []
     }));
     renderApp();
@@ -192,7 +225,9 @@ describe('React app workflow', () => {
     await waitForResultIndex();
 
     await act(async () => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
-    const tableHints = Array.from(host.querySelectorAll<HTMLButtonElement>('.settings-toggle')).find((button) => button.textContent?.includes('Table hints'))!;
+    const tableHints = Array.from(host.querySelectorAll<HTMLButtonElement>('.settings-toggle')).find((button) =>
+      button.textContent?.includes('Table hints')
+    )!;
     await act(async () => tableHints.click());
     expect(host.querySelectorAll('.table-structure-diff[data-table-hint="true"]')).toHaveLength(2);
 
@@ -224,7 +259,10 @@ describe('React app workflow', () => {
 
   it('keeps documents when reset is canceled and clears them when confirmed', async () => {
     await mountComparedApp();
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true }))
+    );
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     const brand = host.querySelector<HTMLButtonElement>('.brand-zone');
     await act(async () => brand?.click());
@@ -260,14 +298,20 @@ describe('React app workflow', () => {
     renderApp();
     await selectFile(0, new File(['a'], 'baseline.docx'));
     await selectFile(1, new File(['b'], 'revised.docx'));
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true }))
+    );
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     await act(async () => host.querySelector<HTMLButtonElement>('.brand-zone')?.click());
     expect(host.querySelector('.compare-toast-dot')?.classList).toContain('done');
     expect(host.textContent).not.toContain('baseline.docx');
 
-    await act(async () => { pending.resolve(comparisonWithDiffs()); await Promise.resolve(); });
+    await act(async () => {
+      pending.resolve(comparisonWithDiffs());
+      await Promise.resolve();
+    });
     expect(host.querySelector('.floating-navigator')).toBeNull();
     expect(host.textContent).not.toContain('baseline.docx');
   });
@@ -277,19 +321,28 @@ describe('React app workflow', () => {
     vi.useFakeTimers();
     await act(async () => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
     const options = host.querySelectorAll<HTMLButtonElement>('.granularity-segmented__option');
-    await act(async () => { options[0]?.click(); options[1]?.click(); });
+    await act(async () => {
+      options[0]?.click();
+      options[1]?.click();
+    });
     await act(async () => vi.advanceTimersByTimeAsync(179));
     expect(mocks.compareDocuments).toHaveBeenCalledTimes(1);
     mocks.compareDocuments.mockResolvedValueOnce(comparisonWithDiffs());
     await act(async () => vi.advanceTimersByTimeAsync(1));
     await act(async () => Promise.resolve());
     expect(mocks.compareDocuments).toHaveBeenCalledTimes(2);
-    expect(mocks.compareDocuments).toHaveBeenLastCalledWith('<p>baseline</p>', '<p>revised</p>', expect.objectContaining({ granularity: 'word' }));
+    expect(mocks.compareDocuments).toHaveBeenLastCalledWith(
+      '<p>baseline</p>',
+      '<p>revised</p>',
+      expect.objectContaining({ granularity: 'word' })
+    );
   });
 
   it('exports a local html review report', async () => {
     await mountComparedApp();
-    const exportButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent?.includes('Export report'));
+    const exportButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+      button.textContent?.includes('Export report')
+    );
     await act(async () => exportButton?.click());
     expect(mocks.downloadReviewReport).toHaveBeenCalledTimes(1);
     const [html, fileName] = mocks.downloadReviewReport.mock.calls[0]!;
@@ -299,7 +352,13 @@ describe('React app workflow', () => {
   });
 
   function renderApp(): void {
-    act(() => root.render(<StrictMode><App /></StrictMode>));
+    act(() =>
+      root.render(
+        <StrictMode>
+          <App />
+        </StrictMode>
+      )
+    );
   }
 
   async function mountComparedApp(comparison = comparisonWithDiffs()): Promise<void> {
@@ -329,7 +388,9 @@ describe('React app workflow', () => {
     const input = pane?.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) throw new Error(`Missing file input for pane ${index}`);
     Object.defineProperty(input, 'files', { configurable: true, value: [file] });
-    act(() => { input.dispatchEvent(new Event('change', { bubbles: true })); });
+    act(() => {
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
   }
 });
 
@@ -349,7 +410,13 @@ async function waitForResultIndex(): Promise<void> {
 }
 
 function parsed(html: string): ParsedDocx {
-  return { html, textLength: html.length, imageCount: 0, warnings: [], layoutNoise: { hints: { exact: [], fragments: [] }, nativeItems: [] } };
+  return {
+    html,
+    textLength: html.length,
+    imageCount: 0,
+    warnings: [],
+    layoutNoise: { hints: { exact: [], fragments: [] }, nativeItems: [] }
+  };
 }
 
 function emptyComparison() {
@@ -381,7 +448,15 @@ function tableComparison() {
   };
 }
 
-const EMPTY_TEST_SUMMARY = { total: 0, inserted: 0, deleted: 0, modified: 0, similarity: 1, layoutNoiseFiltered: 0, layoutNoiseItems: [] };
+const EMPTY_TEST_SUMMARY = {
+  total: 0,
+  inserted: 0,
+  deleted: 0,
+  modified: 0,
+  similarity: 1,
+  layoutNoiseFiltered: 0,
+  layoutNoiseItems: []
+};
 
 function fileWithSize(name: string, size: number): File {
   const file = new File(['x'], name);
@@ -391,6 +466,8 @@ function fileWithSize(name: string, size: number): File {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise; });
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
   return { promise, resolve };
 }

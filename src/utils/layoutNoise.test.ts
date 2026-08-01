@@ -3,15 +3,12 @@ import { extractLayoutNoise, normalizeLayoutText, removeLayoutNoise } from './la
 
 describe('layoutNoise', () => {
   it('extracts native header/footer hints and removes them from content html', () => {
-    const result = extractLayoutNoise(
-      '<header><p>公司保密页眉</p></header><p>正文</p><footer><p>第 1 页</p></footer>'
-    );
+    const result = extractLayoutNoise('<header><p>公司保密页眉</p></header><p>正文</p><footer><p>第 1 页</p></footer>');
 
     expect(result.html).toBe('<p>正文</p>');
-    expect(result.layoutNoise.hints.exact.map(normalizeLayoutText)).toEqual(expect.arrayContaining([
-      normalizeLayoutText('公司保密页眉'),
-      normalizeLayoutText('第 1 页')
-    ]));
+    expect(result.layoutNoise.hints.exact.map(normalizeLayoutText)).toEqual(
+      expect.arrayContaining([normalizeLayoutText('公司保密页眉'), normalizeLayoutText('第 1 页')])
+    );
     expect(result.layoutNoise.nativeItems).toEqual([
       { reason: 'hint', text: '公司保密页眉' },
       { reason: 'hint', text: '第 1 页' }
@@ -23,12 +20,18 @@ describe('layoutNoise', () => {
       '<footer><p>第3/5页   示例联系人：张三；联系电话：13800000000；邮箱：review@example.com</p></footer><p>正文</p>'
     );
 
-    expect(result.layoutNoise.hints.exact.map(normalizeLayoutText)).toEqual(expect.arrayContaining([
-      normalizeLayoutText('第3/5页   示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'),
-      normalizeLayoutText('示例联系人：张三；联系电话：13800000000；邮箱：review@example.com')
-    ]));
-    expect(result.layoutNoise.hints.fragments.map(normalizeLayoutText)).toContain(normalizeLayoutText('邮箱：review@example.com'));
-    expect(result.layoutNoise.hints.exact.map(normalizeLayoutText)).not.toContain(normalizeLayoutText('邮箱：review@example.com'));
+    expect(result.layoutNoise.hints.exact.map(normalizeLayoutText)).toEqual(
+      expect.arrayContaining([
+        normalizeLayoutText('第3/5页   示例联系人：张三；联系电话：13800000000；邮箱：review@example.com'),
+        normalizeLayoutText('示例联系人：张三；联系电话：13800000000；邮箱：review@example.com')
+      ])
+    );
+    expect(result.layoutNoise.hints.fragments.map(normalizeLayoutText)).toContain(
+      normalizeLayoutText('邮箱：review@example.com')
+    );
+    expect(result.layoutNoise.hints.exact.map(normalizeLayoutText)).not.toContain(
+      normalizeLayoutText('邮箱：review@example.com')
+    );
   });
 
   it('removes page numbers when layout filtering is enabled', () => {
@@ -75,10 +78,7 @@ describe('layoutNoise', () => {
   });
 
   it('keeps repeated content when layout filtering is disabled', () => {
-    const root = new DOMParser().parseFromString(
-      '<p>内部资料</p><p>正文</p><p>内部资料</p>',
-      'text/html'
-    ).body;
+    const root = new DOMParser().parseFromString('<p>内部资料</p><p>正文</p><p>内部资料</p>', 'text/html').body;
     const result = removeLayoutNoise(root, { hints: { exact: [], fragments: [] }, enabled: false });
 
     expect(result.filteredCount).toBe(0);

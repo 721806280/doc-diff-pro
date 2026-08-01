@@ -6,7 +6,15 @@ import { createReviewItem, diffReviewId } from '@/utils/diffReview';
 import { useReviewSummary } from './useReviewSummary';
 
 function summaryWith(total: number): DiffSummary {
-  return { total, inserted: total, deleted: 0, modified: 0, similarity: 0.5, layoutNoiseFiltered: 0, layoutNoiseItems: [] };
+  return {
+    total,
+    inserted: total,
+    deleted: 0,
+    modified: 0,
+    similarity: 0.5,
+    layoutNoiseFiltered: 0,
+    layoutNoiseItems: []
+  };
 }
 
 /** Indexes `total` differences; entries in `texts` override the default body. */

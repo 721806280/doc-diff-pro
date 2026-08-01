@@ -126,25 +126,25 @@ Deployments can inject runtime configuration before the application entry module
 
 ```html
 <script>
-window.__DOC_DIFF_CONFIG__ = {
-  documentInput: 'external',
-  showHeader: false,
-  showSampleDocuments: false,
-  showGithubLink: false,
-  locale: 'en',
-  maxDocxSizeMb: 40
-};
+  window.__DOC_DIFF_CONFIG__ = {
+    documentInput: 'external',
+    showHeader: false,
+    showSampleDocuments: false,
+    showGithubLink: false,
+    locale: 'en',
+    maxDocxSizeMb: 40
+  };
 </script>
 ```
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `documentInput` | `local` | `local` shows browser file inputs; `external` disables local upload and enables the `window.DocDiffPro` API. |
-| `showHeader` | `true` | Controls the top toolbar. |
-| `showSampleDocuments` | `true` | Controls the bundled sample action. |
-| `showGithubLink` | `true` | Controls the author repository link in the toolbar. |
-| `locale` | `auto` | Accepts `auto`, `zh-CN`, or `en`. `auto` prefers a saved locale before browser detection. |
-| `maxDocxSizeMb` | `25` | Per-file size limit; it must be a finite number greater than zero. |
+| Option                | Default | Description                                                                                                  |
+| --------------------- | ------- | ------------------------------------------------------------------------------------------------------------ |
+| `documentInput`       | `local` | `local` shows browser file inputs; `external` disables local upload and enables the `window.DocDiffPro` API. |
+| `showHeader`          | `true`  | Controls the top toolbar.                                                                                    |
+| `showSampleDocuments` | `true`  | Controls the bundled sample action.                                                                          |
+| `showGithubLink`      | `true`  | Controls the author repository link in the toolbar.                                                          |
+| `locale`              | `auto`  | Accepts `auto`, `zh-CN`, or `en`. `auto` prefers a saved locale before browser detection.                    |
+| `maxDocxSizeMb`       | `25`    | Per-file size limit; it must be a finite number greater than zero.                                           |
 
 `documentInput: 'external'` does not accept URLs. The integrating system must handle authentication, source validation, and file retrieval, then pass browser `File` objects after DocDiff Pro has mounted:
 

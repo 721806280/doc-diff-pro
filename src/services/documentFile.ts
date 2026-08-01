@@ -11,8 +11,16 @@ export type DocumentErrorState = {
 
 export function createEmptyDocument(): DocumentPaneState {
   return {
-    name: '', size: 0, originalHtml: '', highlightedHtml: '', textLength: 0,
-    imageCount: 0, warnings: [], layoutNoise: createEmptyLayoutNoise(), status: 'idle', error: ''
+    name: '',
+    size: 0,
+    originalHtml: '',
+    highlightedHtml: '',
+    textLength: 0,
+    imageCount: 0,
+    warnings: [],
+    layoutNoise: createEmptyLayoutNoise(),
+    status: 'idle',
+    error: ''
   };
 }
 
@@ -30,9 +38,13 @@ export function resolveDocumentError(
   detail = ''
 ): string {
   switch (kind) {
-    case 'invalidType': return i18n.app.errors.invalidType;
-    case 'fileTooLarge': return i18n.app.errors.fileTooLarge(maxSizeMb);
-    case 'emptyFile': return i18n.app.errors.emptyFile;
-    case 'parseFailed': return i18n.app.errors.parseFailed(detail);
+    case 'invalidType':
+      return i18n.app.errors.invalidType;
+    case 'fileTooLarge':
+      return i18n.app.errors.fileTooLarge(maxSizeMb);
+    case 'emptyFile':
+      return i18n.app.errors.emptyFile;
+    case 'parseFailed':
+      return i18n.app.errors.parseFailed(detail);
   }
 }
