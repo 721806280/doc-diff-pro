@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { UserSettings } from '@/config/userSettings';
 import type { DocumentPair } from '@/types/document';
+import { useLatestRef } from './useLatestRef';
 
 type ComparisonRules = Pick<
   UserSettings,
@@ -26,15 +27,12 @@ export function useRecompareOnSettingsChange({
 }: RecompareOnSettingsChangeOptions): void {
   const { diffGranularity, filterLayoutNoise, ignoreFullHalfWidth, ignoreSpaces } = rules;
   const previousRules = useRef(rules);
-  const latestDocuments = useRef(documents);
-  const latestCompare = useRef(onCompare);
-  const latestNotice = useRef(notice);
-  const latestOnNotice = useRef(onNotice);
-
-  latestDocuments.current = documents;
-  latestCompare.current = onCompare;
-  latestNotice.current = notice;
-  latestOnNotice.current = onNotice;
+  // Read at debounce-fire time, so the newest values are used without
+  // restarting the timer whenever a document or callback identity changes.
+  const latestDocuments = useLatestRef(documents);
+  const latestCompare = useLatestRef(onCompare);
+  const latestNotice = useLatestRef(notice);
+  const latestOnNotice = useLatestRef(onNotice);
 
   useEffect(() => {
     const currentRules = { diffGranularity, filterLayoutNoise, ignoreFullHalfWidth, ignoreSpaces };
@@ -47,7 +45,17 @@ export function useRecompareOnSettingsChange({
       void latestCompare.current(latestDocuments.current, true);
     }, 180);
     return () => window.clearTimeout(timer);
-  }, [diffGranularity, filterLayoutNoise, ignoreFullHalfWidth, ignoreSpaces, ready]);
+  }, [
+    diffGranularity,
+    filterLayoutNoise,
+    ignoreFullHalfWidth,
+    ignoreSpaces,
+    latestCompare,
+    latestDocuments,
+    latestNotice,
+    latestOnNotice,
+    ready
+  ]);
 }
 
 function sameRules(left: ComparisonRules, right: ComparisonRules): boolean {

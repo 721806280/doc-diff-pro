@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { resolveReviewShortcut } from '@/utils/diffReview';
+import { useLatestRef } from './useLatestRef';
 
 type ReviewShortcutOptions = {
   enabled: boolean;
@@ -10,8 +11,9 @@ type ReviewShortcutOptions = {
 };
 
 export function useReviewShortcuts(options: ReviewShortcutOptions): void {
-  const latestOptions = useRef(options);
-  latestOptions.current = options;
+  // Callers pass inline handlers, so the listener is registered once and reads
+  // the newest options at keypress time instead of re-subscribing per render.
+  const latestOptions = useLatestRef(options);
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
@@ -35,5 +37,5 @@ export function useReviewShortcuts(options: ReviewShortcutOptions): void {
 
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
-  }, []);
+  }, [latestOptions]);
 }

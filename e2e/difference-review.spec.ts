@@ -99,6 +99,11 @@ test.describe('difference review', () => {
   test('toggles ignore with the I shortcut', async ({ page }) => {
     await loadSampleComparison(page);
 
+    // The shortcut is only armed once a difference is active. The popover is
+    // rendered under the same condition, so waiting for it removes the race
+    // between the navigator appearing and the active difference committing.
+    await expect(page.locator('.diff-action-popover')).toBeVisible();
+
     const progress = activeDiffPosition(page);
     const before = await progress.getAttribute('aria-valuemax');
 

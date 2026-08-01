@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useI18n } from '@/i18n';
+import { useLatestRef } from '@/hooks/useLatestRef';
 import type { IgnoredDiffItem, LayoutNoiseItem, SimilarDiffItem } from '@/types/diff';
 import { createBodyScrollLock } from '@/utils/bodyScrollLock';
 import { createFocusTrap } from '@/utils/focusTrap';
@@ -8,8 +9,8 @@ import { createFocusTrap } from '@/utils/focusTrap';
 function useDialog(open: boolean, panelRef: React.RefObject<HTMLElement | null>, onClose: () => void): void {
   const bodyLock = useMemo(createBodyScrollLock, []);
   const focusTrap = useMemo(createFocusTrap, []);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  // Read at keypress time so the Escape listener is not rebound per render.
+  const onCloseRef = useLatestRef(onClose);
 
   useEffect(() => {
     if (!open) return;
@@ -32,7 +33,7 @@ function useDialog(open: boolean, panelRef: React.RefObject<HTMLElement | null>,
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [focusTrap, open]);
+  }, [focusTrap, onCloseRef, open]);
 }
 
 function CloseIcon() {
