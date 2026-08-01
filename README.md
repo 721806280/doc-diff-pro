@@ -178,9 +178,20 @@ pnpm dev
 Common checks:
 
 ```bash
-pnpm test
+pnpm format:check
+pnpm lint
 pnpm typecheck
+pnpm test
+pnpm test:e2e
 pnpm build
+```
+
+`pnpm format` rewrites files with Prettier. CI runs all of the above on every pull request.
+
+Formatting was applied to the whole repository in a single commit. Run this once so `git blame` skips it:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
 ```
 
 Preview the completed build locally:
