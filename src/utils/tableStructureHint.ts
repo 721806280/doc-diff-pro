@@ -31,6 +31,8 @@ type TableContext = {
   original: TableSideData;
   revised: TableSideData;
   contextRows: HTMLElement[];
+  /** Same rows as `contextRows`, for membership tests in the hot loops. */
+  contextRowSet: ReadonlySet<Element>;
 };
 
 type TableDiagnosis = Omit<DiffTableContextHint, 'tableNumber' | 'originalRows' | 'revisedRows' | 'rowPreviews'> & {
@@ -59,9 +61,16 @@ type SplitRowMatch = SplitRowWindowMatch & {
 };
 
 const PREVIEW_LIMIT = 52;
+/** A merged window must cover this much of the compact row to be reported. */
 const MIN_SPLIT_ROW_SCORE = 0.72;
+/** Below this, two cells are treated as unrelated rather than a weak match. */
+const MIN_CELL_MATCH_SCORE = 0.72;
+/** Floor applied when one cell fully contains the other; see textSimilarity. */
+const CONTAINMENT_MATCH_SCORE = 0.72;
 const HIGH_CONFIDENCE_SPLIT_ROW_SCORE = 0.92;
 const MAX_SPLIT_ROW_WINDOW = 3;
+/** Not whitespace, so structureNormalize leaves it in the row signature. */
+const CELL_SEPARATOR = '\u0000';
 
 /**
  * The structure diagnosis judges *structure* (same cells? same row count? a
@@ -107,13 +116,16 @@ function createTableContext(
   const tablePair = findTablePair(originalRoot, revisedRoot, originalElements, revisedElements);
   if (!tablePair) return null;
 
+  const contextRows = collectContextRows(originalElements, revisedElements);
+
   return {
     tableNumber: tablePair.tableIndex + 1,
     originalTable: tablePair.originalTable,
     revisedTable: tablePair.revisedTable,
     original: createTableSideData(tablePair.originalTable),
     revised: createTableSideData(tablePair.revisedTable),
-    contextRows: collectContextRows(originalElements, revisedElements)
+    contextRows,
+    contextRowSet: new Set(contextRows)
   };
 }
 
@@ -168,11 +180,14 @@ function findTablePair(
 
 function createTableSideData(table: HTMLTableElement): TableSideData {
   const rows = directTableRows(table);
+  // Normalize each cell once and derive both signatures from it; the previous
+  // shape normalized every cell twice, once joined and once individually.
+  const normalizedRows = rows.map(normalizedRowCells);
 
   return {
     rows,
-    rowSignatures: rows.map(rowSignature),
-    cellSignatures: rows.map(rowCellSignatures)
+    rowSignatures: normalizedRows.map(rowSignature),
+    cellSignatures: normalizedRows.map((cells) => cells.filter(Boolean))
   };
 }
 
@@ -196,7 +211,7 @@ function detectSingleRowChange(context: TableContext, candidateSide: LayoutNoise
   const candidateIndex = candidates[0];
   if (candidateIndex === undefined) return null;
   const candidateRow = candidateData.rows[candidateIndex];
-  if (!candidateRow || !touchesContextRows([candidateRow], context.contextRows)) return null;
+  if (!candidateRow || !touchesContextRows([candidateRow], context.contextRowSet)) return null;
 
   return {
     kind: candidateSide === 'revised' ? 'single-row-inserted' : 'single-row-deleted',
@@ -231,19 +246,27 @@ function findAdjacentRowShift(
   const splitData = sideData(context, splitSide);
   let bestMatch: SplitRowMatch | null = null;
 
+  // Every accepted window has to touch a focused row, so enumerate outward
+  // from those rows instead of walking every (compact row, split window) pair.
+  // The candidate set is identical; the rejected majority is never built.
+  const lastStart = splitData.rows.length - 2;
+  const anchoredStarts = windowStartsTouchingContext(splitData.rows, context.contextRowSet);
+  const everyStart = countUp(lastStart);
+
   for (let compactIndex = 0; compactIndex < compactData.cellSignatures.length; compactIndex++) {
     const compactCells = compactData.cellSignatures[compactIndex];
     const compactRow = compactData.rows[compactIndex];
     if (!compactCells || !compactRow || compactCells.length < 2) continue;
 
-    for (let splitIndex = 0; splitIndex < splitData.rows.length - 1; splitIndex++) {
+    // A focused compact row satisfies the touch test on its own, so it may
+    // pair with any window. Otherwise the window itself has to supply it.
+    const starts = context.contextRowSet.has(compactRow) ? everyStart : anchoredStarts;
+
+    for (const splitIndex of starts) {
       const splitMatch = scoreSplitWindow(context, compactRow, compactCells, splitData, splitIndex);
       if (!splitMatch || splitMatch.score <= (bestMatch?.score ?? 0)) continue;
 
-      bestMatch = {
-        ...splitMatch,
-        compactIndex
-      };
+      bestMatch = { ...splitMatch, compactIndex };
     }
   }
 
@@ -265,6 +288,27 @@ function findAdjacentRowShift(
   };
 }
 
+/** Window start offsets, ascending, whose window can hold a focused row. */
+function windowStartsTouchingContext(rows: HTMLTableRowElement[], contextRowSet: ReadonlySet<Element>): number[] {
+  const lastStart = rows.length - 2;
+  const starts = new Set<number>();
+
+  rows.forEach((row, rowIndex) => {
+    if (!contextRowSet.has(row)) return;
+    for (let windowSize = 2; windowSize <= MAX_SPLIT_ROW_WINDOW; windowSize++) {
+      const first = Math.max(0, rowIndex - windowSize + 1);
+      const last = Math.min(rowIndex, rows.length - windowSize);
+      for (let start = first; start <= Math.min(last, lastStart); start++) starts.add(start);
+    }
+  });
+
+  return [...starts].sort((left, right) => left - right);
+}
+
+function countUp(lastIndex: number): number[] {
+  return lastIndex < 0 ? [] : Array.from({ length: lastIndex + 1 }, (_, index) => index);
+}
+
 function scoreSplitWindow(
   context: TableContext,
   compactRow: HTMLTableRowElement,
@@ -277,7 +321,7 @@ function scoreSplitWindow(
   for (let windowSize = 2; windowSize <= MAX_SPLIT_ROW_WINDOW; windowSize++) {
     const splitRows = splitData.rows.slice(splitIndex, splitIndex + windowSize);
     if (splitRows.length < windowSize) continue;
-    if (!touchesContextRows([compactRow, ...splitRows], context.contextRows)) continue;
+    if (!touchesContextRows([compactRow, ...splitRows], context.contextRowSet)) continue;
 
     const mergedSplitCells = splitData.cellSignatures.slice(splitIndex, splitIndex + windowSize).flat();
     const score = cellCoverageScore(compactCells, mergedSplitCells);
@@ -503,34 +547,42 @@ function contextRowIndexes(rows: HTMLTableRowElement[], contextRows: HTMLElement
   return rows.map((row, index) => (contextRows.includes(row) ? index : -1)).filter((index) => index >= 0);
 }
 
-function touchesContextRows(rows: HTMLTableRowElement[], contextRows: HTMLElement[]): boolean {
-  return rows.some((row) => row && contextRows.includes(row));
+function touchesContextRows(rows: HTMLTableRowElement[], contextRowSet: ReadonlySet<Element>): boolean {
+  return rows.some((row) => row && contextRowSet.has(row));
 }
 
 function physicalCellCount(row: HTMLTableRowElement): number {
   return row.cells.length;
 }
 
-function rowSignature(row: HTMLTableRowElement): string {
-  const text = Array.from(row.cells)
-    .map((cell) => cell.textContent ?? '')
-    .join('	');
-  return structureNormalize(text);
+function normalizedRowCells(row: HTMLTableRowElement): string[] {
+  return Array.from(row.cells).map((cell) => structureNormalize(cell.textContent ?? ''));
 }
 
-function rowCellSignatures(row: HTMLTableRowElement): string[] {
-  return Array.from(row.cells)
-    .map((cell) => structureNormalize(cell.textContent ?? ''))
-    .filter(Boolean);
+/**
+ * Joined with a separator that survives structureNormalize, which strips all
+ * whitespace. Joining on a tab first, as this used to, let the normalizer eat
+ * the boundary: ["AB","C"] and ["A","BC"] collapsed to the same signature, so
+ * a row whose cell split had moved read as unchanged.
+ */
+function rowSignature(cells: string[]): string {
+  return cells.join(CELL_SEPARATOR);
 }
 
 function cellCoverageScore(sourceCells: string[], targetCells: string[]): number {
   if (sourceCells.length === 0 || targetCells.length === 0) return 0;
 
   const availableTargets = [...targetCells];
+  const denominator = Math.max(sourceCells.length, targetCells.length);
   let score = 0;
 
-  for (const sourceCell of sourceCells) {
+  for (let index = 0; index < sourceCells.length; index++) {
+    // Each remaining cell can contribute at most 1. Once even a perfect run of
+    // them cannot reach the window threshold, the result is already decided.
+    if ((score + (sourceCells.length - index)) / denominator < MIN_SPLIT_ROW_SCORE) return 0;
+
+    const sourceCell = sourceCells[index];
+    if (sourceCell === undefined) continue;
     const bestIndex = findBestCellMatch(sourceCell, availableTargets);
     const bestTarget = bestIndex < 0 ? undefined : availableTargets[bestIndex];
     if (bestTarget === undefined) continue;
@@ -539,7 +591,21 @@ function cellCoverageScore(sourceCells: string[], targetCells: string[]): number
     availableTargets.splice(bestIndex, 1);
   }
 
-  return score / Math.max(sourceCells.length, targetCells.length);
+  return score / denominator;
+}
+
+/**
+ * True when the two lengths are close enough that textSimilarity could still
+ * reach MIN_CELL_MATCH_SCORE, so the O(n*m) subsequence scan is worth running.
+ *
+ * Containment yields at least the score floor only from a ratio of 0.5, and
+ * the subsequence branch is bounded by 2r/(1+r), which is 0.67 at r = 0.5.
+ * Below that ratio neither branch can clear 0.72.
+ */
+function couldReachCellMatch(left: string, right: string): boolean {
+  const longest = Math.max(left.length, right.length);
+  if (longest === 0) return false;
+  return Math.min(left.length, right.length) / longest >= 0.5;
 }
 
 function findBestCellMatch(sourceCell: string, targetCells: string[]): number {
@@ -547,6 +613,7 @@ function findBestCellMatch(sourceCell: string, targetCells: string[]): number {
   let bestScore = 0;
 
   targetCells.forEach((targetCell, index) => {
+    if (!couldReachCellMatch(sourceCell, targetCell)) return;
     const score = textSimilarity(sourceCell, targetCell);
     if (score <= bestScore) return;
 
@@ -554,7 +621,7 @@ function findBestCellMatch(sourceCell: string, targetCells: string[]): number {
     bestIndex = index;
   });
 
-  return bestScore >= MIN_SPLIT_ROW_SCORE ? bestIndex : -1;
+  return bestScore >= MIN_CELL_MATCH_SCORE ? bestIndex : -1;
 }
 
 function textSimilarity(left: string, right: string): number {
@@ -565,7 +632,7 @@ function textSimilarity(left: string, right: string): number {
   const longer = left.length > right.length ? left : right;
   if (longer.includes(shorter)) {
     const containmentRatio = shorter.length / longer.length;
-    return containmentRatio >= 0.5 ? Math.max(0.72, containmentRatio) : containmentRatio;
+    return containmentRatio >= 0.5 ? Math.max(CONTAINMENT_MATCH_SCORE, containmentRatio) : containmentRatio;
   }
 
   const commonLength = longestCommonSubsequenceLength(left, right);

@@ -304,4 +304,45 @@ describe('resolveTableStructureHint', () => {
       )
     ).toBeNull();
   });
+  // The row signature used to join cells on a tab and then run a normalizer
+  // that strips all whitespace, so the boundary vanished: ["AB","C"] and
+  // ["A","BC"] hashed the same. A row whose cell split had moved then read as
+  // unchanged, and the neighbouring row was reported as a clean insertion.
+  it('treats a moved cell boundary as a changed row', () => {
+    const original = bodyFromHtml('<table><tr><td>AB</td><td>C</td></tr><tr><td>keep</td><td>row</td></tr></table>');
+    const revised = bodyFromHtml(
+      '<table><tr><td>A</td><td>BC</td></tr>' +
+        '<tr><td><ins data-diff-id="diff-1">new</ins></td><td><ins data-diff-id="diff-1">row</ins></td></tr>' +
+        '<tr><td>keep</td><td>row</td></tr></table>'
+    );
+
+    const insight = resolveTableStructureHint(
+      original,
+      revised,
+      [],
+      Array.from(revised.querySelectorAll<HTMLElement>('ins')),
+      DEFAULT_OPTIONS
+    );
+
+    expect(insight?.hint.kind).not.toBe('single-row-inserted');
+  });
+
+  it('still reports an insertion when the untouched rows really are identical', () => {
+    const original = bodyFromHtml('<table><tr><td>AB</td><td>C</td></tr><tr><td>keep</td><td>row</td></tr></table>');
+    const revised = bodyFromHtml(
+      '<table><tr><td>AB</td><td>C</td></tr>' +
+        '<tr><td><ins data-diff-id="diff-1">new</ins></td><td><ins data-diff-id="diff-1">row</ins></td></tr>' +
+        '<tr><td>keep</td><td>row</td></tr></table>'
+    );
+
+    const insight = resolveTableStructureHint(
+      original,
+      revised,
+      [],
+      Array.from(revised.querySelectorAll<HTMLElement>('ins')),
+      DEFAULT_OPTIONS
+    );
+
+    expect(insight?.hint).toMatchObject({ kind: 'single-row-inserted', candidateRow: 2 });
+  });
 });
