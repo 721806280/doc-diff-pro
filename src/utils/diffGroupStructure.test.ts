@@ -75,6 +75,34 @@ describe('diffGroupStructure', () => {
     );
   });
 
+  it('repairs a cross-row match without restoring ignored spaces', () => {
+    const original = bodyFromHtml('<table><tr><td>期限</td><td>10 个工作日</td></tr></table>');
+    const revised = bodyFromHtml(
+      '<table><tr><td>期限</td><td><ins data-diff-id="diff-1">7个工作日</ins></td></tr></table>'
+    );
+
+    refineDiffGroups(original, revised, {
+      granularity: 'char',
+      ignoreSpaces: true,
+      ignoreFullHalfWidth: true
+    });
+
+    expect(original.querySelector('del')?.textContent).toBe('10');
+    expect(revised.querySelector('ins')?.textContent).toBe('7');
+  });
+
+  it('keeps separate changes precise when repairing a short cell', () => {
+    const original = bodyFromHtml('<table><tr><td>字段</td><td>A旧中旧Z</td></tr></table>');
+    const revised = bodyFromHtml(
+      '<table><tr><td>字段</td><td><ins data-diff-id="diff-1">A新中新Z</ins></td></tr></table>'
+    );
+
+    refineDiffGroups(original, revised);
+
+    expect(Array.from(original.querySelectorAll('del')).map((node) => node.textContent)).toEqual(['旧', '旧']);
+    expect(Array.from(revised.querySelectorAll('ins')).map((node) => node.textContent)).toEqual(['新', '新']);
+  });
+
   it('does not pair ambiguous repeated table text moves', () => {
     const original = bodyFromHtml(
       '<table><tr><td><del data-diff-id="diff-1">重复值</del></td></tr><tr><td><del data-diff-id="diff-2">重复值</del></td></tr></table>'

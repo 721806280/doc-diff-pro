@@ -65,7 +65,11 @@ export async function compareDocuments(
   applyDiffMarkup(originalDom, originalTrack.mapping, diffs, DIFF_DELETE, 'del');
   applyDiffMarkup(revisedDom, revisedTrack.mapping, diffs, DIFF_INSERT, 'ins');
 
-  const refinedSummary = refineDiffGroups(originalDom, revisedDom);
+  const refinedSummary = refineDiffGroups(originalDom, revisedDom, {
+    granularity: options.granularity,
+    ignoreSpaces: options.ignoreSpaces,
+    ignoreFullHalfWidth: options.ignoreFullHalfWidth
+  });
   summary.total = refinedSummary.total;
   summary.inserted = refinedSummary.inserted;
   summary.deleted = refinedSummary.deleted;

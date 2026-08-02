@@ -1,5 +1,7 @@
-import type { DiffSummary } from '@/types/diff';
-import { parseDiffId } from './textDiffCore';
+import type { DiffGranularity, DiffSummary, DiffTuple } from '@/types/diff';
+import { applyDiffMarkup } from './diffMarkup';
+import { buildTextMapping, collapseWhitespace, normalizeText, type TextMapping } from './documentText';
+import { createTextDiffs, DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, parseDiffId, summarizeDiffs } from './textDiffCore';
 
 const DIFF_ELEMENT_SELECTOR = 'ins[data-diff-id], del[data-diff-id]';
 const BODY_BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, div, section, article';
@@ -8,6 +10,7 @@ const TABLE_MATCH_THRESHOLD = 0.15;
 // Table-count changes need text evidence; equal shape alone scores at most 0.3.
 const TABLE_COUNT_CHANGE_MATCH_THRESHOLD = 0.35;
 const TABLE_GAP_PENALTY = 0.2;
+const MAX_MAIN_THREAD_CELL_DIFF_LENGTH = 2048;
 
 type DiffScope = {
   kind: 'body' | 'table';
@@ -46,11 +49,25 @@ type DiffGroupBucket = { scope: DiffScope; elements: HTMLElement[] };
 type DiffGroupBuckets = Map<string, DiffGroupBucket>;
 type DiffGroupUnit = { original?: DiffGroupBucket; revised?: DiffGroupBucket };
 
+export type DiffGroupRefinementOptions = {
+  granularity: DiffGranularity;
+  ignoreSpaces: boolean;
+  ignoreFullHalfWidth: boolean;
+};
+
+const DEFAULT_REFINEMENT_OPTIONS: DiffGroupRefinementOptions = {
+  granularity: 'char',
+  ignoreSpaces: false,
+  ignoreFullHalfWidth: false
+};
+
 export function refineDiffGroups(
   originalRoot: HTMLElement,
-  revisedRoot: HTMLElement
+  revisedRoot: HTMLElement,
+  options: DiffGroupRefinementOptions = DEFAULT_REFINEMENT_OPTIONS
 ): Pick<DiffSummary, 'total' | 'inserted' | 'deleted' | 'modified'> {
   const alignment = alignDocumentTables(originalRoot, revisedRoot);
+  repairTableRowDiffMarkup(alignment, options);
   const originalIndex = buildStructureIndex(originalRoot, alignment, 'original');
   const revisedIndex = buildStructureIndex(revisedRoot, alignment, 'revised');
 
@@ -509,6 +526,232 @@ function mergeMovedTableGroups(
 
 function normalizedGroupText(elements: HTMLElement[]): string {
   return normalizeStructureText(elements.map((element) => element.textContent ?? '').join(''));
+}
+
+function repairTableRowDiffMarkup(alignment: TableAlignmentEntry[], options: DiffGroupRefinementOptions): void {
+  let repairGroup = 0;
+  const nextRepairGroupId = (): string => `repair-${++repairGroup}`;
+
+  alignment.forEach(({ original, revised }) => {
+    if (!original || !revised) return;
+
+    const originalRows = directTableRows(original);
+    const revisedRows = directTableRows(revised);
+    const { pairs, unmatchedOriginal, unmatchedRevised } = pairRowsByUniqueFirstCell(originalRows, revisedRows);
+
+    pairs.forEach(([originalRow, revisedRow]) =>
+      repairPairedRowCells(originalRow, revisedRow, options, nextRepairGroupId)
+    );
+
+    if (unmatchedOriginal.length === 0 && unmatchedRevised.length === revisedRows.length - originalRows.length) {
+      unmatchedRevised.forEach((row) => completeChangedRowMarkup(row, 'ins'));
+    }
+    if (unmatchedRevised.length === 0 && unmatchedOriginal.length === originalRows.length - revisedRows.length) {
+      unmatchedOriginal.forEach((row) => completeChangedRowMarkup(row, 'del'));
+    }
+  });
+}
+
+function pairRowsByUniqueFirstCell(
+  originalRows: HTMLTableRowElement[],
+  revisedRows: HTMLTableRowElement[]
+): {
+  pairs: Array<[HTMLTableRowElement, HTMLTableRowElement]>;
+  unmatchedOriginal: HTMLTableRowElement[];
+  unmatchedRevised: HTMLTableRowElement[];
+} {
+  const originalKeys = originalRows.map(firstCellKey);
+  const revisedKeys = revisedRows.map(firstCellKey);
+  const originalCounts = countValues(originalKeys);
+  const revisedCounts = countValues(revisedKeys);
+  const revisedByKey = new Map(revisedRows.map((row, index) => [revisedKeys[index], row]));
+  const matchedOriginal = new Set<HTMLTableRowElement>();
+  const matchedRevised = new Set<HTMLTableRowElement>();
+  const pairs: Array<[HTMLTableRowElement, HTMLTableRowElement]> = [];
+
+  originalRows.forEach((row, index) => {
+    const key = originalKeys[index];
+    if (!key || originalCounts.get(key) !== 1 || revisedCounts.get(key) !== 1) return;
+    const revisedRow = revisedByKey.get(key);
+    if (!revisedRow) return;
+
+    pairs.push([row, revisedRow]);
+    matchedOriginal.add(row);
+    matchedRevised.add(revisedRow);
+  });
+
+  return {
+    pairs,
+    unmatchedOriginal: originalRows.filter((row) => !matchedOriginal.has(row)),
+    unmatchedRevised: revisedRows.filter((row) => !matchedRevised.has(row))
+  };
+}
+
+function firstCellKey(row: HTMLTableRowElement): string {
+  const firstCell = directRowCells(row)[0];
+  return normalizeStructureText(firstCell?.textContent ?? '');
+}
+
+function countValues(values: string[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  values.forEach((value) => {
+    if (value) counts.set(value, (counts.get(value) ?? 0) + 1);
+  });
+  return counts;
+}
+
+function repairPairedRowCells(
+  originalRow: HTMLTableRowElement,
+  revisedRow: HTMLTableRowElement,
+  options: DiffGroupRefinementOptions,
+  nextRepairGroupId: () => string
+): void {
+  const originalCells = directRowCells(originalRow);
+  const revisedCells = directRowCells(revisedRow);
+  if (originalCells.length !== revisedCells.length) return;
+
+  originalCells.forEach((originalCell, index) => {
+    const revisedCell = revisedCells[index];
+    if (!revisedCell) return;
+
+    const originalId = fullCellDiffId(originalCell, 'del');
+    const revisedId = fullCellDiffId(revisedCell, 'ins');
+    if ((!originalId && revisedId) || (!revisedId && originalId)) {
+      remarkCellDifference(originalCell, revisedCell, revisedId ?? originalId!, options, nextRepairGroupId);
+    }
+  });
+}
+
+function remarkCellDifference(
+  originalCell: HTMLTableCellElement,
+  revisedCell: HTMLTableCellElement,
+  id: string,
+  options: DiffGroupRefinementOptions,
+  nextRepairGroupId: () => string
+): void {
+  [originalCell, revisedCell].forEach((cell) => {
+    Array.from(cell.querySelectorAll<HTMLElement>(DIFF_ELEMENT_SELECTOR)).reverse().forEach(unwrapDiffElement);
+  });
+
+  const originalTrack = prepareCellText(originalCell, options);
+  const revisedTrack = prepareCellText(revisedCell, options);
+  const diffs = createCellRepairDiff(originalTrack.text, revisedTrack.text, options.granularity);
+  assignRepairGroupIds(diffs, id, nextRepairGroupId);
+
+  applyDiffMarkup(originalCell, originalTrack.mapping, diffs, DIFF_DELETE, 'del');
+  applyDiffMarkup(revisedCell, revisedTrack.mapping, diffs, DIFF_INSERT, 'ins');
+}
+
+function createCellRepairDiff(original: string, revised: string, granularity: DiffGranularity): DiffTuple[] {
+  if (Math.max(original.length, revised.length) <= MAX_MAIN_THREAD_CELL_DIFF_LENGTH) {
+    // Within a single repaired cell each change should stay its own marker, so
+    // skip the efficiency pass that merges edits across short equal runs
+    // ("旧|中|旧" collapsing into one "旧中旧" span).
+    return createTextDiffs(original, revised, granularity, { mergeShortGaps: false });
+  }
+
+  // ponytail: keep huge-cell repair linear; move exact cell diffing into the worker if multi-span precision is needed.
+  return createSingleSpanDiff(original, revised);
+}
+
+function assignRepairGroupIds(diffs: DiffTuple[], firstId: string, nextRepairGroupId: () => string): void {
+  summarizeDiffs(
+    diffs,
+    'char',
+    diffs.reduce((length, [operation, text]) => length + (operation === DIFF_INSERT ? 0 : text.length), 0),
+    diffs.reduce((length, [operation, text]) => length + (operation === DIFF_DELETE ? 0 : text.length), 0)
+  );
+
+  const ids = new Map<string, string>();
+  diffs.forEach((diff) => {
+    if (diff[0] === DIFF_EQUAL || !diff.groupId) return;
+    let mappedId = ids.get(diff.groupId);
+    if (!mappedId) {
+      mappedId = ids.size === 0 ? firstId : nextRepairGroupId();
+      ids.set(diff.groupId, mappedId);
+    }
+    diff.groupId = mappedId;
+  });
+}
+
+function prepareCellText(cell: HTMLTableCellElement, options: DiffGroupRefinementOptions): TextMapping {
+  const mapping = buildTextMapping(cell);
+  const track = options.ignoreSpaces ? collapseWhitespace(mapping) : mapping;
+  return {
+    text: normalizeText(track.text, options.ignoreFullHalfWidth, false),
+    mapping: track.mapping
+  };
+}
+
+function createSingleSpanDiff(original: string, revised: string): DiffTuple[] {
+  let prefixLength = 0;
+  const sharedLength = Math.min(original.length, revised.length);
+  while (prefixLength < sharedLength && original[prefixLength] === revised[prefixLength]) prefixLength++;
+
+  let suffixLength = 0;
+  while (
+    suffixLength < sharedLength - prefixLength &&
+    original[original.length - suffixLength - 1] === revised[revised.length - suffixLength - 1]
+  ) {
+    suffixLength++;
+  }
+
+  const diffs: DiffTuple[] = [];
+  const prefix = original.slice(0, prefixLength);
+  const deleted = original.slice(prefixLength, original.length - suffixLength);
+  const inserted = revised.slice(prefixLength, revised.length - suffixLength);
+  const suffix = original.slice(original.length - suffixLength);
+  if (prefix) diffs.push([DIFF_EQUAL, prefix]);
+  if (deleted) diffs.push([DIFF_DELETE, deleted]);
+  if (inserted) diffs.push([DIFF_INSERT, inserted]);
+  if (suffix) diffs.push([DIFF_EQUAL, suffix]);
+  return diffs;
+}
+
+function unwrapDiffElement(element: HTMLElement): void {
+  element.replaceWith(...Array.from(element.childNodes));
+}
+
+function fullCellDiffId(cell: HTMLTableCellElement, tag: 'ins' | 'del'): string | null {
+  const elements = Array.from(cell.querySelectorAll<HTMLElement>(`${tag}[data-diff-id]`));
+  const ids = new Set(elements.map((element) => element.dataset.diffId).filter(Boolean));
+  if (ids.size !== 1) return null;
+
+  const markedText = normalizeStructureText(elements.map((element) => element.textContent ?? '').join(''));
+  return markedText && markedText === normalizeStructureText(cell.textContent ?? '') ? ([...ids][0] ?? null) : null;
+}
+
+function completeChangedRowMarkup(row: HTMLTableRowElement, tag: 'ins' | 'del'): void {
+  const ids = new Set(
+    Array.from(row.querySelectorAll<HTMLElement>(`${tag}[data-diff-id]`))
+      .map((element) => element.dataset.diffId)
+      .filter((id): id is string => Boolean(id))
+  );
+  const id = ids.size === 1 ? [...ids][0] : undefined;
+  if (id) wrapUnmarkedText(row, tag, id);
+}
+
+function wrapUnmarkedText(container: HTMLElement, tag: 'ins' | 'del', id: string): void {
+  const walker = container.ownerDocument.createTreeWalker(container, 4);
+  const nodes: Text[] = [];
+  let current = walker.nextNode();
+  while (current) {
+    if (
+      current instanceof Text &&
+      normalizeStructureText(current.nodeValue ?? '') &&
+      !current.parentElement?.closest(DIFF_ELEMENT_SELECTOR)
+    ) {
+      nodes.push(current);
+    }
+    current = walker.nextNode();
+  }
+
+  nodes.forEach((node) => {
+    const wrapper = container.ownerDocument.createElement(tag);
+    wrapper.dataset.diffId = id;
+    node.parentNode?.insertBefore(wrapper, node);
+    wrapper.appendChild(node);
+  });
 }
 
 function normalizeStructureText(text: string): string {

@@ -19,10 +19,15 @@ export function parseDiffId(id: string): number {
   return Number.parseInt(id.slice(DIFF_ID_PREFIX.length), 10);
 }
 
-export function createTextDiffs(originalText: string, revisedText: string, granularity: DiffGranularity): DiffTuple[] {
+export function createTextDiffs(
+  originalText: string,
+  revisedText: string,
+  granularity: DiffGranularity,
+  options: { mergeShortGaps?: boolean } = {}
+): DiffTuple[] {
   const diffs = diffMatchPatch.diff_main(originalText, revisedText) as DiffTuple[];
 
-  cleanupDiffs(diffs, granularity);
+  cleanupDiffs(diffs, granularity, options.mergeShortGaps ?? true);
   return diffs;
 }
 
@@ -35,16 +40,16 @@ export function summarizeDiffs(
   return assignDiffGroups(diffs, getGapThreshold(granularity), originalLength, revisedLength);
 }
 
-function cleanupDiffs(diffs: DiffTuple[], granularity: DiffGranularity): void {
+function cleanupDiffs(diffs: DiffTuple[], granularity: DiffGranularity, mergeShortGaps: boolean): void {
   if (granularity === 'semantic') {
     diffMatchPatch.diff_cleanupSemantic(diffs);
   } else {
-    // Align diff boundaries to semantic edges without merging adjacent changes.
-    // Fixes false-positive splits on repeated substrings (e.g. "@example.com")
     // while preserving word/character granularity.
     diffMatchPatch.diff_cleanupSemanticLossless(diffs);
   }
-  diffMatchPatch.diff_cleanupEfficiency(diffs);
+  if (mergeShortGaps) {
+    diffMatchPatch.diff_cleanupEfficiency(diffs);
+  }
 }
 
 function assignDiffGroups(
