@@ -1,6 +1,7 @@
 import type { DiffTableContextHint, DiffTableRowPreview, DiffTableRowPreviewRole, LayoutNoiseSide } from '@/types/diff';
 import { normalizeText } from './documentText';
 import { alignDocumentTables } from './diffGroupStructure';
+import { longestCommonSubsequenceLength } from './longestCommonSubsequence';
 
 export type TableStructureHintOptions = {
   ignoreSpaces: boolean;
@@ -569,24 +570,6 @@ function textSimilarity(left: string, right: string): number {
 
   const commonLength = longestCommonSubsequenceLength(left, right);
   return (2 * commonLength) / (left.length + right.length);
-}
-
-function longestCommonSubsequenceLength(left: string, right: string): number {
-  let previous = new Array<number>(right.length + 1).fill(0);
-  let current = new Array<number>(right.length + 1).fill(0);
-
-  for (let leftIndex = 0; leftIndex < left.length; leftIndex++) {
-    for (let rightIndex = 0; rightIndex < right.length; rightIndex++) {
-      current[rightIndex + 1] =
-        left[leftIndex] === right[rightIndex]
-          ? (previous[rightIndex] ?? 0) + 1
-          : Math.max(previous[rightIndex + 1] ?? 0, current[rightIndex] ?? 0);
-    }
-    [previous, current] = [current, previous];
-    current.fill(0);
-  }
-
-  return previous[right.length] ?? 0;
 }
 
 function removableIndexes(source: string[], target: string[]): number[] {

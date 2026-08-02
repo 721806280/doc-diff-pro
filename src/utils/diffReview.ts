@@ -6,6 +6,7 @@ import type {
   SimilarDiffLevel
 } from '@/types/diff';
 import type { DiffElementGroup, DiffElementIndex } from './diffElementIndex';
+import { longestCommonSubsequenceLength } from './longestCommonSubsequence';
 import { diffId, parseDiffId } from './textDiffCore';
 
 export const SIMILAR_DIFF_THRESHOLDS: Record<SimilarDiffLevel, number> = {
@@ -214,25 +215,4 @@ function compareReviewSignature(left: string, right: string): number {
 function canReachSimilarityThreshold(left: string, right: string, threshold: number): boolean {
   if (!left || !right) return false;
   return Math.min(left.length, right.length) / Math.max(left.length, right.length) >= threshold;
-}
-
-function longestCommonSubsequenceLength(left: string, right: string): number {
-  // Rolling two-row LCS. Both rows are sized right.length + 1 and every index
-  // below is within bounds, so the `?? 0` fallbacks never trigger at runtime.
-  const previous = new Array<number>(right.length + 1).fill(0);
-  const current = new Array<number>(right.length + 1).fill(0);
-
-  for (let leftIndex = 1; leftIndex <= left.length; leftIndex++) {
-    for (let rightIndex = 1; rightIndex <= right.length; rightIndex++) {
-      current[rightIndex] =
-        left[leftIndex - 1] === right[rightIndex - 1]
-          ? (previous[rightIndex - 1] ?? 0) + 1
-          : Math.max(previous[rightIndex] ?? 0, current[rightIndex - 1] ?? 0);
-    }
-
-    previous.splice(0, previous.length, ...current);
-    current.fill(0);
-  }
-
-  return previous[right.length] ?? 0;
 }
