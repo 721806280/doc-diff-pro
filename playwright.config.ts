@@ -5,7 +5,10 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
-  reporter: 'list',
+  // `list` keeps the console readable; `html` leaves behind playwright-report/
+  // so a failing CI run has something to upload and inspect. Traces are already
+  // retained on failure and get embedded in that report.
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://127.0.0.1:5173/doc-diff-pro/',
     channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome',
