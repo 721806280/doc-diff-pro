@@ -22,5 +22,6 @@ declare module 'diff-match-patch' {
     diff_main(text1: string, text2: string): Array<[number, string]>;
     diff_cleanupSemantic(diffs: Array<[number, string]>): void;
     diff_cleanupEfficiency(diffs: Array<[number, string]>): void;
+    diff_cleanupSemanticLossless(diffs: Array<[number, string]>): void;
   }
 }

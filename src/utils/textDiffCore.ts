@@ -38,6 +38,11 @@ export function summarizeDiffs(
 function cleanupDiffs(diffs: DiffTuple[], granularity: DiffGranularity): void {
   if (granularity === 'semantic') {
     diffMatchPatch.diff_cleanupSemantic(diffs);
+  } else {
+    // Align diff boundaries to semantic edges without merging adjacent changes.
+    // Fixes false-positive splits on repeated substrings (e.g. "@example.com")
+    // while preserving word/character granularity.
+    diffMatchPatch.diff_cleanupSemanticLossless(diffs);
   }
   diffMatchPatch.diff_cleanupEfficiency(diffs);
 }
