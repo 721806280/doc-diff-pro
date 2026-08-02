@@ -131,6 +131,34 @@ test.describe('difference review', () => {
     await expect(markers.first()).not.toHaveAttribute('aria-current', 'true');
   });
 
+  // The contacts table in the samples differs by exactly one whole inserted
+  // row, which is the shape the structure resolver reports on. If a future
+  // sample edit disturbs the surrounding rows, the resolver goes quiet and
+  // this test is what says so.
+  test('shows a table structure hint for an inserted row', async ({ page, isMobile }) => {
+    // The inserted row lives in the revised pane, and narrow screens render
+    // only one pane at a time, so it is genuinely not clickable there.
+    test.skip(isMobile, 'Only one pane is visible below the mobile breakpoint');
+    await seedSettings(page, { showTableHints: true, enableDiffIgnore: true, diffGranularity: 'char' });
+    await loadSampleComparison(page);
+
+    const inserted = page.locator('table ins[data-diff-id]').last();
+    await inserted.scrollIntoViewIfNeeded();
+    await inserted.click();
+
+    const tip = page.locator('.table-hint-tip');
+    await expect(tip).toBeVisible();
+    await expect(page.locator('.table-structure-diff').first()).toBeVisible();
+
+    // The tip auto-dismisses; a pointer resting on it holds it open.
+    await tip.hover();
+    await page.waitForTimeout(3600);
+    await expect(tip).toBeVisible();
+
+    await page.mouse.move(10, 10);
+    await expect(tip).toBeHidden();
+  });
+
   test('exports an HTML review report', async ({ page }) => {
     await loadSampleComparison(page);
 

@@ -282,7 +282,7 @@ export default function App() {
       const alignedTopA = paneA.current && targetA ? alignElement(paneA.current, targetA, behavior) : null;
       const alignedTopB = paneB.current && targetB ? alignElement(paneB.current, targetB, behavior) : null;
       activeDriver.current = null;
-      resolveTableHintFor(group);
+      resolveTableHintFor(index, group);
       if (targetA && targetB) return;
       if (syncScroll && alignedTopA !== null) syncPaneFrom('A', alignedTopA);
       else if (syncScroll && alignedTopB !== null) syncPaneFrom('B', alignedTopB);

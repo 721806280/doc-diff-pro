@@ -1,4 +1,4 @@
-import { useCallback, useState, type RefObject } from 'react';
+import { useCallback, useRef, useState, type RefObject } from 'react';
 import type { DiffTableContextHint } from '@/types/diff';
 import type { DiffElementGroup, DiffElementIndex } from '@/utils/diffElementIndex';
 import { resolveTableStructureHint } from '@/utils/tableStructureHint';
@@ -34,6 +34,7 @@ export function useTableStructureHint({
   const [hint, setHint] = useState<DiffTableContextHint | null>(null);
   const [open, setOpen] = useState(false);
   const dismissTimer = useTimeoutRef();
+  const resolvedForIndex = useRef<number | null>(null);
 
   const clearMarkers = useCallback(() => {
     diffIndex.current.forEach((group) =>
@@ -47,15 +48,28 @@ export function useTableStructureHint({
   const reset = useCallback(() => {
     clearMarkers();
     dismissTimer.clear();
+    resolvedForIndex.current = null;
     setHint(null);
     setOpen(false);
   }, [clearMarkers, dismissTimer]);
 
-  /** Resolves and marks the hint for a focused group; returns nothing. */
+  /**
+   * Resolves and marks the hint for a focused group.
+   *
+   * Only a move to a different difference closes an open tip. Re-resolving the
+   * same difference must leave `open` alone: showing the tip changes the layout,
+   * which trips the pane ResizeObserver, rebuilds the diff index and re-runs
+   * focusDiff — so a blanket reset here would close the tip the instant it
+   * opened.
+   */
   const resolveFor = useCallback(
-    (group: DiffElementGroup) => {
+    (index: number, group: DiffElementGroup) => {
+      if (resolvedForIndex.current !== index) {
+        resolvedForIndex.current = index;
+        dismissTimer.clear();
+        setOpen(false);
+      }
       setHint(null);
-      setOpen(false);
       if (!enabled) return;
 
       const resolution = resolveTableStructureHint(paneA.current, paneB.current, group.A, group.B, {
@@ -74,7 +88,7 @@ export function useTableStructureHint({
       });
       setHint(resolution.hint);
     },
-    [enabled, ignoreFullHalfWidth, ignoreSpaces, paneA, paneB]
+    [dismissTimer, enabled, ignoreFullHalfWidth, ignoreSpaces, paneA, paneB]
   );
 
   const show = useCallback(() => {
