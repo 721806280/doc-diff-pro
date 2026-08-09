@@ -1,5 +1,4 @@
 import type { DiffGranularity, DiffTuple, DiffWorkerRequest, DiffWorkerResponse } from '@/types/diff';
-import { createTextDiffs } from '@/utils/textDiffCore';
 
 type PendingRequest = {
   resolve: (diffs: DiffTuple[]) => void;
@@ -21,6 +20,12 @@ class DiffTimeoutError extends Error {
   }
 }
 
+/**
+ * Backstop for a wedged worker rather than a budget for a slow one:
+ * `createTextDiffs` stops bisecting after DIFF_COMPUTE_TIMEOUT_SECONDS and
+ * returns a coarse diff, so a healthy worker always answers first. The gap
+ * between the two leaves room for the cleanup passes that follow the bisect.
+ */
 export const DIFF_WORKER_TIMEOUT_MS = 15000;
 export const MAX_MAIN_THREAD_DIFF_CHARS = 300_000;
 
@@ -118,10 +123,18 @@ function rejectPendingRequests(error: Error): void {
   pendingRequests.clear();
 }
 
-function createMainThreadDiffs(originalText: string, revisedText: string, granularity: DiffGranularity): DiffTuple[] {
+async function createMainThreadDiffs(
+  originalText: string,
+  revisedText: string,
+  granularity: DiffGranularity
+): Promise<DiffTuple[]> {
   if (originalText.length + revisedText.length > MAX_MAIN_THREAD_DIFF_CHARS) {
     throw new Error('Document is too large to compare safely without a Web Worker.');
   }
 
+  // Imported on demand: this runs only where Worker is missing or the worker
+  // itself died, and keeping it static would pull diff-match-patch back onto
+  // the main thread's own chunk.
+  const { createTextDiffs } = await import('@/utils/textDiffCompute');
   return createTextDiffs(originalText, revisedText, granularity);
 }

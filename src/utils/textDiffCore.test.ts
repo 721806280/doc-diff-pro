@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createTextDiffs, summarizeDiffs } from './textDiffCore';
+import { summarizeDiffs } from './textDiffCore';
+import { createTextDiffs } from './textDiffCompute';
 
 describe('textDiffCore', () => {
   it('creates grouped diffs and summary for replacements', () => {

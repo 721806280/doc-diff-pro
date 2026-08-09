@@ -1,7 +1,8 @@
 import type { DiffGranularity, DiffSummary, DiffTuple } from '@/types/diff';
 import { applyDiffMarkup } from './diffMarkup';
 import { buildTextMapping, collapseWhitespace, normalizeText, type TextMapping } from './documentText';
-import { createTextDiffs, DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, parseDiffId, summarizeDiffs } from './textDiffCore';
+import { createTextDiffs } from './textDiffCompute';
+import { DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, parseDiffId, summarizeDiffs } from './textDiffCore';
 
 const DIFF_ELEMENT_SELECTOR = 'ins[data-diff-id], del[data-diff-id]';
 const BODY_BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, div, section, article';

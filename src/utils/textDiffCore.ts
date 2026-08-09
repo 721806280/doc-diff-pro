@@ -1,9 +1,11 @@
-import DiffMatchPatch from 'diff-match-patch';
 import type { DiffGranularity, DiffOperation, DiffSummary, DiffTuple } from '@/types/diff';
 
-const diffMatchPatch = new DiffMatchPatch();
-diffMatchPatch.Diff_Timeout = 0;
-
+/**
+ * Difference identifiers and summary arithmetic — everything about a diff that
+ * does not require computing one. Deliberately free of diff-match-patch: the
+ * review UI reads these from the first paint, while the engine that produces
+ * the diffs (`textDiffCompute`) only loads once there is something to compare.
+ */
 export const DIFF_DELETE = -1 satisfies DiffOperation;
 export const DIFF_EQUAL = 0 satisfies DiffOperation;
 export const DIFF_INSERT = 1 satisfies DiffOperation;
@@ -19,18 +21,6 @@ export function parseDiffId(id: string): number {
   return Number.parseInt(id.slice(DIFF_ID_PREFIX.length), 10);
 }
 
-export function createTextDiffs(
-  originalText: string,
-  revisedText: string,
-  granularity: DiffGranularity,
-  options: { mergeShortGaps?: boolean } = {}
-): DiffTuple[] {
-  const diffs = diffMatchPatch.diff_main(originalText, revisedText) as DiffTuple[];
-
-  cleanupDiffs(diffs, granularity, options.mergeShortGaps ?? true);
-  return diffs;
-}
-
 export function summarizeDiffs(
   diffs: DiffTuple[],
   granularity: DiffGranularity,
@@ -38,18 +28,6 @@ export function summarizeDiffs(
   revisedLength: number
 ): DiffSummary {
   return assignDiffGroups(diffs, getGapThreshold(granularity), originalLength, revisedLength);
-}
-
-function cleanupDiffs(diffs: DiffTuple[], granularity: DiffGranularity, mergeShortGaps: boolean): void {
-  if (granularity === 'semantic') {
-    diffMatchPatch.diff_cleanupSemantic(diffs);
-  } else {
-    // while preserving word/character granularity.
-    diffMatchPatch.diff_cleanupSemanticLossless(diffs);
-  }
-  if (mergeShortGaps) {
-    diffMatchPatch.diff_cleanupEfficiency(diffs);
-  }
 }
 
 function assignDiffGroups(
