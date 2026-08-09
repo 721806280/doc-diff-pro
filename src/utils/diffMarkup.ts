@@ -1,5 +1,5 @@
 import type { DiffOperation, DiffTuple } from '@/types/diff';
-import type { TextMappingEntry } from './documentText';
+import { mappedNode, mappedOffset, type TextPositionMap } from './documentText';
 import { DIFF_EQUAL } from './textDiffCore';
 
 type MarkupDiffOperation = Exclude<DiffOperation, 0>;
@@ -15,7 +15,7 @@ const MAX_MERGE_BRIDGE_LENGTH = 2;
 
 export function applyDiffMarkup(
   domElement: HTMLElement,
-  mapping: TextMappingEntry[],
+  mapping: TextPositionMap,
   diffs: DiffTuple[],
   targetOperation: MarkupDiffOperation,
   wrapperTag: WrapperTag
@@ -50,7 +50,7 @@ function collectDiffRanges(diffs: DiffTuple[], targetOperation: MarkupDiffOperat
   return ranges;
 }
 
-function mapRangesToTextNodes(mapping: TextMappingEntry[], ranges: DiffRange[]): NodeRangeMap {
+function mapRangesToTextNodes(mapping: TextPositionMap, ranges: DiffRange[]): NodeRangeMap {
   const nodesToWrap: NodeRangeMap = new Map();
 
   for (const range of ranges) {
@@ -72,21 +72,22 @@ function mapRangesToTextNodes(mapping: TextMappingEntry[], ranges: DiffRange[]):
     };
 
     for (let index = range.start; index < end; index++) {
-      const mapped = mapping[index];
-      if (!mapped?.node) {
+      const node = mappedNode(mapping, index);
+      if (!node) {
         flushActiveRange();
         continue;
       }
 
-      if (activeNode === mapped.node && mapped.offset === previousOffset + 1) {
-        previousOffset = mapped.offset;
+      const offset = mappedOffset(mapping, index);
+      if (activeNode === node && offset === previousOffset + 1) {
+        previousOffset = offset;
         continue;
       }
 
       flushActiveRange();
-      activeNode = mapped.node;
-      activeStartOffset = mapped.offset;
-      previousOffset = mapped.offset;
+      activeNode = node;
+      activeStartOffset = offset;
+      previousOffset = offset;
     }
 
     flushActiveRange();

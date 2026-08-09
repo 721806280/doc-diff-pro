@@ -1,6 +1,41 @@
-export type TextMappingEntry = { node: Text; offset: number } | null;
+/**
+ * Where each character of the extracted text came from.
+ *
+ * Two parallel Int32Arrays over a shared node table rather than one
+ * `{ node, offset }` object per character. A long document runs to hundreds of
+ * thousands of characters and the compare builds this twice per side, so
+ * per-character objects cost tens of megabytes and hand the collector millions
+ * of short-lived allocations; the columns cost eight bytes a character and
+ * none. Read through `mappedNode` / `mappedOffset` rather than indexing.
+ */
+export type TextMapping = {
+  text: string;
+  mapping: TextPositionMap;
+};
 
-export type TextMapping = { text: string; mapping: TextMappingEntry[] };
+export type TextPositionMap = {
+  /** Distinct text nodes, in document order. Shared, never copied. */
+  nodes: Text[];
+  /** Index into `nodes` per character; NO_TEXT_NODE for synthetic separators. */
+  nodeIds: Int32Array;
+  /** Offset within the owning text node per character. */
+  offsets: Int32Array;
+};
+
+const NO_TEXT_NODE = -1;
+const INITIAL_MAPPING_CAPACITY = 1024;
+
+/** The text node holding character `index`, or null past the end / for separators. */
+export function mappedNode(mapping: TextPositionMap, index: number): Text | null {
+  const nodeId = mapping.nodeIds[index];
+  if (nodeId === undefined || nodeId === NO_TEXT_NODE) return null;
+
+  return mapping.nodes[nodeId] ?? null;
+}
+
+export function mappedOffset(mapping: TextPositionMap, index: number): number {
+  return mapping.offsets[index] ?? 0;
+}
 
 const BLOCK_TAGS = new Set([
   'P',
@@ -52,7 +87,7 @@ const URLISH_PATTERN = /^(?:https?:\/\/|www\.)/i;
 
 export function buildTextMapping(rootDom: HTMLElement): TextMapping {
   const textBuffer: string[] = [];
-  const mapping: TextMappingEntry[] = [];
+  const mapping = createMappingBuilder();
   const orderedListCounters = new WeakMap<HTMLElement, number>();
 
   const endsWithNewline = (): boolean => textBuffer.at(-1)?.at(-1) === '\n';
@@ -64,8 +99,9 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
       node.nodeValue = value;
       if (value.length === 0) return;
 
+      const nodeId = mapping.nodes.push(node as Text) - 1;
       for (let index = 0; index < value.length; index++) {
-        mapping.push({ node: node as Text, offset: index });
+        appendMapping(mapping, nodeId, index);
       }
       textBuffer.push(value);
       return;
@@ -78,7 +114,7 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
 
     if (isBlock && textBuffer.length > 0 && !endsWithNewline()) {
       textBuffer.push('\n');
-      mapping.push(null);
+      appendMapping(mapping, NO_TEXT_NODE, 0);
     }
 
     ensureSyntheticListMarkerElement(element, orderedListCounters);
@@ -86,31 +122,71 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
 
     if (isBlock && textBuffer.length > 0 && !endsWithNewline()) {
       textBuffer.push('\n');
-      mapping.push(null);
+      appendMapping(mapping, NO_TEXT_NODE, 0);
     }
   }
 
   walk(rootDom);
-  return { text: textBuffer.join(''), mapping };
+  return { text: textBuffer.join(''), mapping: finishMapping(mapping) };
+}
+
+type MappingBuilder = {
+  nodes: Text[];
+  nodeIds: Int32Array;
+  offsets: Int32Array;
+  size: number;
+};
+
+function createMappingBuilder(nodes: Text[] = [], capacity = INITIAL_MAPPING_CAPACITY): MappingBuilder {
+  const size = Math.max(capacity, 1);
+  return { nodes, nodeIds: new Int32Array(size), offsets: new Int32Array(size), size: 0 };
+}
+
+function appendMapping(builder: MappingBuilder, nodeId: number, offset: number): void {
+  if (builder.size === builder.nodeIds.length) {
+    const nodeIds = new Int32Array(builder.size * 2);
+    const offsets = new Int32Array(builder.size * 2);
+
+    nodeIds.set(builder.nodeIds);
+    offsets.set(builder.offsets);
+    builder.nodeIds = nodeIds;
+    builder.offsets = offsets;
+  }
+
+  builder.nodeIds[builder.size] = nodeId;
+  builder.offsets[builder.size] = offset;
+  builder.size++;
+}
+
+function finishMapping(builder: MappingBuilder): TextPositionMap {
+  // Views, not copies: the trailing capacity stays allocated but is never read,
+  // and trimming it would mean memcpying the whole mapping for no benefit.
+  return {
+    nodes: builder.nodes,
+    nodeIds: builder.nodeIds.subarray(0, builder.size),
+    offsets: builder.offsets.subarray(0, builder.size)
+  };
 }
 
 export function collapseWhitespace({ text, mapping }: TextMapping): TextMapping {
   const resultTextChunks: string[] = [];
-  const resultMapping: TextMappingEntry[] = [];
+  // Collapsing only ever drops characters, so the source length is an exact
+  // ceiling and the columns never have to grow. The node table is shared: the
+  // surviving characters point at the very same text nodes.
+  const resultMapping = createMappingBuilder(mapping.nodes, text.length);
   let lastChar = '';
   let currentLine = '';
 
-  const appendResult = (ch: string, mapped: TextMappingEntry, resetLine = false): void => {
+  const appendResult = (ch: string, sourceIndex: number, resetLine = false): void => {
     resultTextChunks.push(ch);
-    resultMapping.push(mapped);
+    appendMapping(resultMapping, mapping.nodeIds[sourceIndex] ?? NO_TEXT_NODE, mapping.offsets[sourceIndex] ?? 0);
     lastChar = ch;
     currentLine = resetLine ? '' : currentLine + ch;
   };
 
   for (let index = 0; index < text.length; index++) {
     let ch = text[index];
-    const mapped = mapping[index];
-    if (ch === undefined || mapped === undefined) continue;
+    if (ch === undefined || index >= mapping.nodeIds.length) continue;
     if (isTextWhitespace(ch)) {
       const nextChar = nextNonTextWhitespace(text, index + 1);
       if (
@@ -125,33 +201,47 @@ export function collapseWhitespace({ text, mapping }: TextMapping): TextMapping 
       ch = ' ';
     }
 
-    appendResult(ch, mapped, text[index] === '\n');
+    appendResult(ch, index, text[index] === '\n');
   }
 
   while (resultTextChunks.at(-1) === ' ') {
     resultTextChunks.pop();
-    resultMapping.pop();
+    resultMapping.size--;
   }
 
-  return { text: resultTextChunks.join(''), mapping: resultMapping };
+  return { text: resultTextChunks.join(''), mapping: finishMapping(resultMapping) };
 }
 
 export function normalizeText(text: string, ignoreFullHalf: boolean, ignoreCase: boolean): string {
   const normalizedCase = ignoreCase ? text.toLowerCase() : text;
   if (!ignoreFullHalf) return normalizedCase;
 
-  const resultBuffer: string[] = [];
+  // Copied in runs rather than character by character: most documents replace
+  // a handful of wide forms and leave the rest untouched, so this allocates a
+  // few slices instead of one single-character string per character.
+  let result = '';
+  let runStart = 0;
+
   for (let index = 0; index < normalizedCase.length; index++) {
-    const code = normalizedCase.charCodeAt(index);
-    if (code === 12288) {
-      resultBuffer.push(' ');
-    } else if (code >= 65281 && code <= 65374) {
-      resultBuffer.push(String.fromCharCode(code - 65248));
-    } else {
-      resultBuffer.push(normalizePunctuationVariant(normalizedCase[index]));
-    }
+    const replacement = narrowVariantOf(normalizedCase, index);
+    if (replacement === null) continue;
+
+    result += normalizedCase.slice(runStart, index) + replacement;
+    runStart = index + 1;
   }
-  return resultBuffer.join('');
+
+  return result + normalizedCase.slice(runStart);
+}
+
+/** The half-width form of the character at `index`, or null if it already is one. */
+function narrowVariantOf(text: string, index: number): string | null {
+  const code = text.charCodeAt(index);
+  if (code === 12288) return ' ';
+  if (code >= 65281 && code <= 65374) return String.fromCharCode(code - 65248);
+
+  const ch = text[index];
+  const narrowed = normalizePunctuationVariant(ch);
+  return narrowed === ch ? null : narrowed;
 }
 
 function ensureSyntheticListMarkerElement(
