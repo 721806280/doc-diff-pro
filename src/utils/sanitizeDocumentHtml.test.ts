@@ -30,6 +30,24 @@ describe('sanitizeDocumentHtml', () => {
     expect(body.querySelector('img')?.getAttribute('src')).toBe(imageSource);
   });
 
+  it('keeps document formatting styles but drops overlay and network-capable ones', async () => {
+    const sanitized = await sanitizeDocumentHtml(
+      '<p style="color: rgb(255, 0, 0); font-weight: 700; position: fixed; z-index: 9999">正文</p>' +
+        '<p style="background-image: url(https://tracker.example/pixel.png)">追踪</p>' +
+        '<table><tbody><tr><td style="text-align: center; border-top-width: 1px">单元格</td></tr></tbody></table>'
+    );
+    const body = new DOMParser().parseFromString(sanitized, 'text/html').body;
+    const [formatted, tracked] = Array.from(body.querySelectorAll('p'));
+
+    expect(formatted?.style.getPropertyValue('color')).not.toBe('');
+    expect(formatted?.style.getPropertyValue('font-weight')).toBe('700');
+    expect(formatted?.style.getPropertyValue('position')).toBe('');
+    expect(formatted?.style.getPropertyValue('z-index')).toBe('');
+    // Nothing survived, so the attribute goes with it.
+    expect(tracked?.hasAttribute('style')).toBe(false);
+    expect(body.querySelector('td')?.style.getPropertyValue('text-align')).toBe('center');
+  });
+
   it('keeps safe links with noopener but removes non-html active content', async () => {
     const sanitized = await sanitizeDocumentHtml(
       '<a href="https://example.com/report">报告</a>' +

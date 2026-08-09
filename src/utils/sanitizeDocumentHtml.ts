@@ -16,18 +16,55 @@ const FORBIDDEN_TAGS = [
 
 const SAFE_IMAGE_SOURCE_PATTERN = /^data:image\/(?:bmp|gif|jpeg|png|webp);base64,/i;
 
+/**
+ * Inline declarations kept from a converted document.
+ *
+ * DOMPurify allows `style` through, and for a .docx that is mostly welcome —
+ * it is how the converter carries fonts, colors and cell borders. But a .docx
+ * is untrusted input, and CSS alone is enough to cover the app's own controls
+ * with a fixed-position block or to phone home through a `url()` reference, so
+ * anything outside document formatting is dropped.
+ *
+ * Matching is prefix-based (`margin`, not `margin-top`) because whether the
+ * CSSOM hands back shorthands or expanded longhands varies by engine.
+ */
+const ALLOWED_STYLE_PROPERTIES = new Set([
+  'background-color',
+  'color',
+  'height',
+  'letter-spacing',
+  'line-height',
+  'overflow-wrap',
+  'vertical-align',
+  'white-space',
+  'width',
+  'word-break'
+]);
+const ALLOWED_STYLE_PREFIXES = ['border', 'font', 'list-style', 'margin', 'padding', 'text'];
+const UNSAFE_STYLE_VALUE_PATTERN = /url\(|expression\(|javascript:|@import/i;
+
 type DOMPurifyModule = typeof import('dompurify');
 type DOMPurifyInstance = ReturnType<DOMPurifyModule['default']>;
 
 let purifierPromise: Promise<DOMPurifyInstance> | null = null;
 
-export async function sanitizeDocumentHtml(html: string): Promise<string> {
+/**
+ * Sanitizes converted document markup and hands back the live DOM.
+ *
+ * The DOM is the useful shape: everything downstream — layout-noise removal,
+ * metadata, the diff itself — wants a tree, and serializing here only to have
+ * the next stage parse it again costs a full round trip over what can be
+ * megabytes of markup once images are inlined.
+ */
+export async function sanitizeDocumentBody(html: string): Promise<HTMLElement> {
   const purifier = await getPurifier();
-  const sanitized = purifier.sanitize(html, {
+  // DOMPurify types RETURN_DOM as a bare `Node`, but with WHOLE_DOCUMENT off
+  // it is documented to hand back the <body> element it built.
+  const body = purifier.sanitize(html, {
     FORBID_TAGS: FORBIDDEN_TAGS,
-    USE_PROFILES: { html: true }
-  });
-  const body = new DOMParser().parseFromString(sanitized, 'text/html').body;
+    USE_PROFILES: { html: true },
+    RETURN_DOM: true
+  }) as HTMLElement;
 
   body.querySelectorAll<HTMLAnchorElement>('a').forEach((anchor) => {
     anchor.rel = 'noopener noreferrer';
@@ -39,7 +76,37 @@ export async function sanitizeDocumentHtml(html: string): Promise<string> {
     }
   });
 
-  return body.innerHTML;
+  filterInlineStyles(body);
+
+  return body;
+}
+
+/** String-returning form, for callers that only need the markup. */
+export async function sanitizeDocumentHtml(html: string): Promise<string> {
+  return (await sanitizeDocumentBody(html)).innerHTML;
+}
+
+function filterInlineStyles(root: HTMLElement): void {
+  root.querySelectorAll<HTMLElement>('[style]').forEach((element) => {
+    const style = element.style;
+
+    // Backwards: removeProperty renumbers the declarations behind the cursor.
+    for (let index = style.length - 1; index >= 0; index--) {
+      const property = style.item(index);
+      if (isAllowedStyleDeclaration(property, style.getPropertyValue(property))) continue;
+
+      style.removeProperty(property);
+    }
+
+    if (style.length === 0) element.removeAttribute('style');
+  });
+}
+
+function isAllowedStyleDeclaration(property: string, value: string): boolean {
+  if (UNSAFE_STYLE_VALUE_PATTERN.test(value)) return false;
+  if (ALLOWED_STYLE_PROPERTIES.has(property)) return true;
+
+  return ALLOWED_STYLE_PREFIXES.some((prefix) => property.startsWith(prefix));
 }
 
 function getPurifier(): Promise<DOMPurifyInstance> {
