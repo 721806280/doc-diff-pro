@@ -22,6 +22,7 @@ export type TextPositionMap = {
   offsets: Int32Array;
 };
 
+/** Marks a character that belongs to no text node: a synthetic block separator. */
 const NO_TEXT_NODE = -1;
 const INITIAL_MAPPING_CAPACITY = 1024;
 
@@ -85,6 +86,20 @@ const EMAIL_PREFIX_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]*$/i;
 const SHORT_DOMAIN_PATTERN = /(?:^|[.@:/])[A-Za-z0-9-]+\.[A-Za-z]{2,6}(?:[/:-]|$)/i;
 const URLISH_PATTERN = /^(?:https?:\/\/|www\.)/i;
 
+/**
+ * Flattens a document to the text the diff runs on, recording where every
+ * character came from.
+ *
+ * Block elements contribute a newline on the way in and out, so the diff sees
+ * paragraph boundaries as boundaries rather than running two paragraphs
+ * together. Those newlines belong to no text node, which is what NO_TEXT_NODE
+ * marks: markup cannot be applied to them, and the mapping has to say so.
+ *
+ * Text nodes are normalized in place as they are visited — zero-width
+ * characters dropped, hard line breaks turned into spaces — so that the
+ * offsets recorded here stay valid against the live DOM the markup pass will
+ * mutate.
+ */
 export function buildTextMapping(rootDom: HTMLElement): TextMapping {
   const textBuffer: string[] = [];
   const mapping = createMappingBuilder();
@@ -142,6 +157,14 @@ function createMappingBuilder(nodes: Text[] = [], capacity = INITIAL_MAPPING_CAP
   return { nodes, nodeIds: new Int32Array(size), offsets: new Int32Array(size), size: 0 };
 }
 
+/**
+ * Grows the columns by doubling, which is the usual bargain: a document whose
+ * length is not known up front pays a handful of reallocations rather than
+ * either one per character or a guess large enough to waste.
+ *
+ * `collapseWhitespace` sizes its builder exactly and never reaches the growth
+ * path at all.
+ */
 function appendMapping(builder: MappingBuilder, nodeId: number, offset: number): void {
   if (builder.size === builder.nodeIds.length) {
     const nodeIds = new Int32Array(builder.size * 2);

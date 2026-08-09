@@ -7,9 +7,16 @@
  * lets the whole comparison engine load on demand.
  */
 
+// How alike two tables must look before the alignment is willing to call them
+// the same table. Low, because a table can be edited heavily and still be the
+// one the reader is following: shape alone carries a lot of the evidence.
 const TABLE_MATCH_THRESHOLD = 0.15;
 // Table-count changes need text evidence; equal shape alone scores at most 0.3.
 const TABLE_COUNT_CHANGE_MATCH_THRESHOLD = 0.35;
+// What leaving a table unpaired costs, charged once per side. Skipping both
+// therefore costs 0.4 while any pairing the threshold permits credits at least
+// 0.15, so the alignment prefers to pair whenever it is allowed to. The
+// threshold decides what may pair; this decides how hard it tries.
 const TABLE_GAP_PENALTY = 0.2;
 // Above this, the alignment matrices stop being worth their memory and the
 // documents are past the point where table-by-table pairing tells the reader
@@ -19,6 +26,18 @@ const MAX_TABLE_ALIGNMENT_PAIRS = 1_000_000;
 type AlignmentPair<T> = { original?: T; revised?: T };
 export type TableAlignmentEntry = AlignmentPair<HTMLTableElement> & { id: string };
 
+/**
+ * Pairs each table in the original with the table in the revision it most
+ * likely became, leaving genuinely added or removed tables unpaired.
+ *
+ * The ids handed back number the pairing, not the tables: a table that moved
+ * keeps the same id on both sides, which is what lets the rest of the
+ * comparison talk about "the same table" across the two documents.
+ *
+ * Signatures are taken once up front because the alignment compares every
+ * table against every other, so anything derived per comparison would be
+ * derived n*m times.
+ */
 export function alignDocumentTables(originalRoot: HTMLElement, revisedRoot: HTMLElement): TableAlignmentEntry[] {
   const original = Array.from(originalRoot.querySelectorAll<HTMLTableElement>('table'));
   const revised = Array.from(revisedRoot.querySelectorAll<HTMLTableElement>('table'));
@@ -35,6 +54,17 @@ export function alignDocumentTables(originalRoot: HTMLElement, revisedRoot: HTML
   ).map((entry, index) => ({ ...entry, id: `table-${index}` }));
 }
 
+/**
+ * Global sequence alignment: the best way to line two sequences up end to end,
+ * where each step either pairs one item from each side or skips one side at a
+ * cost.
+ *
+ * Pairing tables by index would be simpler and wrong at the first insertion —
+ * add a table near the top and every table below it would be reported as
+ * rewritten. Working out the best whole-document pairing costs an
+ * (n+1) x (m+1) pass and is what keeps a single inserted table from
+ * cascading.
+ */
 function alignSequences<T>(
   original: T[],
   revised: T[],
@@ -108,6 +138,8 @@ function alignSequences<T>(
   const reversed: Array<AlignmentPair<T>> = [];
   let originalIndex = original.length;
   let revisedIndex = revised.length;
+  // Walk the recorded choices back from the far corner to recover the pairing
+  // that produced the best score, then flip it into document order.
   while (originalIndex > 0 || revisedIndex > 0) {
     const choice = choices[originalIndex]?.[revisedIndex] ?? null;
     if (choice === 'match') {
@@ -143,6 +175,14 @@ function alignByPosition<T>(original: T[], revised: T[]): Array<AlignmentPair<T>
   return pairs;
 }
 
+/**
+ * What a table is compared on: its text, and its shape as row and cell counts.
+ *
+ * Shape is kept separately rather than folded into the text because it
+ * survives a rewrite. A table whose every cell was reworded still has the same
+ * number of rows, and that is often the only evidence left that it is the same
+ * table.
+ */
 function createTableSignature(table: HTMLTableElement): { text: string; rows: number; cells: number } {
   const rows = directTableRows(table);
   return {
@@ -152,6 +192,15 @@ function createTableSignature(table: HTMLTableElement): { text: string; rows: nu
   };
 }
 
+/**
+ * Text carries most of the weight because two tables of the same shape are
+ * common — a document full of three-column tables says nothing by shape alone
+ * — while shared wording rarely happens by accident. Shape still gets a say,
+ * so a heavily reworded table is not mistaken for a different one.
+ *
+ * Two tables with no text at all can only be judged on shape, which is the
+ * early return.
+ */
 function tableSimilarity(
   left: { text: string; rows: number; cells: number },
   right: { text: string; rows: number; cells: number },
@@ -182,6 +231,15 @@ function maxDiceSimilarity(left: string, right: string): number {
   return (2 * Math.min(leftPairs, rightPairs)) / (leftPairs + rightPairs);
 }
 
+/**
+ * Sørensen–Dice over adjacent character pairs: how much of two texts is built
+ * from the same two-character sequences.
+ *
+ * Bigrams rather than characters because they carry a little word order — "甲
+ * 方乙方" and "乙方甲方" share every character but few pairs. The count map is
+ * consumed as it matches, so a pair occurring twice on one side and once on
+ * the other is credited once rather than twice.
+ */
 function diceSimilarity(left: string, right: string): number {
   if (left === right) return 1;
   if (!left || !right) return 0;

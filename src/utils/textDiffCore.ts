@@ -30,6 +30,16 @@ export function summarizeDiffs(
   return assignDiffGroups(diffs, getGapThreshold(granularity), originalLength, revisedLength);
 }
 
+/**
+ * Numbers the differences and tags each diff entry with the group it belongs
+ * to.
+ *
+ * A group is a run of edits that reads as one change. Edits separated by a
+ * short enough stretch of unchanged text stay in the same group, so that a
+ * reworded phrase arrives as one difference rather than one per surviving
+ * word. What counts as short enough is the caller's gap threshold, which
+ * follows the granularity the reader chose.
+ */
 function assignDiffGroups(
   diffs: DiffTuple[],
   gapThreshold: number,
@@ -99,6 +109,13 @@ function buildDiffSummary(
   return summary;
 }
 
+/**
+ * How much of the longer document survived the revision, as a fraction.
+ *
+ * Measured against the longer side so that the figure means the same thing
+ * whether text was added or removed: rewriting half of a document and deleting
+ * half of it both read as 50%.
+ */
 function calculateSimilarity(diffs: DiffTuple[], originalLength: number, revisedLength: number): number {
   const baselineLength = Math.max(originalLength, revisedLength);
   if (baselineLength === 0) return MAX_SIMILARITY;
@@ -108,6 +125,15 @@ function calculateSimilarity(diffs: DiffTuple[], originalLength: number, revised
   return clampSimilarity(similarity);
 }
 
+/**
+ * Charges a replacement once rather than twice.
+ *
+ * Adjacent deletions and insertions are one edit to a reader — a phrase was
+ * swapped — so each run between two unchanged stretches costs the longer of
+ * the two sides, not their sum. Summing them would drive a thoroughly reworded
+ * document past a full document's worth of edits and into the clamp, where
+ * every such document would look equally unrecognisable.
+ */
 function estimateEditDistance(diffs: DiffTuple[]): number {
   let distance = 0;
   let insertions = 0;
@@ -133,6 +159,15 @@ function clampSimilarity(value: number): number {
   return Math.min(MAX_SIMILARITY, Math.max(MIN_SIMILARITY, value));
 }
 
+/**
+ * How much unchanged text may sit between two edits before they stop reading
+ * as one difference.
+ *
+ * Character granularity allows none: the reader asked to see edits
+ * individually, so two of them stay two. Word granularity allows enough for a
+ * short word plus its spaces, so a reworded phrase arrives as one difference.
+ * Semantic sits between the two.
+ */
 function getGapThreshold(granularity: DiffGranularity): number {
   if (granularity === 'word') return 6;
   if (granularity === 'char') return 0;

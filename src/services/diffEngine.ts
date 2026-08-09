@@ -31,6 +31,20 @@ export type CompareResult = {
   summary: DiffSummary;
 };
 
+/**
+ * Runs one comparison end to end and returns both documents marked up.
+ *
+ * The phases are: parse and strip layout noise, flatten each side to text,
+ * diff that text in the worker, then apply the markup and regroup the
+ * differences into the units the reader steps through. Only the diff itself
+ * leaves the main thread — everything either side of it needs the DOM — so the
+ * phases hand the thread back between them, which is also where a superseded
+ * run notices it has been replaced and stops.
+ *
+ * The two summaries are not redundant: the text diff counts changed runs of
+ * characters, and refineDiffGroups then splits and merges those to respect
+ * table cells and paragraph boundaries, which is the count the reader sees.
+ */
 export async function compareDocuments(
   originalHtml: string,
   revisedHtml: string,
