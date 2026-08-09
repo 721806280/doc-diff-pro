@@ -10,6 +10,7 @@ type NodeRangeMap = Map<Text, TextNodeRange[]>;
 const MERGE_CONTAINER_SELECTOR = 'p, li, td, th, div, h1, h2, h3, h4, h5, h6, blockquote, pre';
 const BLOCKING_BRIDGE_SELECTOR = 'p, li, td, th, table, tr, ol, ul, div, h1, h2, h3, h4, h5, h6, blockquote, pre';
 const DIFF_FRAGMENT_SELECTOR = 'ins[data-diff-id], del[data-diff-id]';
+const BRIDGE_BLOCKING_SELECTOR = `${BLOCKING_BRIDGE_SELECTOR}, ${DIFF_FRAGMENT_SELECTOR}`;
 const MAX_MERGE_BRIDGE_LENGTH = 2;
 
 export function applyDiffMarkup(
@@ -153,36 +154,21 @@ function appendWrappedText(
 
 function mergeNearbyDiffFragments(domElement: HTMLElement, wrapperTag: WrapperTag): void {
   const fragments = getTopLevelDiffFragments(domElement, wrapperTag);
-  let index = 0;
+  // A single forward pass with a running candidate. The candidate absorbs each
+  // mergeable successor and stays the candidate, so an unbroken run collapses
+  // in one sweep without ever reindexing the list.
+  let candidate: HTMLElement | null = null;
 
-  while (index < fragments.length - 1) {
-    const current = fragments[index];
-    const next = fragments[index + 1];
-    if (!current || !next) break;
+  for (const fragment of fragments) {
+    if (!fragment.isConnected) continue;
+    if (candidate && !candidate.isConnected) candidate = null;
 
-    if (!current.isConnected) {
-      fragments.splice(index, 1);
+    if (!candidate || !canMergeDiffFragments(domElement, candidate, fragment)) {
+      candidate = fragment;
       continue;
     }
 
-    if (!next.isConnected) {
-      fragments.splice(index + 1, 1);
-      continue;
-    }
-
-    if (!canMergeDiffFragments(domElement, current, next)) {
-      index++;
-      continue;
-    }
-
-    const merged = mergeDiffFragments(current, next, wrapperTag);
-    if (!merged) {
-      index++;
-      continue;
-    }
-
-    fragments[index] = merged;
-    fragments.splice(index + 1, 1);
+    candidate = mergeDiffFragments(candidate, fragment, wrapperTag) ?? fragment;
   }
 }
 
@@ -196,18 +182,62 @@ function getTopLevelDiffFragments(domElement: HTMLElement, wrapperTag: WrapperTa
 function canMergeDiffFragments(root: HTMLElement, current: HTMLElement, next: HTMLElement): boolean {
   if (!current.dataset.diffId || current.dataset.diffId !== next.dataset.diffId) return false;
   if ((current.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING) === 0) return false;
-  if (getMergeContainer(root, current) !== getMergeContainer(root, next)) return false;
 
-  const bridgeRange = current.ownerDocument.createRange();
-  bridgeRange.setStartAfter(current);
-  bridgeRange.setEndBefore(next);
-  const bridge = bridgeRange.cloneContents();
-  bridgeRange.detach();
+  const container = getMergeContainer(root, current);
+  if (container !== getMergeContainer(root, next)) return false;
 
-  if (bridge.querySelector(BLOCKING_BRIDGE_SELECTOR)) return false;
-  if (bridge.querySelector(DIFF_FRAGMENT_SELECTOR)) return false;
+  return hasMergeableBridge(container, current, next);
+}
 
-  return compactBridgeText(bridge.textContent ?? '').length <= MAX_MERGE_BRIDGE_LENGTH;
+/**
+ * Whether the markup lying strictly between two fragments is thin enough to
+ * merge across: no block boundary, no third difference, and at most
+ * MAX_MERGE_BRIDGE_LENGTH non-space characters.
+ *
+ * Walked in place. `Range.cloneContents()` asks the same question in two
+ * lines, but it copies the in-between subtree for every adjacent pair — on a
+ * heavily edited document that is thousands of clones, and it cannot stop
+ * early once the bridge is obviously too long. The partial containers a clone
+ * would have carried along are the ones this walk ascends out of and descends
+ * into, so both are tested the same way the clone tested them.
+ */
+function hasMergeableBridge(container: Element, current: HTMLElement, next: HTMLElement): boolean {
+  let bridgeLength = 0;
+  let node: Node | null = current;
+
+  for (;;) {
+    while (node && node !== container && !node.nextSibling) {
+      node = node.parentNode;
+      if (node && node !== container && isBridgeBlockingElement(node)) return false;
+    }
+    // Ascending out of the container means the two are not bridged in document
+    // order after all, which is not something to merge across.
+    if (!node || node === container) return false;
+
+    node = node.nextSibling;
+    while (node && node !== next && node.contains(next)) {
+      // Only the part of this container that precedes `next` bridges the pair,
+      // so descend rather than take the whole subtree.
+      if (isBridgeBlockingElement(node)) return false;
+
+      node = node.firstChild;
+    }
+    if (!node) return false;
+    if (node === next) return true;
+
+    if (isBridgeBlockingElement(node) || containsBridgeBlockingElement(node)) return false;
+
+    bridgeLength += compactBridgeText(node.textContent ?? '').length;
+    if (bridgeLength > MAX_MERGE_BRIDGE_LENGTH) return false;
+  }
+}
+
+function isBridgeBlockingElement(node: Node): boolean {
+  return node.nodeType === Node.ELEMENT_NODE && (node as Element).matches(BRIDGE_BLOCKING_SELECTOR);
+}
+
+function containsBridgeBlockingElement(node: Node): boolean {
+  return node.nodeType === Node.ELEMENT_NODE && (node as Element).querySelector(BRIDGE_BLOCKING_SELECTOR) !== null;
 }
 
 function getMergeContainer(root: HTMLElement, fragment: HTMLElement): Element {

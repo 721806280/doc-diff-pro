@@ -53,4 +53,51 @@ describe('applyDiffMarkup', () => {
 
     expect(html).toBe('<p><del data-diff-id="diff-1">ab</del> middle <del data-diff-id="diff-1">cd</del></p>');
   });
+
+  it('keeps same-group fragments separate across a block boundary', () => {
+    const dom = bodyFromHtml('<div>ab<p>x</p>cd</div>');
+    const mapping = buildTextMapping(dom).mapping;
+    const diffs = [diff(-1, 'ab', 'diff-1'), diff(0, '\nx\n'), diff(-1, 'cd', 'diff-1'), diff(0, '\n')];
+
+    const html = applyDiffMarkup(dom, mapping, diffs, -1, 'del');
+
+    expect(html).toBe('<div><del data-diff-id="diff-1">ab</del><p>x</p><del data-diff-id="diff-1">cd</del></div>');
+  });
+
+  it('merges into a fragment nested one inline level deeper', () => {
+    const dom = bodyFromHtml('<p>ab<em>-cd</em></p>');
+    const mapping = buildTextMapping(dom).mapping;
+    const diffs = [diff(-1, 'ab', 'diff-1'), diff(0, '-'), diff(-1, 'cd', 'diff-1'), diff(0, '\n')];
+
+    const html = applyDiffMarkup(dom, mapping, diffs, -1, 'del');
+
+    expect(html).toBe('<p><del data-diff-id="diff-1">ab<em>-cd</em></del></p>');
+  });
+
+  it('collapses a run of same-group fragments in one pass', () => {
+    const dom = bodyFromHtml('<p>abXcdYef</p>');
+    const mapping = buildTextMapping(dom).mapping;
+    const diffs = [
+      diff(-1, 'ab', 'diff-1'),
+      diff(0, 'X'),
+      diff(-1, 'cd', 'diff-1'),
+      diff(0, 'Y'),
+      diff(-1, 'ef', 'diff-1'),
+      diff(0, '\n')
+    ];
+
+    const html = applyDiffMarkup(dom, mapping, diffs, -1, 'del');
+
+    expect(html).toBe('<p><del data-diff-id="diff-1">abXcdYef</del></p>');
+  });
+
+  it('merges siblings of a list wrapper, which is not itself a merge container', () => {
+    const dom = bodyFromHtml('<ul>ab-cd</ul>');
+    const mapping = buildTextMapping(dom).mapping;
+    const diffs = [diff(-1, 'ab', 'diff-1'), diff(0, '-'), diff(-1, 'cd', 'diff-1')];
+
+    const html = applyDiffMarkup(dom, mapping, diffs, -1, 'del');
+
+    expect(html).toBe('<ul><del data-diff-id="diff-1">ab-cd</del></ul>');
+  });
 });
