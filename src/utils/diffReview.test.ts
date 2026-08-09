@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeReviewPosition,
+  buildReviewSignatures,
   createReviewItem,
   diffReviewId,
   findActiveReviewIndex,
@@ -9,6 +10,21 @@ import {
   selectReviewElement
 } from './diffReview';
 import type { DiffElementGroup } from './diffElementIndex';
+
+function similarItemsFor(options: {
+  groups: Map<number, DiffElementGroup>;
+  total: number;
+  currentIndex: number;
+  level: 'strict' | 'balanced' | 'loose';
+  ignoredIds?: Set<string>;
+}) {
+  return findSimilarReviewItems({
+    currentIndex: options.currentIndex,
+    signatures: buildReviewSignatures(options.total, (index) => options.groups.get(index)),
+    ignoredIds: options.ignoredIds ?? new Set(),
+    level: options.level
+  });
+}
 
 describe('diffReview', () => {
   it('counts active differences while skipping reviewed items', () => {
@@ -53,20 +69,8 @@ describe('diffReview', () => {
       [4, { A: [textElement('abcdefghij')], B: [] }]
     ]);
 
-    const balanced = findSimilarReviewItems({
-      currentIndex: 1,
-      total: 4,
-      ignoredIds: new Set(),
-      level: 'balanced',
-      getGroup: (index) => groups.get(index)
-    });
-    const strict = findSimilarReviewItems({
-      currentIndex: 1,
-      total: 4,
-      ignoredIds: new Set(),
-      level: 'strict',
-      getGroup: (index) => groups.get(index)
-    });
+    const balanced = similarItemsFor({ groups, total: 4, currentIndex: 1, level: 'balanced' });
+    const strict = similarItemsFor({ groups, total: 4, currentIndex: 1, level: 'strict' });
 
     expect(balanced.map((item) => item.index)).toEqual([3, 2]);
     expect(strict.map((item) => item.index)).toEqual([3]);
@@ -79,12 +83,12 @@ describe('diffReview', () => {
     ]);
 
     expect(
-      findSimilarReviewItems({
-        currentIndex: 1,
+      similarItemsFor({
+        groups,
         total: 2,
-        ignoredIds: new Set([diffReviewId(2)]),
+        currentIndex: 1,
         level: 'loose',
-        getGroup: (index) => groups.get(index)
+        ignoredIds: new Set([diffReviewId(2)])
       })
     ).toEqual([]);
   });
@@ -101,17 +105,23 @@ describe('diffReview', () => {
       [2, insertedGroup('abcdefghij')]
     ]);
 
-    expect(
-      findSimilarReviewItems({
-        currentIndex: 1,
-        total: 2,
-        ignoredIds: new Set(),
-        level: 'loose',
-        getGroup: (index) => groups.get(index)
-      })
-    ).toEqual([]);
+    expect(similarItemsFor({ groups, total: 2, currentIndex: 1, level: 'loose' })).toEqual([]);
 
     table.remove();
+  });
+
+  it('skips differences that are no longer in the index when building signatures', () => {
+    const groups = new Map<number, DiffElementGroup>([
+      [1, insertedGroup('abcdefghij')],
+      [3, insertedGroup('abcdefghij')]
+    ]);
+
+    const signatures = buildReviewSignatures(3, (index) => groups.get(index));
+
+    expect(signatures.map((entry) => entry.item.index)).toEqual([1, 3]);
+    expect(similarItemsFor({ groups, total: 3, currentIndex: 1, level: 'loose' }).map((item) => item.index)).toEqual([
+      3
+    ]);
   });
 
   it('positions review actions on the exact difference selected by the user', () => {

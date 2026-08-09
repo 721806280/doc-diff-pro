@@ -4,6 +4,7 @@ import type { DiffElementIndex } from '@/utils/diffElementIndex';
 import {
   activeReviewCount,
   activeReviewPosition,
+  buildReviewSignatures,
   createReviewItem,
   diffReviewId,
   findSimilarReviewItems,
@@ -40,28 +41,25 @@ export function useReviewSummary({
     void indexVersion;
     return currentDiff > 0 ? createReviewItem(currentDiff, diffIndex.current.get(diffReviewId(currentDiff))) : null;
   }, [currentDiff, diffIndex, indexVersion]);
-  const similarItems = useMemo<SimilarDiffItem[]>(() => {
+  // Keyed on the index rebuild rather than the selection, so walking through
+  // differences never re-reads the DOM. Skipped entirely while the feature is
+  // off, which is what the scan used to rely on the caller for.
+  const reviewSignatures = useMemo(() => {
     void indexVersion;
-    if (!enableDiffIgnore || !enableSimilarDiffs || !currentReviewItem || ignoredDiffIds.has(currentReviewItem.id))
-      return [];
+    if (!enableDiffIgnore || !enableSimilarDiffs) return [];
+
+    return buildReviewSignatures(summary.total, (index) => diffIndex.current.get(diffReviewId(index)));
+  }, [diffIndex, enableDiffIgnore, enableSimilarDiffs, indexVersion, summary.total]);
+  const similarItems = useMemo<SimilarDiffItem[]>(() => {
+    if (!currentReviewItem || ignoredDiffIds.has(currentReviewItem.id)) return [];
+
     return findSimilarReviewItems({
       currentIndex: currentDiff,
-      total: summary.total,
+      signatures: reviewSignatures,
       ignoredIds: ignoredDiffIds,
-      level: similarDiffLevel,
-      getGroup: (index) => diffIndex.current.get(diffReviewId(index))
+      level: similarDiffLevel
     });
-  }, [
-    currentDiff,
-    currentReviewItem,
-    diffIndex,
-    enableDiffIgnore,
-    enableSimilarDiffs,
-    ignoredDiffIds,
-    indexVersion,
-    similarDiffLevel,
-    summary.total
-  ]);
+  }, [currentDiff, currentReviewItem, ignoredDiffIds, reviewSignatures, similarDiffLevel]);
 
   return { ignoredDiffIds, ignoredList, ignoredIndices, activeCount, activePosition, currentReviewItem, similarItems };
 }

@@ -20,6 +20,12 @@ const PREVIEW_LIMIT = 86;
 
 export type ReviewShortcut = 'previous' | 'next' | 'toggle-ignore';
 
+/** A difference paired with the normalized text the similarity scan compares. */
+export type ReviewSignature = {
+  item: IgnoredDiffItem;
+  signature: string;
+};
+
 export function resolveReviewShortcut(
   event: Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>
 ): ReviewShortcut | null {
@@ -90,38 +96,57 @@ export function createReviewItem(index: number, group: DiffElementGroup | undefi
 
 export function findSimilarReviewItems(options: {
   currentIndex: number;
-  total: number;
+  signatures: readonly ReviewSignature[];
   ignoredIds: Set<string>;
   level: SimilarDiffLevel;
-  getGroup: (index: number) => DiffElementGroup | undefined;
 }): SimilarDiffItem[] {
-  const currentItem = createReviewItem(options.currentIndex, options.getGroup(options.currentIndex));
-  if (!currentItem) return [];
-
-  const currentSignature = createReviewSignature(currentItem);
-  if (!currentSignature) return [];
+  const current = options.signatures.find((entry) => entry.item.index === options.currentIndex);
+  if (!current?.signature) return [];
 
   const threshold = SIMILAR_DIFF_THRESHOLDS[options.level];
   const candidates: SimilarDiffItem[] = [];
-  for (let candidateIndex = 1; candidateIndex <= options.total; candidateIndex++) {
-    if (candidateIndex === options.currentIndex || options.ignoredIds.has(diffId(candidateIndex))) continue;
 
-    const candidateItem = createReviewItem(candidateIndex, options.getGroup(candidateIndex));
-    if (!candidateItem || candidateItem.kind !== currentItem.kind) continue;
-    if (candidateItem.context !== currentItem.context) continue;
+  for (const candidate of options.signatures) {
+    if (candidate.item.index === options.currentIndex || options.ignoredIds.has(candidate.item.id)) continue;
+    if (candidate.item.kind !== current.item.kind) continue;
+    if (candidate.item.context !== current.item.context) continue;
+    if (!canReachSimilarityThreshold(current.signature, candidate.signature, threshold)) continue;
 
-    const candidateSignature = createReviewSignature(candidateItem);
-    if (!canReachSimilarityThreshold(currentSignature, candidateSignature, threshold)) continue;
-
-    const similarity = compareReviewSignature(currentSignature, candidateSignature);
+    const similarity = compareReviewSignature(current.signature, candidate.signature);
     if (similarity < threshold) continue;
 
-    candidates.push({ ...candidateItem, similarity });
+    candidates.push({ ...candidate.item, similarity });
   }
 
   return candidates
     .sort((left, right) => right.similarity - left.similarity || left.index - right.index)
     .slice(0, MAX_SIMILAR_DIFFS);
+}
+
+/**
+ * Preview text and comparison signature for every difference, built once per
+ * index rebuild.
+ *
+ * Deriving these inside the similarity scan meant re-reading `textContent`,
+ * re-running `closest('table')` and re-normalizing for every difference in the
+ * document on each press of the next/previous key — lag the reader feels
+ * directly on a heavily edited document. None of it depends on which
+ * difference is selected, so it now survives navigation untouched.
+ */
+export function buildReviewSignatures(
+  total: number,
+  getGroup: (index: number) => DiffElementGroup | undefined
+): ReviewSignature[] {
+  const signatures: ReviewSignature[] = [];
+
+  for (let index = 1; index <= total; index++) {
+    const item = createReviewItem(index, getGroup(index));
+    if (!item) continue;
+
+    signatures.push({ item, signature: createReviewSignature(item) });
+  }
+
+  return signatures;
 }
 
 export function setReviewClass(group: DiffElementGroup | undefined, className: string, enabled: boolean): void {
