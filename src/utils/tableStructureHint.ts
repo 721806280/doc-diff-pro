@@ -1,6 +1,6 @@
 import type { DiffTableContextHint, DiffTableRowPreview, DiffTableRowPreviewRole, LayoutNoiseSide } from '@/types/diff';
 import { normalizeText } from './documentText';
-import { alignDocumentTables } from './diffGroupStructure';
+import { alignDocumentTables } from './tableAlignment';
 import { longestCommonSubsequenceLength } from './longestCommonSubsequence';
 
 export type TableStructureHintOptions = {

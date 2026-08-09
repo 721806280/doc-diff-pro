@@ -1,16 +1,19 @@
 import type { DiffGranularity, DiffSummary, DiffTuple } from '@/types/diff';
 import { applyDiffMarkup } from './diffMarkup';
 import { buildTextMapping, collapseWhitespace, normalizeText, type TextMapping } from './documentText';
+import {
+  alignDocumentTables,
+  directRowCells,
+  directTableRows,
+  normalizeStructureText,
+  type TableAlignmentEntry
+} from './tableAlignment';
 import { createTextDiffs } from './textDiffCompute';
 import { DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, parseDiffId, summarizeDiffs } from './textDiffCore';
 
 const DIFF_ELEMENT_SELECTOR = 'ins[data-diff-id], del[data-diff-id]';
 const BODY_BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, div, section, article';
 const MAX_SCOPE_DISTANCE = 3;
-const TABLE_MATCH_THRESHOLD = 0.15;
-// Table-count changes need text evidence; equal shape alone scores at most 0.3.
-const TABLE_COUNT_CHANGE_MATCH_THRESHOLD = 0.35;
-const TABLE_GAP_PENALTY = 0.2;
 const MAX_MAIN_THREAD_CELL_DIFF_LENGTH = 2048;
 
 type DiffScope = {
@@ -23,8 +26,7 @@ type DiffScope = {
   blockIndex?: number;
 };
 
-type AlignmentPair<T> = { original?: T; revised?: T };
-export type TableAlignmentEntry = AlignmentPair<HTMLTableElement> & { id: string };
+export type { TableAlignmentEntry };
 
 type RowMeta = {
   tableId: string;
@@ -96,158 +98,6 @@ export function refineDiffGroups(
   renumberDiffGroups(originalRoot, revisedRoot, originalIndex, revisedIndex);
 
   return summarizeRefinedGroups(originalRoot, revisedRoot);
-}
-
-export function alignDocumentTables(originalRoot: HTMLElement, revisedRoot: HTMLElement): TableAlignmentEntry[] {
-  const original = Array.from(originalRoot.querySelectorAll<HTMLTableElement>('table'));
-  const revised = Array.from(revisedRoot.querySelectorAll<HTMLTableElement>('table'));
-  const signatures = new WeakMap<HTMLTableElement, ReturnType<typeof createTableSignature>>();
-  [...original, ...revised].forEach((table) => signatures.set(table, createTableSignature(table)));
-  const matchThreshold =
-    original.length === revised.length ? TABLE_MATCH_THRESHOLD : TABLE_COUNT_CHANGE_MATCH_THRESHOLD;
-
-  return alignSequences(
-    original,
-    revised,
-    (left, right) => tableSimilarity(signatures.get(left)!, signatures.get(right)!),
-    matchThreshold
-  ).map((entry, index) => ({ ...entry, id: `table-${index}` }));
-}
-
-function alignSequences<T>(
-  original: T[],
-  revised: T[],
-  similarity: (original: T, revised: T) => number,
-  matchThreshold: number
-): Array<AlignmentPair<T>> {
-  type AlignmentChoice = 'match' | 'original' | 'revised';
-
-  const scores = Array.from({ length: original.length + 1 }, () =>
-    new Array<number>(revised.length + 1).fill(Number.NEGATIVE_INFINITY)
-  );
-  const choices = Array.from({ length: original.length + 1 }, () =>
-    new Array<AlignmentChoice | null>(revised.length + 1).fill(null)
-  );
-
-  // Both matrices are allocated at (original.length + 1) x (revised.length + 1)
-  // and every index below is derived from those same bounds, so these accessors
-  // never fall back at runtime. They exist to state the invariant once instead
-  // of guarding at each of the dozen index sites in the loops.
-  const scoreAt = (row: number, column: number): number => scores[row]?.[column] ?? Number.NEGATIVE_INFINITY;
-  const setScore = (row: number, column: number, value: number): void => {
-    const line = scores[row];
-    if (line) line[column] = value;
-  };
-  const setChoice = (row: number, column: number, value: AlignmentChoice): void => {
-    const line = choices[row];
-    if (line) line[column] = value;
-  };
-  // Loop bounds keep these element reads in range; T itself may legitimately be
-  // a nullable type, so a value guard would be wrong here.
-  const originalAt = (index: number): T => original[index] as T;
-  const revisedAt = (index: number): T => revised[index] as T;
-
-  setScore(0, 0, 0);
-  for (let index = 1; index <= original.length; index++) {
-    setScore(index, 0, scoreAt(index - 1, 0) - TABLE_GAP_PENALTY);
-    setChoice(index, 0, 'original');
-  }
-  for (let index = 1; index <= revised.length; index++) {
-    setScore(0, index, scoreAt(0, index - 1) - TABLE_GAP_PENALTY);
-    setChoice(0, index, 'revised');
-  }
-
-  for (let originalIndex = 1; originalIndex <= original.length; originalIndex++) {
-    for (let revisedIndex = 1; revisedIndex <= revised.length; revisedIndex++) {
-      const matchScore = similarity(originalAt(originalIndex - 1), revisedAt(revisedIndex - 1));
-      let bestScore = scoreAt(originalIndex - 1, revisedIndex) - TABLE_GAP_PENALTY;
-      let bestChoice: AlignmentChoice = 'original';
-      const revisedScore = scoreAt(originalIndex, revisedIndex - 1) - TABLE_GAP_PENALTY;
-      if (revisedScore > bestScore) {
-        bestScore = revisedScore;
-        bestChoice = 'revised';
-      }
-      if (matchScore >= matchThreshold) {
-        const alignedScore = scoreAt(originalIndex - 1, revisedIndex - 1) + matchScore;
-        if (alignedScore > bestScore) {
-          bestScore = alignedScore;
-          bestChoice = 'match';
-        }
-      }
-
-      setScore(originalIndex, revisedIndex, bestScore);
-      setChoice(originalIndex, revisedIndex, bestChoice);
-    }
-  }
-
-  const reversed: Array<AlignmentPair<T>> = [];
-  let originalIndex = original.length;
-  let revisedIndex = revised.length;
-  while (originalIndex > 0 || revisedIndex > 0) {
-    const choice = choices[originalIndex]?.[revisedIndex] ?? null;
-    if (choice === 'match') {
-      reversed.push({ original: originalAt(originalIndex - 1), revised: revisedAt(revisedIndex - 1) });
-      originalIndex--;
-      revisedIndex--;
-    } else if (choice === 'original') {
-      reversed.push({ original: originalAt(originalIndex - 1) });
-      originalIndex--;
-    } else {
-      reversed.push({ revised: revisedAt(revisedIndex - 1) });
-      revisedIndex--;
-    }
-  }
-
-  return reversed.reverse();
-}
-
-function createTableSignature(table: HTMLTableElement): { text: string; rows: number; cells: number } {
-  const rows = directTableRows(table);
-  return {
-    text: normalizeStructureText(table.textContent ?? ''),
-    rows: rows.length,
-    cells: rows.reduce((total, row) => total + directRowCells(row).length, 0)
-  };
-}
-
-function tableSimilarity(
-  left: { text: string; rows: number; cells: number },
-  right: { text: string; rows: number; cells: number }
-): number {
-  const textScore = diceSimilarity(left.text, right.text);
-  const rowScore = ratioSimilarity(left.rows, right.rows);
-  const cellScore = ratioSimilarity(left.cells, right.cells);
-  if (!left.text && !right.text) return (rowScore + cellScore) / 2;
-  return textScore * 0.7 + rowScore * 0.15 + cellScore * 0.15;
-}
-
-function diceSimilarity(left: string, right: string): number {
-  if (left === right) return 1;
-  if (!left || !right) return 0;
-  if (left.length < 2 || right.length < 2) return 0;
-
-  const counts = new Map<string, number>();
-  for (let index = 0; index < left.length - 1; index++) {
-    const pair = left.slice(index, index + 2);
-    counts.set(pair, (counts.get(pair) ?? 0) + 1);
-  }
-
-  let matches = 0;
-  for (let index = 0; index < right.length - 1; index++) {
-    const pair = right.slice(index, index + 2);
-    const count = counts.get(pair) ?? 0;
-    if (count <= 0) continue;
-    matches++;
-    counts.set(pair, count - 1);
-  }
-
-  return (matches * 2) / (left.length - 1 + (right.length - 1));
-}
-
-function ratioSimilarity(left: number, right: number): number {
-  if (left === right) return 1;
-  const maximum = Math.max(left, right);
-  return maximum === 0 ? 1 : Math.min(left, right) / maximum;
 }
 
 function buildStructureIndex(
@@ -755,13 +605,6 @@ function wrapUnmarkedText(container: HTMLElement, tag: 'ins' | 'del', id: string
   });
 }
 
-function normalizeStructureText(text: string): string {
-  return text
-    .normalize('NFKC')
-    .replace(/[\s\u200b\u200c\u200d\ufeff]+/g, '')
-    .toLowerCase();
-}
-
 function renumberDiffGroups(
   originalRoot: HTMLElement,
   revisedRoot: HTMLElement,
@@ -826,14 +669,4 @@ function summarizeRefinedGroups(
   });
 
   return { total: groups.size, inserted, deleted, modified };
-}
-
-function directTableRows(table: HTMLTableElement): HTMLTableRowElement[] {
-  return Array.from(table.querySelectorAll<HTMLTableRowElement>('tr')).filter((row) => row.closest('table') === table);
-}
-
-function directRowCells(row: HTMLTableRowElement): HTMLTableCellElement[] {
-  return Array.from(row.children).filter(
-    (element): element is HTMLTableCellElement => element instanceof HTMLTableCellElement
-  );
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { alignDocumentTables, refineDiffGroups } from './diffGroupStructure';
+import { refineDiffGroups } from './diffGroupStructure';
+import { alignDocumentTables, type TableAlignmentEntry } from './tableAlignment';
 
 function bodyFromHtml(html: string): HTMLElement {
   return new DOMParser().parseFromString(html, 'text/html').body;
@@ -129,7 +130,9 @@ describe('diffGroupStructure', () => {
     const original = bodyFromHtml('<table><tr><td>甲甲</td></tr></table>');
     const revised = bodyFromHtml('<table><tr><td>乙乙</td></tr></table><table><tr><td>丙丙</td></tr></table>');
 
-    expect(alignDocumentTables(original, revised).some((entry) => entry.original && entry.revised)).toBe(false);
+    expect(
+      alignDocumentTables(original, revised).some((entry: TableAlignmentEntry) => entry.original && entry.revised)
+    ).toBe(false);
   });
 
   it('refines a large block document without repeated full-tree scans', () => {
