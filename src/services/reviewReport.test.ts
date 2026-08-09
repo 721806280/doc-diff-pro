@@ -1,5 +1,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildReviewReportHtml, downloadReviewReport } from './reviewReport';
+import { buildReviewReportHtml, downloadReviewReport, type ReviewReportInput } from './reviewReport';
+
+function reportInput(): ReviewReportInput {
+  return {
+    locale: 'zh-CN',
+    title: 'DocDiff 审阅报告',
+    generatedAtLabel: '生成时间',
+    generatedAt: '2026/07/10 10:30',
+    documentsLabel: '文档',
+    originalLabel: '基准文档',
+    originalFileName: '<baseline>.docx',
+    revisedLabel: '修订文档',
+    revisedFileName: 'revision.docx',
+    settingsLabel: '比对设置',
+    settings: [{ label: '比对粒度', value: '字符级' }],
+    summaryLabel: '结果摘要',
+    summary: [{ label: '差异', value: '1' }],
+    differencesLabel: '差异明细',
+    originalPreviewLabel: '基准内容',
+    revisedPreviewLabel: '修订内容',
+    emptyPreviewLabel: '无内容',
+    emptyDifferencesLabel: '未发现差异',
+    privacyNote: '报告在浏览器本地生成。',
+    changes: []
+  };
+}
 
 describe('reviewReport', () => {
   afterEach(() => {
@@ -10,25 +35,7 @@ describe('reviewReport', () => {
 
   it('creates a printable report and escapes document content', () => {
     const html = buildReviewReportHtml({
-      locale: 'zh-CN',
-      title: 'DocDiff 审阅报告',
-      generatedAtLabel: '生成时间',
-      generatedAt: '2026/07/10 10:30',
-      documentsLabel: '文档',
-      originalLabel: '基准文档',
-      originalFileName: '<baseline>.docx',
-      revisedLabel: '修订文档',
-      revisedFileName: 'revision.docx',
-      settingsLabel: '比对设置',
-      settings: [{ label: '比对粒度', value: '字符级' }],
-      summaryLabel: '结果摘要',
-      summary: [{ label: '差异', value: '1' }],
-      differencesLabel: '差异明细',
-      originalPreviewLabel: '基准内容',
-      revisedPreviewLabel: '修订内容',
-      emptyPreviewLabel: '无内容',
-      emptyDifferencesLabel: '未发现差异',
-      privacyNote: '报告在浏览器本地生成。',
+      ...reportInput(),
       changes: [
         {
           index: 1,
@@ -46,6 +53,37 @@ describe('reviewReport', () => {
     expect(html).toContain('&lt;baseline&gt;.docx');
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(html).not.toContain('<script>alert(1)</script>');
+  });
+
+  it('marks ignored changes, fills in empty previews, and escapes attribute context', () => {
+    const html = buildReviewReportHtml({
+      ...reportInput(),
+      // Quotes here would break out of the lang attribute if it were not escaped.
+      locale: '" onload="alert(1)',
+      changes: [
+        {
+          index: 1,
+          kind: 'deleted',
+          kindLabel: '删除',
+          statusLabel: '已忽略',
+          originalPreview: '',
+          revisedPreview: '',
+          ignored: true
+        }
+      ]
+    });
+
+    expect(html).toContain('class="change change--deleted change--ignored"');
+    expect(html).toContain('无内容');
+    expect(html).toContain('lang="&quot; onload=&quot;alert(1)"');
+    expect(html).not.toContain('lang="" onload="');
+  });
+
+  it('says so when there are no differences at all', () => {
+    const html = buildReviewReportHtml({ ...reportInput(), changes: [] });
+
+    expect(html).toContain('<p class="empty">未发现差异</p>');
+    expect(html).not.toContain('class="change change--');
   });
 
   it('downloads an html blob and releases its object url', () => {
