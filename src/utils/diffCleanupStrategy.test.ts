@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { compareDocuments, type LayoutNoiseBySide } from '@/services/diffEngine';
 import { extractLayoutNoise, type LayoutNoiseData } from '@/utils/layoutNoise';
-import { sanitizeDocumentHtml } from '@/utils/sanitizeDocumentHtml';
+import { sanitizeDocumentBody } from '@/utils/sanitizeDocumentHtml';
 
 const require = createRequire(import.meta.url);
 const mammoth = require('mammoth');
@@ -11,7 +11,7 @@ const mammoth = require('mammoth');
 type Sample = { html: string; noise: LayoutNoiseData };
 
 /**
- * Guards the cleanup strategy in textDiffCore against the bundled samples.
+ * Guards the cleanup strategy in textDiffCompute against the bundled samples.
  *
  * The misalignment this covers only appears with whole-document context —
  * diff-match-patch bisects long inputs, and the bad boundary does not
@@ -24,9 +24,9 @@ type Sample = { html: string; noise: LayoutNoiseData };
 async function loadSample(name: string): Promise<Sample> {
   const buffer = readFileSync(`${process.cwd()}/public/samples/${name}`);
   const result: { value?: string } = await mammoth.convertToHtml({ buffer }, { includeHeadersAndFooters: true });
-  const sanitized = await sanitizeDocumentHtml(String(result.value ?? '').trim());
-  const { html, layoutNoise } = extractLayoutNoise(sanitized);
-  return { html, noise: layoutNoise };
+  const body = await sanitizeDocumentBody(String(result.value ?? '').trim());
+  const layoutNoise = extractLayoutNoise(body);
+  return { html: body.innerHTML, noise: layoutNoise };
 }
 
 function noiseOf(original: Sample, revised: Sample): LayoutNoiseBySide {

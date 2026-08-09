@@ -12,6 +12,12 @@ export type DocumentPaneState = {
   imageCount: number;
   warnings: string[];
   layoutNoise: LayoutNoiseData;
+  /**
+   * Object URLs backing the <img> elements in this document's markup. They
+   * stay alive until the pane is replaced or cleared, so whoever drops a
+   * DocumentPaneState owns revoking these.
+   */
+  imageUrls: string[];
   status: DocumentStatus;
   error: string;
 };

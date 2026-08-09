@@ -1,6 +1,7 @@
 import { act, StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
+import type { ParsedDocx } from '@/services/docxParser';
 
 const mocks = vi.hoisted(() => ({
   parseDocx: vi.fn(),
@@ -94,11 +95,12 @@ function externalFile(name: string): File {
   return file;
 }
 
-function parsed(html: string) {
+function parsed(html: string): ParsedDocx {
   return {
     html,
     textLength: html.length,
     imageCount: 0,
+    imageUrls: [],
     warnings: [],
     layoutNoise: { hints: { exact: [], fragments: [] }, nativeItems: [] }
   };

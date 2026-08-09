@@ -123,6 +123,7 @@ function emptyDocument(): DocumentPaneState {
     imageCount: 0,
     warnings: [],
     layoutNoise: createEmptyLayoutNoise(),
+    imageUrls: [],
     status: 'idle',
     error: ''
   };

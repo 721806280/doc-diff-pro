@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { messages } from '@/i18n/messages';
 import type { ParsedDocx } from '@/services/docxParser';
+import { createEmptyLayoutNoise } from '@/utils/layoutNoise';
 import { useDocumentSession } from './useDocumentSession';
 
 const mocks = vi.hoisted(() => ({
@@ -19,10 +20,11 @@ function parsed(overrides: Partial<ParsedDocx> = {}): ParsedDocx {
     html: '<p>content</p>',
     textLength: 7,
     imageCount: 0,
+    imageUrls: [],
     warnings: [],
-    layoutNoise: [],
+    layoutNoise: createEmptyLayoutNoise(),
     ...overrides
-  } as ParsedDocx;
+  };
 }
 
 function docxFile(name = 'review.docx'): File {
@@ -147,6 +149,91 @@ describe('useDocumentSession', () => {
 
     expect(result.current.documents.A.name).toBe('new.docx');
     expect(result.current.documents.A.originalHtml).toBe('<p>new</p>');
+  });
+
+  // Object URLs outlive the markup that referenced them unless something
+  // revokes them, so every path that drops a pane has to release its images.
+  describe('embedded image lifetime', () => {
+    it('releases the previous pane images when the pane is replaced', async () => {
+      const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL');
+      mocks.parseDocx.mockResolvedValueOnce(parsed({ imageUrls: ['blob:first'] }));
+      const { result } = mountSession();
+
+      await act(async () => {
+        await result.current.handleFile('A', docxFile('first.docx'));
+      });
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await result.current.handleFile('A', docxFile('second.docx'));
+      });
+
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:first');
+    });
+
+    it('releases the images of a parse that lost its pane', async () => {
+      const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL');
+      const resolvers: Array<(value: ParsedDocx) => void> = [];
+      mocks.parseDocx.mockImplementation(() => new Promise<ParsedDocx>((resolve) => resolvers.push(resolve)));
+
+      const { result } = mountSession();
+      let firstCall: Promise<void>;
+      let secondCall: Promise<void>;
+      act(() => {
+        firstCall = result.current.handleFile('A', docxFile('old.docx'));
+        secondCall = result.current.handleFile('A', docxFile('new.docx'));
+      });
+      await waitFor(() => expect(resolvers).toHaveLength(2));
+
+      await act(async () => {
+        resolvers[1]?.(parsed({ imageUrls: ['blob:winner'] }));
+        resolvers[0]?.(parsed({ imageUrls: ['blob:loser'] }));
+        await Promise.all([firstCall, secondCall]);
+      });
+
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:loser');
+      expect(revokeObjectURL).not.toHaveBeenCalledWith('blob:winner');
+    });
+
+    it('releases both panes on reset', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL');
+      mocks.parseDocx
+        .mockResolvedValueOnce(parsed({ imageUrls: ['blob:a'] }))
+        .mockResolvedValueOnce(parsed({ imageUrls: ['blob:b'] }));
+      const { result } = mountSession();
+
+      await act(async () => {
+        await result.current.handleFile('A', docxFile('a.docx'));
+        await result.current.handleFile('B', docxFile('b.docx'));
+      });
+      act(() => result.current.resetDocuments());
+
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:a');
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:b');
+    });
+
+    it('keeps images alive across a swap and releases them on unmount', async () => {
+      const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL');
+      mocks.parseDocx
+        .mockResolvedValueOnce(parsed({ imageUrls: ['blob:a'] }))
+        .mockResolvedValueOnce(parsed({ imageUrls: ['blob:b'] }));
+      const { result, unmount } = mountSession();
+
+      await act(async () => {
+        await result.current.handleFile('A', docxFile('a.docx'));
+        await result.current.handleFile('B', docxFile('b.docx'));
+      });
+      act(() => result.current.swapDocuments());
+
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+      expect(result.current.documents.A.imageUrls).toEqual(['blob:b']);
+
+      unmount();
+
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:a');
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:b');
+    });
   });
 
   it('discards a stale parse failure for a superseded file', async () => {

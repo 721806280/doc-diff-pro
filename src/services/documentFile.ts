@@ -19,9 +19,15 @@ export function createEmptyDocument(): DocumentPaneState {
     imageCount: 0,
     warnings: [],
     layoutNoise: createEmptyLayoutNoise(),
+    imageUrls: [],
     status: 'idle',
     error: ''
   };
+}
+
+/** Releases the object URLs a pane was holding. Safe to call more than once. */
+export function revokeDocumentImageUrls(urls: readonly string[]): void {
+  urls.forEach((url) => URL.revokeObjectURL(url));
 }
 
 export function validateDocumentFile(file: File, maxSizeMb: number): DocumentErrorKind | null {

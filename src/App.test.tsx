@@ -414,6 +414,7 @@ function parsed(html: string): ParsedDocx {
     html,
     textLength: html.length,
     imageCount: 0,
+    imageUrls: [],
     warnings: [],
     layoutNoise: { hints: { exact: [], fragments: [] }, nativeItems: [] }
   };

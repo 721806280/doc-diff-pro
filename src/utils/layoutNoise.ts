@@ -1,8 +1,3 @@
-export type LayoutNoiseResult = {
-  html: string;
-  layoutNoise: LayoutNoiseData;
-};
-
 export type LayoutNoiseHints = {
   exact: string[];
   fragments: string[];
@@ -79,8 +74,12 @@ const LEADING_PAGE_TEXT_PATTERN = new RegExp(
   'i'
 );
 
-export function extractLayoutNoise(html: string): LayoutNoiseResult {
-  const body = new DOMParser().parseFromString(html, 'text/html').body;
+/**
+ * Strips the converter's header/footer elements from `body` and reports what
+ * they contained, so the same running text can be recognised later when Word
+ * has baked it into the body of the other document.
+ */
+export function extractLayoutNoise(body: HTMLElement): LayoutNoiseData {
   const exactHints = new Set<string>();
   const fragmentHints = new Set<string>();
   const nativeItems: LayoutNoiseEntry[] = [];
@@ -92,14 +91,11 @@ export function extractLayoutNoise(html: string): LayoutNoiseResult {
   });
 
   return {
-    html: body.innerHTML,
-    layoutNoise: {
-      hints: {
-        exact: Array.from(exactHints),
-        fragments: Array.from(fragmentHints)
-      },
-      nativeItems
-    }
+    hints: {
+      exact: Array.from(exactHints),
+      fragments: Array.from(fragmentHints)
+    },
+    nativeItems
   };
 }
 

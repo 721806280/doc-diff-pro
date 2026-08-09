@@ -7,6 +7,7 @@ import type { DocumentPair, PaneSide } from '@/types/document';
 import {
   createEmptyDocument,
   resolveDocumentError,
+  revokeDocumentImageUrls,
   validateDocumentFile,
   type DocumentErrorState
 } from '@/services/documentFile';
@@ -33,6 +34,15 @@ export function useDocumentSession({
   const fileSequences = useRef<Record<PaneSide, number>>({ A: 0, B: 0 });
   const sampleSequence = useRef(0);
   const documentErrors = useRef<Partial<Record<PaneSide, DocumentErrorState>>>({});
+  // Mirrors the object URLs each pane's markup points at. Kept beside the
+  // state rather than inside it because releasing a URL is a side effect, and
+  // state updaters have to stay callable more than once.
+  const liveImageUrls = useRef<Record<PaneSide, string[]>>({ A: [], B: [] });
+
+  const adoptImageUrls = useCallback((side: PaneSide, urls: string[]) => {
+    revokeDocumentImageUrls(liveImageUrls.current[side]);
+    liveImageUrls.current[side] = urls;
+  }, []);
 
   const hasDocuments = Boolean(documents.A.name || documents.B.name);
   const ready = documents.A.status === 'ready' && documents.B.status === 'ready';
@@ -72,6 +82,9 @@ export function useDocumentSession({
       fileSequences.current.A++;
       fileSequences.current.B++;
       sampleSequence.current++;
+      revokeDocumentImageUrls(liveImageUrls.current.A);
+      revokeDocumentImageUrls(liveImageUrls.current.B);
+      liveImageUrls.current = { A: [], B: [] };
     },
     []
   );
@@ -80,6 +93,8 @@ export function useDocumentSession({
     async (side: PaneSide, file: File) => {
       const fileSequence = ++fileSequences.current[side];
       onBeforeDocumentChange();
+      // Whatever this pane was showing is on its way out either way.
+      adoptImageUrls(side, []);
       const validationError = validateDocumentFile(file, maxSizeMb);
       if (validationError) {
         documentErrors.current[side] = { kind: validationError };
@@ -102,7 +117,12 @@ export function useDocumentSession({
           embeddedImageAlt: i18n.documentPane.embeddedImageAlt,
           emptyDocumentHtml: i18n.documentPane.emptyDocumentHtml
         });
-        if (fileSequence !== fileSequences.current[side]) return;
+        if (fileSequence !== fileSequences.current[side]) {
+          // A newer file won the pane; nothing will ever render these.
+          revokeDocumentImageUrls(parsed.imageUrls);
+          return;
+        }
+        adoptImageUrls(side, parsed.imageUrls);
         setDocuments((current) => ({
           ...current,
           [side]: {
@@ -114,6 +134,7 @@ export function useDocumentSession({
             imageCount: parsed.imageCount,
             warnings: parsed.warnings,
             layoutNoise: parsed.layoutNoise,
+            imageUrls: parsed.imageUrls,
             status: 'ready',
             error: ''
           }
@@ -137,7 +158,7 @@ export function useDocumentSession({
         onNotice(i18n.app.notices.parseFailed);
       }
     },
-    [i18n, maxSizeMb, onBeforeDocumentChange, onNotice]
+    [adoptImageUrls, i18n, maxSizeMb, onBeforeDocumentChange, onNotice]
   );
 
   useEffect(() => {
@@ -178,13 +199,17 @@ export function useDocumentSession({
     fileSequences.current.B++;
     sampleSequence.current++;
     documentErrors.current = {};
+    adoptImageUrls('A', []);
+    adoptImageUrls('B', []);
     setDocuments({ A: createEmptyDocument(), B: createEmptyDocument() });
     onNotice(i18n.app.notices.newComparisonStarted);
-  }, [hasDocuments, i18n, onBeforeDocumentChange, onNotice]);
+  }, [adoptImageUrls, hasDocuments, i18n, onBeforeDocumentChange, onNotice]);
 
   const swapDocuments = useCallback(() => {
     if (!ready) return;
     onBeforeDocumentChange();
+    // The markup moves panes, so its object URLs move with it.
+    liveImageUrls.current = { A: liveImageUrls.current.B, B: liveImageUrls.current.A };
     setDocuments({
       A: { ...documents.B, highlightedHtml: '' },
       B: { ...documents.A, highlightedHtml: '' }
