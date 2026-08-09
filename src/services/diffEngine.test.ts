@@ -16,6 +16,17 @@ const DEFAULT_OPTIONS: CompareOptions = {
 };
 
 describe('compareDocuments', () => {
+  // Phases hand the main thread back between them, which is also where a
+  // superseded run gets to stop instead of finishing work nobody will read.
+  it('stops instead of comparing when the run has already been superseded', async () => {
+    const compare = new AbortController();
+    compare.abort();
+
+    await expect(
+      compareDocuments('<p>abc</p>', '<p>axc</p>', { ...DEFAULT_OPTIONS, signal: compare.signal })
+    ).rejects.toThrow('Comparison superseded');
+  });
+
   it('summarizes a replacement and reports normalized similarity', async () => {
     const result = await compareDocuments('<p>abc</p>', '<p>axc</p>', DEFAULT_OPTIONS);
 

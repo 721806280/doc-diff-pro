@@ -170,6 +170,49 @@ describe('useComparisonSession', () => {
     expect(mocks.cancelPendingTextDiffs).toHaveBeenCalled();
   });
 
+  // The engine only checks this between phases, so signalling it is what lets
+  // a superseded run stop part way instead of running to completion.
+  it('signals the running comparison to stop when cancelled', async () => {
+    mocks.compareDocuments.mockImplementation(() => new Promise(() => undefined));
+    const view = mountSession();
+
+    await waitFor(() => expect(mocks.compareDocuments).toHaveBeenCalled());
+    const signal = mocks.compareDocuments.mock.calls[0]![2].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+
+    act(() => view.result.current.cancelCompare());
+
+    expect(signal.aborted).toBe(true);
+  });
+
+  it('signals the previous comparison to stop when a newer one starts', async () => {
+    mocks.compareDocuments.mockImplementation(() => new Promise(() => undefined));
+    const view = mountSession();
+
+    await waitFor(() => expect(mocks.compareDocuments).toHaveBeenCalled());
+    const first = mocks.compareDocuments.mock.calls[0]![2].signal as AbortSignal;
+
+    await act(async () => {
+      void view.result.current.runCompare(readyDocuments());
+    });
+
+    const second = mocks.compareDocuments.mock.calls[1]![2].signal as AbortSignal;
+    expect(first.aborted).toBe(true);
+    expect(second.aborted).toBe(false);
+  });
+
+  it('stops the running comparison on unmount', async () => {
+    mocks.compareDocuments.mockImplementation(() => new Promise(() => undefined));
+    const view = mountSession();
+
+    await waitFor(() => expect(mocks.compareDocuments).toHaveBeenCalled());
+    const signal = mocks.compareDocuments.mock.calls[0]![2].signal as AbortSignal;
+
+    view.unmount();
+
+    expect(signal.aborted).toBe(true);
+  });
+
   it('clears the summary and review state', async () => {
     const view = mountSession();
     await waitFor(() => expect(view.result.current.summary.total).toBe(2));

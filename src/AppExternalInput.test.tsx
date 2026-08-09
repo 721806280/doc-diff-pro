@@ -1,4 +1,5 @@
 import { act, StrictMode } from 'react';
+import { waitFor } from '@testing-library/dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import type { ParsedDocx } from '@/services/docxParser';
@@ -67,7 +68,11 @@ describe('React app external document input', () => {
       await Promise.resolve();
     });
     expect(mocks.parseDocx).toHaveBeenCalledTimes(2);
-    expect(mocks.compareDocuments).toHaveBeenCalledWith('<p>baseline</p>', '<p>revised</p>', expect.any(Object));
+    // The comparison engine is imported on demand, so the call lands a
+    // module-load tick after the documents are ready.
+    await waitFor(() =>
+      expect(mocks.compareDocuments).toHaveBeenCalledWith('<p>baseline</p>', '<p>revised</p>', expect.any(Object))
+    );
     expect(host?.textContent).toContain('baseline.docx');
     act(() => root?.unmount());
     root = null;

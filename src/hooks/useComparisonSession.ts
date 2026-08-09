@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { UserSettings } from '@/config/userSettings';
 import type { I18nMessages } from '@/i18n/messages';
-import { compareDocuments } from '@/services/diffEngine';
 import { cancelPendingTextDiffs } from '@/services/diffWorkerClient';
 import type { DiffSummary } from '@/types/diff';
 import type { DocumentPair } from '@/types/document';
@@ -41,9 +40,12 @@ export function useComparisonSession({
   const [error, setError] = useState('');
   const [summary, setSummary] = useState<DiffSummary>(EMPTY_SUMMARY);
   const compareSequence = useRef(0);
+  const activeCompare = useRef<AbortController | null>(null);
 
   const cancelCompare = useCallback(() => {
     compareSequence.current++;
+    activeCompare.current?.abort();
+    activeCompare.current = null;
     cancelPendingTextDiffs();
     setComparing(false);
     setError('');
@@ -53,17 +55,28 @@ export function useComparisonSession({
     async (nextDocuments: DocumentPair, showDoneNotice = false) => {
       if (nextDocuments.A.status !== 'ready' || nextDocuments.B.status !== 'ready') return;
       const sequence = ++compareSequence.current;
+      // Stops the previous run at its next phase boundary. Its result was
+      // going to be discarded either way; this stops it being computed.
+      activeCompare.current?.abort();
+      const compare = new AbortController();
+      activeCompare.current = compare;
       cancelPendingTextDiffs();
       setComparing(true);
       setError('');
       onClearReviewState();
       try {
+        // The comparison engine and diff-match-patch behind it are worth a few
+        // hundred kilobytes that the landing screen has no use for. By the time
+        // this runs the reader has already picked and parsed two documents, so
+        // the fetch overlaps work they were waiting on anyway.
+        const { compareDocuments } = await import('@/services/diffEngine');
         const result = await compareDocuments(nextDocuments.A.originalHtml, nextDocuments.B.originalHtml, {
           granularity: rules.diffGranularity,
           ignoreSpaces: rules.ignoreSpaces,
           ignoreFullHalfWidth: rules.ignoreFullHalfWidth,
           filterLayoutNoise: rules.filterLayoutNoise,
-          layoutNoise: { original: nextDocuments.A.layoutNoise, revised: nextDocuments.B.layoutNoise }
+          layoutNoise: { original: nextDocuments.A.layoutNoise, revised: nextDocuments.B.layoutNoise },
+          signal: compare.signal
         });
         if (sequence !== compareSequence.current) return;
         setDocuments({
@@ -105,6 +118,8 @@ export function useComparisonSession({
   useEffect(
     () => () => {
       compareSequence.current++;
+      activeCompare.current?.abort();
+      activeCompare.current = null;
       cancelPendingTextDiffs();
     },
     []

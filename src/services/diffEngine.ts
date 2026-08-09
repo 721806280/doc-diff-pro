@@ -10,6 +10,7 @@ import {
   type LayoutNoiseHints
 } from '@/utils/layoutNoise';
 import { DIFF_DELETE, DIFF_INSERT, summarizeDiffs } from '@/utils/textDiffCore';
+import { throwIfAborted, yieldToBrowser } from '@/utils/comparisonScheduling';
 import { refineDiffGroups } from '@/utils/diffGroupStructure';
 
 export type LayoutNoiseBySide = Record<LayoutNoiseSide, LayoutNoiseData>;
@@ -20,6 +21,8 @@ export type CompareOptions = {
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
   layoutNoise: LayoutNoiseBySide;
+  /** Stops the comparison at the next phase boundary when a newer one starts. */
+  signal?: AbortSignal;
 };
 
 export type CompareResult = {
@@ -33,6 +36,7 @@ export async function compareDocuments(
   revisedHtml: string,
   options: CompareOptions
 ): Promise<CompareResult> {
+  const signal = options.signal;
   const parser = new DOMParser();
   const originalDom = parser.parseFromString(originalHtml, 'text/html').body;
   const revisedDom = parser.parseFromString(revisedHtml, 'text/html').body;
@@ -45,9 +49,14 @@ export async function compareDocuments(
     hints,
     enabled: options.filterLayoutNoise
   });
+
+  await yieldToBrowser(signal);
   const originalTrack = prepareDocumentText(originalDom, options);
+  await yieldToBrowser(signal);
   const revisedTrack = prepareDocumentText(revisedDom, options);
+
   const diffs = await createTextDiffsAsync(originalTrack.text, revisedTrack.text, options.granularity);
+  throwIfAborted(signal);
   const summary = summarizeDiffs(diffs, options.granularity, originalTrack.text.length, revisedTrack.text.length);
   const nativeNoiseItems = [
     ...withSide(options.layoutNoise.original.nativeItems, 'original', 'native'),
@@ -62,9 +71,12 @@ export async function compareDocuments(
   summary.layoutNoiseItems = groupItems([...nativeNoiseItems, ...bodyNoiseItems]);
   summary.layoutNoiseFiltered = summary.layoutNoiseItems.reduce((total, item) => total + item.count, 0);
 
+  await yieldToBrowser(signal);
   applyDiffMarkup(originalDom, originalTrack.mapping, diffs, DIFF_DELETE, 'del');
+  await yieldToBrowser(signal);
   applyDiffMarkup(revisedDom, revisedTrack.mapping, diffs, DIFF_INSERT, 'ins');
 
+  await yieldToBrowser(signal);
   const refinedSummary = refineDiffGroups(originalDom, revisedDom, {
     granularity: options.granularity,
     ignoreSpaces: options.ignoreSpaces,
