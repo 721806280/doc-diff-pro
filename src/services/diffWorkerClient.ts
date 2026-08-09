@@ -1,6 +1,7 @@
 import type { DiffGranularity, DiffTuple, DiffWorkerRequest, DiffWorkerResponse } from '@/types/diff';
 
 type PendingRequest = {
+  worker: Worker;
   resolve: (diffs: DiffTuple[]) => void;
   reject: (error: Error) => void;
   timeoutId: ReturnType<typeof setTimeout>;
@@ -76,13 +77,13 @@ function requestWorkerDiff(
     const timeoutId = setTimeout(() => {
       if (!pendingRequests.has(id)) return;
 
-      const error = new DiffTimeoutError();
-      rejectPendingRequests(error);
-      currentWorker.terminate();
-      if (worker === currentWorker) worker = null;
+      // Missing the deadline means this worker is stuck, not slow, so it is
+      // torn down along with every request still riding on it. Requests that
+      // have since moved to a replacement worker are left running.
+      discardWorker(currentWorker, new DiffTimeoutError());
     }, DIFF_WORKER_TIMEOUT_MS);
 
-    pendingRequests.set(id, { resolve, reject, timeoutId });
+    pendingRequests.set(id, { worker: currentWorker, resolve, reject, timeoutId });
     currentWorker.postMessage({ id, originalText, revisedText, granularity } satisfies DiffWorkerRequest);
   });
 }
@@ -105,22 +106,33 @@ function getWorker(): Worker {
       pending.resolve(diffs ?? []);
     }
   };
+  // A reply that fails to deserialize never reaches onmessage, so without this
+  // the request would sit pending until the timeout fires.
+  currentWorker.onmessageerror = () => {
+    discardWorker(currentWorker, new Error('Diff worker sent an unreadable response'));
+  };
   currentWorker.onerror = (event) => {
-    if (worker !== currentWorker) return;
-    rejectPendingRequests(new Error(event.message || 'Diff worker failed'));
-    currentWorker.terminate();
-    worker = null;
+    discardWorker(currentWorker, new Error(event.message || 'Diff worker failed'));
   };
 
   return currentWorker;
 }
 
-function rejectPendingRequests(error: Error): void {
-  pendingRequests.forEach(({ reject, timeoutId }) => {
-    clearTimeout(timeoutId);
-    reject(error);
+/** Retires a worker and fails only the requests that were riding on it. */
+function discardWorker(target: Worker, error: Error): void {
+  rejectPendingRequests(error, target);
+  target.terminate();
+  if (worker === target) worker = null;
+}
+
+function rejectPendingRequests(error: Error, targetWorker?: Worker): void {
+  pendingRequests.forEach((pending, id) => {
+    if (targetWorker && pending.worker !== targetWorker) return;
+
+    pendingRequests.delete(id);
+    clearTimeout(pending.timeoutId);
+    pending.reject(error);
   });
-  pendingRequests.clear();
 }
 
 async function createMainThreadDiffs(

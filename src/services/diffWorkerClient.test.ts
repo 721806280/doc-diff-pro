@@ -11,6 +11,7 @@ vi.mock('@/utils/textDiffCompute', () => ({
 
 type FakeWorkerInstance = {
   onmessage: ((event: MessageEvent) => void) | null;
+  onmessageerror: ((event: MessageEvent) => void) | null;
   onerror: ((event: ErrorEvent) => void) | null;
   postMessage: ReturnType<typeof vi.fn>;
   terminate: ReturnType<typeof vi.fn>;
@@ -21,6 +22,7 @@ function installFakeWorker(): FakeWorkerInstance[] {
 
   class FakeWorker implements FakeWorkerInstance {
     onmessage: ((event: MessageEvent) => void) | null = null;
+    onmessageerror: ((event: MessageEvent) => void) | null = null;
     onerror: ((event: ErrorEvent) => void) | null = null;
     postMessage = vi.fn();
     terminate = vi.fn();
@@ -135,6 +137,35 @@ describe('diffWorkerClient', () => {
     await expect(currentDiff).resolves.toEqual([[1, 'request']]);
     expect(workers[1]!.terminate).not.toHaveBeenCalled();
     expect(mocks.createTextDiffs).not.toHaveBeenCalled();
+  });
+
+  it('falls back instead of hanging when a worker reply cannot be deserialized', async () => {
+    const workers = installFakeWorker();
+    const { createTextDiffsAsync } = await import('./diffWorkerClient');
+
+    const pendingDiff = createTextDiffsAsync('a', 'b', 'char');
+    workers[0]!.onmessageerror?.({} as MessageEvent);
+
+    await expect(pendingDiff).resolves.toEqual([[0, 'fallback']]);
+    expect(mocks.createTextDiffs).toHaveBeenCalledWith('a', 'b', 'char');
+    expect(workers[0]!.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it('retires only the failing worker, leaving a replacement request untouched', async () => {
+    const workers = installFakeWorker();
+    const { createTextDiffsAsync } = await import('./diffWorkerClient');
+
+    const failedDiff = createTextDiffsAsync('old', 'request', 'word');
+    workers[0]!.onmessageerror?.({} as MessageEvent);
+    await expect(failedDiff).resolves.toEqual([[0, 'fallback']]);
+
+    const currentDiff = createTextDiffsAsync('new', 'request', 'word');
+    const currentId = workers[1]!.postMessage.mock.calls[0]![0].id as number;
+    workers[0]!.onerror?.({ message: 'late worker error' } as ErrorEvent);
+    workers[1]!.onmessage?.({ data: { id: currentId, diffs: [[1, 'request']] } } as MessageEvent);
+
+    await expect(currentDiff).resolves.toEqual([[1, 'request']]);
+    expect(workers[1]!.terminate).not.toHaveBeenCalled();
   });
 
   it('does not run the synchronous fallback for timed out worker requests', async () => {
