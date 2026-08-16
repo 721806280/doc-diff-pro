@@ -97,6 +97,50 @@ describe('parseDocx', () => {
     expect(createObjectURL).not.toHaveBeenCalled();
   });
 
+  it('uses configured empty markup and image alt text', async () => {
+    convertToHtml.mockResolvedValueOnce({ value: '', messages: [] });
+    const parsed = await parseDocx(new File(['docx'], 'review.docx'), {
+      emptyDocumentHtml: '<p>Nothing here</p>',
+      embeddedImageAlt: 'Scanned page'
+    });
+    expect(parsed.html).toBe('<p>Nothing here</p>');
+
+    const imageConverter = imgElement.mock.calls[0]![0] as (image: {
+      read: (format: 'base64') => Promise<string>;
+      contentType: string;
+    }) => Promise<{ src: string; alt: string }>;
+    await expect(imageConverter({ contentType: 'image/png', read: async () => 'AAAA' })).resolves.toEqual({
+      src: 'data:image/png;base64,AAAA',
+      alt: 'Scanned page'
+    });
+  });
+
+  it('falls back to the default empty markup', async () => {
+    convertToHtml.mockResolvedValueOnce({ value: '   ', messages: [] });
+
+    const parsed = await parseDocx(new File(['docx'], 'empty.docx'));
+
+    expect(parsed.html).toBe('');
+  });
+
+  it('uses the default markup, alt text, and warning list when nothing is configured', async () => {
+    convertToHtml.mockResolvedValueOnce({ value: '' });
+
+    const parsed = await parseDocx(new File(['docx'], 'empty.docx'));
+
+    expect(parsed.html).toBe('<p>(Empty document)</p>');
+    expect(parsed.warnings).toEqual([]);
+
+    const imageConverter = imgElement.mock.calls[0]![0] as (image: {
+      read: (format: 'base64') => Promise<string>;
+      contentType: string;
+    }) => Promise<{ src: string; alt: string }>;
+    await expect(imageConverter({ contentType: 'image/jpeg', read: async () => 'BBBB' })).resolves.toEqual({
+      src: 'data:image/jpeg;base64,BBBB',
+      alt: 'Embedded document image'
+    });
+  });
+
   it('releases object URLs it had already minted when parsing fails', async () => {
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL');
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:doc-diff/2');

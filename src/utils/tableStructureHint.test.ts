@@ -186,6 +186,28 @@ describe('resolveTableStructureHint', () => {
     });
   });
 
+  it('detects cell count mismatch from a deletion-only difference', () => {
+    const original = bodyFromHtml(
+      '<table><tr><td>字段A</td><td>字段B</td></tr><tr><td><del data-diff-id="diff-1">内容A</del></td><td>值1</td><td>值2</td></tr></table>'
+    );
+    const revised = bodyFromHtml('<table><tr><td>字段A</td><td>字段B</td></tr><tr><td>内容A 值1 值2</td></tr></table>');
+    const insight = resolveTableStructureHint(
+      original,
+      revised,
+      Array.from(original.querySelectorAll<HTMLElement>('del')),
+      [],
+      DEFAULT_OPTIONS
+    );
+
+    expect(insight?.hint).toMatchObject({
+      kind: 'cell-count-mismatch',
+      candidateSide: 'revised',
+      candidateRow: 2,
+      originalCells: 3,
+      revisedCells: 1
+    });
+  });
+
   it('detects cell count mismatch in the active row even when table row counts match', () => {
     const original = bodyFromHtml(
       '<table><tr><td>字段A</td><td>字段B</td></tr><tr><td><del data-diff-id="diff-1">内容A</del></td><td>值1</td><td>值2</td></tr></table>'

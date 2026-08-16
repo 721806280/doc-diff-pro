@@ -199,4 +199,32 @@ describe('diffWorkerClient', () => {
     await expect(createTextDiffsAsync('a', 'b', 'char')).resolves.toEqual([[0, 'fallback']]);
     expect(mocks.createTextDiffs).toHaveBeenCalledWith('a', 'b', 'char');
   });
+
+  it('returns an empty list when a worker omits diffs', async () => {
+    const workers = installFakeWorker();
+    const { createTextDiffsAsync } = await import('./diffWorkerClient');
+    const pendingDiff = createTextDiffsAsync('a', 'b', 'char');
+    const id = workers[0]!.postMessage.mock.calls[0]![0].id as number;
+
+    workers[0]!.onmessage?.({ data: { id } } as MessageEvent);
+
+    await expect(pendingDiff).resolves.toEqual([]);
+  });
+
+  it('ignores responses for requests that are no longer pending', async () => {
+    const workers = installFakeWorker();
+    const { createTextDiffsAsync } = await import('./diffWorkerClient');
+    const pendingDiff = createTextDiffsAsync('a', 'b', 'char');
+    const id = workers[0]!.postMessage.mock.calls[0]![0].id as number;
+    workers[0]!.onmessage?.({ data: { id: id + 100, diffs: [[1, 'late']] } } as MessageEvent);
+    workers[0]!.onmessage?.({ data: { id, diffs: [[1, 'b']] } } as MessageEvent);
+
+    await expect(pendingDiff).resolves.toEqual([[1, 'b']]);
+  });
+
+  it('allows cancellation when no request or worker exists', async () => {
+    const { cancelPendingTextDiffs } = await import('./diffWorkerClient');
+
+    expect(() => cancelPendingTextDiffs()).not.toThrow();
+  });
 });

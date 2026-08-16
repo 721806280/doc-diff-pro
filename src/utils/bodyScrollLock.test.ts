@@ -39,4 +39,19 @@ describe('bodyScrollLock', () => {
 
     expect(document.body.style.overflow).toBe('auto');
   });
+
+  it('ignores duplicate release while another owner still holds the lock', () => {
+    document.body.style.overflow = 'scroll';
+    const first = createBodyScrollLock();
+    const second = createBodyScrollLock();
+
+    first.lock();
+    second.lock();
+    first.release();
+    first.release();
+
+    expect(document.body.style.overflow).toBe('hidden');
+    second.release();
+    expect(document.body.style.overflow).toBe('scroll');
+  });
 });

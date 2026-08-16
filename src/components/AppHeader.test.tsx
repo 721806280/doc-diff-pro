@@ -86,6 +86,57 @@ describe('AppHeader', () => {
     expect(host.querySelector('.settings-popover')).toBeNull();
     expect(host.querySelector('.language-icon')?.classList).toContain('is-en');
   });
+
+  it('emits a settings change from every toggle and theme swatch', () => {
+    const events: string[] = [];
+    const { host } = mountHeader({}, events);
+    act(() => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
+
+    host.querySelectorAll<HTMLButtonElement>('.settings-toggle').forEach((toggle) => act(() => toggle.click()));
+    act(() => host.querySelectorAll<HTMLButtonElement>('.theme-color-swatch')[1]?.click());
+
+    expect(events.filter((event) => !event.startsWith('settingsOpen'))).toEqual([
+      'ignoreSpaces:false',
+      'ignoreFullHalfWidth:false',
+      'filterLayoutNoise:true',
+      'showDiffMap:false',
+      'syncScroll:false',
+      'showReportExport:true',
+      'showTableHints:true',
+      'enableDiffIgnore:true',
+      'themeColor:blue'
+    ]);
+  });
+
+  it('selects similar-difference levels including off', () => {
+    const events: string[] = [];
+    const { host } = mountHeader({ enableDiffIgnore: true }, events);
+    act(() => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
+    const options = host.querySelectorAll<HTMLButtonElement>('.similar-level-segmented button');
+    expect(options).toHaveLength(4);
+    expect(options[2]?.getAttribute('aria-checked')).toBe('true');
+    act(() => options[1]?.click());
+    act(() => options[0]?.click());
+    expect(events.filter((event) => !event.startsWith('settingsOpen'))).toEqual([
+      'similarDiffLevel:strict',
+      'enableSimilarDiffs:false'
+    ]);
+  });
+
+  it('toggles the appearance mode and closes settings from the toolbar', () => {
+    const events: string[] = [];
+    const { host } = mountHeader({}, events);
+    act(() => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
+    act(() => host.querySelector<HTMLButtonElement>('.appearance-trigger')?.click());
+    expect(host.querySelector('.settings-popover')).toBeNull();
+    expect(events).toContain('appearanceMode:dark');
+
+    const github = host.querySelector<HTMLAnchorElement>('.github-link')!;
+    github.addEventListener('click', (event) => event.preventDefault());
+    act(() => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
+    act(() => github.click());
+    expect(host.querySelector('.settings-popover')).toBeNull();
+  });
 });
 
 function mountHeader(

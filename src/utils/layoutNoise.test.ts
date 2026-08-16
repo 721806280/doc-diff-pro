@@ -91,4 +91,53 @@ describe('layoutNoise', () => {
     expect(result.filteredCount).toBe(0);
     expect(root.textContent).toContain('内部资料');
   });
+
+  it('removes repeated keyword and contact lines as repeated layout text', () => {
+    const root = new DOMParser().parseFromString(
+      '<p>内部资料 请勿外传</p><p>第一章</p><p>内部资料 请勿外传</p>' +
+        '<p>联系电话 010-1234</p><p>第二章</p><p>联系电话 010-1234</p>',
+      'text/html'
+    ).body;
+    const result = removeLayoutNoise(root, { hints: { exact: [], fragments: [] }, enabled: true });
+
+    expect(result.filteredCount).toBe(4);
+    expect(result.removedItems.every((item) => item.reason === 'repeated-layout-text')).toBe(true);
+    expect(root.textContent).toContain('第一章');
+    expect(root.textContent).not.toContain('内部资料');
+  });
+
+  it('keeps repeated ordinary text and one-off keyword lines', () => {
+    const root = new DOMParser().parseFromString(
+      '<p>甲方应当按时付款</p><p>正文</p><p>甲方应当按时付款</p><p>内部资料 请勿外传</p>',
+      'text/html'
+    ).body;
+    const result = removeLayoutNoise(root, { hints: { exact: [], fragments: [] }, enabled: true });
+
+    expect(result.filteredCount).toBe(0);
+    expect(root.textContent).toContain('甲方应当按时付款');
+    expect(root.textContent).toContain('内部资料 请勿外传');
+  });
+
+  it('matches footer fragments only on lines that carry a page marker', () => {
+    const hints = { exact: [], fragments: ['保密资料请勿对外传阅'] };
+    const root = new DOMParser().parseFromString(
+      '<p>第 2 页 保密资料请勿对外传阅</p><p>保密资料请勿对外传阅相关条款正文说明</p>',
+      'text/html'
+    ).body;
+    const result = removeLayoutNoise(root, { hints, enabled: true });
+
+    expect(result.filteredCount).toBe(1);
+    expect(result.removedItems).toEqual([{ reason: 'hint', text: '第 2 页 保密资料请勿对外传阅' }]);
+    expect(root.textContent).toContain('相关条款正文说明');
+  });
+
+  it('keeps long paragraphs and purely decorative separators', () => {
+    const longText = '合同条款'.repeat(50);
+    const root = new DOMParser().parseFromString(`<p>${longText}</p><p>* * *</p><p>正文</p>`, 'text/html').body;
+    const result = removeLayoutNoise(root, { hints: { exact: ['页眉提示'], fragments: [] }, enabled: true });
+
+    expect(result.filteredCount).toBe(0);
+    expect(root.textContent).toContain(longText);
+    expect(root.textContent).toContain('* * *');
+  });
 });

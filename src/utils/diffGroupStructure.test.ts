@@ -104,6 +104,19 @@ describe('diffGroupStructure', () => {
     expect(Array.from(revised.querySelectorAll('ins')).map((node) => node.textContent)).toEqual(['新', '新']);
   });
 
+  it('repairs a huge cell with one replacement span instead of an exact diff', () => {
+    const shared = '条'.repeat(2100);
+    const original = bodyFromHtml(`<table><tr><td>字段</td><td>${shared}旧尾部说明</td></tr></table>`);
+    const revised = bodyFromHtml(
+      `<table><tr><td>字段</td><td><ins data-diff-id="diff-1">${shared}新尾部说明</ins></td></tr></table>`
+    );
+
+    refineDiffGroups(original, revised);
+
+    expect(Array.from(original.querySelectorAll('del')).map((node) => node.textContent)).toEqual(['旧']);
+    expect(Array.from(revised.querySelectorAll('ins')).map((node) => node.textContent)).toEqual(['新']);
+  });
+
   it('does not pair ambiguous repeated table text moves', () => {
     const original = bodyFromHtml(
       '<table><tr><td><del data-diff-id="diff-1">重复值</del></td></tr><tr><td><del data-diff-id="diff-2">重复值</del></td></tr></table>'

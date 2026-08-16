@@ -91,6 +91,55 @@ describe('review components', () => {
     expect(events).toEqual(['locate:diff-2', 'export']);
   });
 
+  it('opens layout-noise details from its chip and restores all from the ignored modal', () => {
+    const events: string[] = [];
+    const noisySummary: DiffSummary = {
+      ...summary(),
+      layoutNoiseFiltered: 2,
+      layoutNoiseItems: [{ side: 'original', reason: 'page-number', source: 'body', count: 2, text: '第 1 页' }]
+    };
+    const { host } = renders.render(
+      <DiffNavigator
+        summary={noisySummary}
+        activeDiffCount={2}
+        activeDiffIndex={1}
+        ignoredDiffs={[item('diff-2', 2)]}
+        canPrevious
+        canNext
+        canExportReport={false}
+        onPrevious={() => undefined}
+        onNext={() => undefined}
+        onLocateIgnored={() => undefined}
+        onRestoreIgnored={() => undefined}
+        onRestoreAllIgnored={() => events.push('restoreAll')}
+        onExportReport={() => undefined}
+      />
+    );
+
+    const layoutChip = host.querySelector<HTMLButtonElement>('.summary-chip.layout-noise')!;
+    act(() => layoutChip.click());
+    expect(layoutChip.getAttribute('aria-expanded')).toBe('true');
+    expect(document.body.textContent).toContain('第 1 页');
+    act(() => layoutChip.click());
+    expect(layoutChip.getAttribute('aria-expanded')).toBe('false');
+    act(() => layoutChip.click());
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    expect(layoutChip.getAttribute('aria-expanded')).toBe('false');
+
+    const ignoredChip = host.querySelector<HTMLButtonElement>('.summary-chip.ignored')!;
+    act(() => ignoredChip.click());
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    expect(ignoredChip.getAttribute('aria-expanded')).toBe('false');
+    act(() => ignoredChip.click());
+    act(() => document.body.querySelector<HTMLButtonElement>('.ignored-diff-restore-all')?.click());
+    expect(events).toEqual(['restoreAll']);
+    expect(ignoredChip.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('shows the restore-all state when every difference is ignored', () => {
     const events: string[] = [];
     const { host } = renders.render(
@@ -208,6 +257,69 @@ describe('review components', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     });
     expect(closes).toEqual(['close', 'close', 'close']);
+  });
+
+  it('toggles individual similar selections before submitting the batch', () => {
+    const ignored: string[][] = [];
+    renders.render(
+      <SimilarDiffModal
+        open
+        current={item('diff-1', 1)}
+        items={[
+          { ...item('diff-2', 2), similarity: 0.9 },
+          { ...item('diff-3', 3), similarity: 0.8 }
+        ]}
+        onClose={() => undefined}
+        onLocate={() => undefined}
+        onIgnore={(ids) => ignored.push(ids)}
+      />
+    );
+
+    const currentBox = document.body.querySelector<HTMLInputElement>('.similar-diff-current input')!;
+    const itemBoxes = document.body.querySelectorAll<HTMLInputElement>('.similar-diff-list input');
+    expect(document.body.textContent).toContain('已选 3/3');
+    act(() => currentBox.click());
+    expect(document.body.textContent).toContain('已选 2/3');
+    act(() => itemBoxes[1]?.click());
+    expect(document.body.textContent).toContain('已选 1/3');
+    act(() => itemBoxes[1]?.click());
+    expect(document.body.textContent).toContain('已选 2/3');
+
+    act(() => document.body.querySelector<HTMLButtonElement>('.similar-diff-footer .primary')?.click());
+    expect(ignored).toEqual([['diff-2', 'diff-3']]);
+  });
+
+  it('labels blank preview sides with the empty placeholder', () => {
+    renders.render(
+      <IgnoredDiffModal
+        open
+        items={[{ id: 'diff-9', index: 9, kind: 'deleted', originalPreview: '', revisedPreview: '' }]}
+        onClose={() => undefined}
+        onLocate={() => undefined}
+        onRestore={() => undefined}
+        onRestoreAll={() => undefined}
+      />
+    );
+
+    const previews = document.body.querySelectorAll('.ignored-diff-preview strong');
+    expect(previews[0]?.textContent).toBe('无内容');
+    expect(previews[1]?.textContent).toBe('无内容');
+  });
+
+  it('omits the source and count badges for a single body item', () => {
+    renders.render(
+      <LayoutNoiseModal
+        open
+        total={1}
+        items={[{ side: 'revised', reason: 'page-number', source: 'body', count: 1, text: '第 2 页' }]}
+        onClose={() => undefined}
+      />
+    );
+
+    expect(document.body.querySelector('.layout-noise-source')).toBeNull();
+    expect(document.body.querySelector('.layout-noise-count')).toBeNull();
+    expect(document.body.textContent).toContain('修订文档');
+    expect(document.body.textContent).toContain('页码');
   });
 
   it('selects, clears, locates, and submits a similar-difference batch', () => {

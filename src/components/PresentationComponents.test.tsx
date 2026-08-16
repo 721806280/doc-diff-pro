@@ -27,13 +27,19 @@ describe('presentation components', () => {
 
   it('marks the active mobile pane and emits selection', () => {
     const selected: string[] = [];
-    const { host } = renders.render(
+    const view = renders.render(
       <MobilePaneSwitch activePane="A" i18n={messages['zh-CN']} onChange={(pane) => selected.push(pane)} />
     );
-    const buttons = host.querySelectorAll<HTMLButtonElement>('button');
+    const buttons = view.host.querySelectorAll<HTMLButtonElement>('button');
     expect(buttons[0]?.getAttribute('aria-checked')).toBe('true');
     act(() => buttons[1]?.click());
-    expect(selected).toEqual(['B']);
+    view.rerender(
+      <MobilePaneSwitch activePane="B" i18n={messages['zh-CN']} onChange={(pane) => selected.push(pane)} />
+    );
+    expect(buttons[1]?.getAttribute('aria-checked')).toBe('true');
+    expect(buttons[0]?.classList.contains('active')).toBe(false);
+    act(() => buttons[0]?.click());
+    expect(selected).toEqual(['B', 'A']);
   });
 
   it('renders active and ignored map markers and selects one', () => {

@@ -56,6 +56,39 @@ describe('focusTrap', () => {
     expect(backwardEvent.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(last);
   });
+
+  it('handles empty, hidden, and outside focus targets', () => {
+    const empty = document.createElement('section');
+    document.body.append(empty);
+    const trap = createFocusTrap();
+    trap.activate(empty);
+    expect(document.activeElement).toBe(empty);
+
+    const hiddenContainer = document.createElement('section');
+    hiddenContainer.innerHTML = '<button id="hidden">Hidden</button><button id="visible">Visible</button>';
+    document.body.append(hiddenContainer);
+    const hidden = hiddenContainer.querySelector('#hidden') as HTMLElement;
+    hidden.style.display = 'none';
+    trap.activate(hiddenContainer);
+    expect(document.activeElement?.id).toBe('visible');
+
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true });
+    trap.handleKeydown(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement?.id).toBe('visible');
+    trap.deactivate({ restoreFocus: false });
+  });
+
+  it('ignores activation and non-tab events when inactive', () => {
+    const trap = createFocusTrap();
+    expect(() => trap.activate(null)).not.toThrow();
+    const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+    trap.handleKeydown(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
 });
 
 function createContainer(): HTMLElement {

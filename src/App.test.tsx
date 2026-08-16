@@ -9,10 +9,12 @@ const mocks = vi.hoisted(() => ({
   parseDocx: vi.fn(),
   compareDocuments: vi.fn(),
   downloadReviewReport: vi.fn<(html: string, fileName: string) => void>(),
-  resolveTableStructureHint: vi.fn()
+  resolveTableStructureHint: vi.fn(),
+  loadSampleDocuments: vi.fn()
 }));
 
 vi.mock('@/services/docxParser', () => ({ parseDocx: mocks.parseDocx }));
+vi.mock('@/services/sampleDocuments', () => ({ loadSampleDocuments: mocks.loadSampleDocuments }));
 vi.mock('@/services/diffEngine', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/diffEngine')>()),
   compareDocuments: mocks.compareDocuments
@@ -49,6 +51,7 @@ describe('React app workflow', () => {
     mocks.compareDocuments.mockReset().mockResolvedValue(emptyComparison());
     mocks.downloadReviewReport.mockReset();
     mocks.resolveTableStructureHint.mockReset().mockReturnValue(null);
+    mocks.loadSampleDocuments.mockReset();
     Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: vi.fn() });
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
   });
@@ -351,6 +354,91 @@ describe('React app workflow', () => {
     expect(fileName).toMatch(/^docdiff-report-\d{8}-\d{4}\.html$/);
   });
 
+  it('navigates differences from the floating navigator buttons', async () => {
+    await mountComparedApp();
+    await act(async () => host.querySelector<HTMLButtonElement>('.btn-action-nav--next')?.click());
+    expect(host.querySelector('[data-diff-id="diff-2"]')?.classList).toContain('focus-diff');
+    await act(async () => host.querySelector<HTMLButtonElement>('.btn-action-nav--previous')?.click());
+    expect(host.querySelector('[data-diff-id="diff-1"]')?.classList).toContain('focus-diff');
+  });
+
+  it('switches the mobile pane and refocuses the current difference', async () => {
+    await mountComparedApp();
+    const options = host.querySelectorAll<HTMLButtonElement>('.mobile-pane-switch__option');
+    expect(options).toHaveLength(2);
+    await act(async () => options[1]?.click());
+    await rafFlush();
+    expect(host.querySelector('.side-revision')?.classList).toContain('mobile-pane-active');
+    expect(host.querySelector('.side-original')?.classList).toContain('mobile-pane-inactive');
+    await act(async () => options[0]?.click());
+    await rafFlush();
+    expect(host.querySelector('.side-original')?.classList).toContain('mobile-pane-active');
+    expect(host.querySelector('[data-diff-id="diff-1"]')?.classList).toContain('focus-diff');
+  });
+
+  it('drives ignore, restore, and similar review from the floating popover', async () => {
+    stubElementRects();
+    await mountComparedApp(similarComparison());
+    await rafFlush();
+    expect(document.body.querySelector('.diff-action-popover')).toBeTruthy();
+
+    await act(async () =>
+      document.body.querySelector<HTMLButtonElement>('.diff-action-popover__button--similar')?.click()
+    );
+    expect(document.body.querySelector('.similar-diff-footer')).toBeTruthy();
+    await act(async () => document.body.querySelector<HTMLButtonElement>('.similar-diff-locate')?.click());
+    await rafFlush();
+    expect(document.body.querySelector('.similar-diff-footer')).toBeNull();
+    expect(host.querySelector('[data-diff-id="diff-2"]')?.classList).toContain('focus-diff');
+    expect(document.body.querySelector('.diff-action-popover__label')?.textContent).toContain('#2');
+
+    await act(async () => document.body.querySelector<HTMLButtonElement>('.diff-action-popover__button--main')?.click());
+    expect(host.querySelectorAll('.side-original .ignored-diff')).toHaveLength(1);
+
+    await act(async () => host.querySelector<HTMLButtonElement>('.summary-chip.ignored')?.click());
+    await act(async () => document.body.querySelector<HTMLButtonElement>('.ignored-diff-row-actions button')?.click());
+    await rafFlush();
+    const restore = document.body.querySelector<HTMLButtonElement>('.diff-action-popover__button--main');
+    expect(restore?.textContent).toContain('Restore');
+    await act(async () => restore?.click());
+    expect(host.querySelector('.ignored-diff')).toBeNull();
+  });
+
+  it('refocuses the first difference when disabling diff ignore clears an all-ignored review', async () => {
+    await mountComparedApp();
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', cancelable: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', cancelable: true })));
+    expect(host.querySelectorAll('.ignored-diff')).toHaveLength(4);
+
+    await act(async () => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
+    const ignoreToggle = Array.from(host.querySelectorAll<HTMLButtonElement>('.settings-toggle')).find((button) =>
+      button.textContent?.includes('Difference ignore')
+    )!;
+    await act(async () => ignoreToggle.click());
+    await flush();
+
+    expect(host.querySelectorAll('.ignored-diff')).toHaveLength(0);
+    expect(host.querySelector('[data-diff-id="diff-1"]')?.classList).toContain('focus-diff');
+  });
+
+  it('loads the bundled sample documents from the local-processing strip', async () => {
+    mocks.loadSampleDocuments.mockResolvedValue({
+      A: new File(['a'], 'sample-baseline.docx'),
+      B: new File(['b'], 'sample-revised.docx')
+    });
+    mocks.parseDocx.mockResolvedValueOnce(parsed('<p>baseline</p>')).mockResolvedValueOnce(parsed('<p>revised</p>'));
+    mocks.compareDocuments.mockResolvedValueOnce(comparisonWithDiffs());
+    renderApp();
+
+    await act(async () => host.querySelector<HTMLButtonElement>('.local-processing-strip button')?.click());
+    await flush();
+
+    expect(mocks.loadSampleDocuments).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain('sample-baseline.docx');
+    expect(host.textContent).toContain('sample-revised.docx');
+    expect(host.querySelector('.local-processing-strip')).toBeNull();
+  });
+
   function renderApp(): void {
     act(() =>
       root.render(
@@ -401,6 +489,30 @@ async function flush(): Promise<void> {
   });
 }
 
+/**
+ * Waits out requestAnimationFrame-driven updates (~16ms timers in jsdom). Two
+ * rounds, because a focus change can rebuild the difference index, whose
+ * effects schedule one more frame before the popover position settles.
+ */
+async function rafFlush(): Promise<void> {
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 40)));
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 40)));
+}
+
+/**
+ * The diff-action popover only anchors to a difference the viewport shows, and
+ * jsdom reports every rectangle as zero. Give panes a tall rectangle and other
+ * elements a small one inside it, so differences count as visible.
+ */
+function stubElementRects(): void {
+  const paneRect = { top: 0, bottom: 600, left: 0, right: 800, width: 800, height: 600, x: 0, y: 0 };
+  const elementRect = { top: 200, bottom: 220, left: 100, right: 300, width: 200, height: 20, x: 100, y: 200 };
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    const rect = this.classList.contains('render-viewport') ? paneRect : elementRect;
+    return { ...rect, toJSON: () => ({}) };
+  });
+}
+
 async function waitForResultIndex(): Promise<void> {
   for (let attempt = 0; attempt < 10; attempt++) {
     if (document.querySelector('.diff-map__marker')) return;
@@ -428,6 +540,18 @@ function comparisonWithDiffs() {
   return {
     originalHtml: '<p><del data-diff-id="diff-1">old one</del> <del data-diff-id="diff-2">old two</del></p>',
     revisedHtml: '<p><ins data-diff-id="diff-1">new one</ins> <ins data-diff-id="diff-2">new two</ins></p>',
+    summary: { ...EMPTY_TEST_SUMMARY, total: 2, modified: 2, similarity: 0.5 }
+  };
+}
+
+function similarComparison() {
+  return {
+    originalHtml:
+      '<p><del data-diff-id="diff-1">old standard clause alpha</del> ' +
+      '<del data-diff-id="diff-2">old standard clause beta</del></p>',
+    revisedHtml:
+      '<p><ins data-diff-id="diff-1">new standard clause alpha</ins> ' +
+      '<ins data-diff-id="diff-2">new standard clause beta</ins></p>',
     summary: { ...EMPTY_TEST_SUMMARY, total: 2, modified: 2, similarity: 0.5 }
   };
 }

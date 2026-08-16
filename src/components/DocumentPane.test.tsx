@@ -88,13 +88,52 @@ describe('DocumentPane', () => {
     expect(events).toHaveLength(1);
     expect(accepted.defaultPrevented).toBe(true);
   });
+
+  it('reports scrolling and every pointer-style activation with its side', () => {
+    const scrolled: string[] = [];
+    const activated: string[] = [];
+    const { host } = mountPane(true, emptyDocument(), undefined, undefined, {
+      onScroll: (side) => scrolled.push(side),
+      onActivate: (side) => activated.push(side)
+    });
+    const viewport = host.querySelector<HTMLElement>('.render-viewport')!;
+
+    act(() => {
+      viewport.dispatchEvent(new Event('scroll', { bubbles: true }));
+      viewport.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      viewport.dispatchEvent(new Event('wheel', { bubbles: true }));
+      viewport.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      viewport.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    });
+
+    expect(scrolled).toEqual(['A']);
+    expect(activated).toEqual(['A', 'A', 'A', 'A']);
+  });
+
+  it('keeps the drop highlight active while dragging over the viewport', () => {
+    const { host } = mountPane(true);
+    const viewport = host.querySelector<HTMLElement>('.render-viewport')!;
+
+    act(() => {
+      viewport.dispatchEvent(dragStateEvent('dragover'));
+    });
+    expect(viewport.classList.contains('is-dragging')).toBe(true);
+
+    const external = mountPane(false);
+    const externalViewport = external.host.querySelector<HTMLElement>('.render-viewport')!;
+    act(() => {
+      externalViewport.dispatchEvent(dragStateEvent('dragover'));
+    });
+    expect(externalViewport.classList.contains('is-dragging')).toBe(false);
+  });
 });
 
 function mountPane(
   allowFileInput: boolean,
   document = emptyDocument(),
   onFile?: (file: File) => void,
-  onDiffInteraction: (event: React.SyntheticEvent) => void = () => undefined
+  onDiffInteraction: (event: React.SyntheticEvent) => void = () => undefined,
+  handlers: Partial<{ onScroll: (side: 'A' | 'B') => void; onActivate: (side: 'A' | 'B') => void }> = {}
 ) {
   return renders.render(
     <DocumentPane
@@ -106,9 +145,9 @@ function mountPane(
       allowFileInput={allowFileInput}
       paneRef={createRef<HTMLDivElement>()}
       onFile={async (_side, file) => onFile?.(file)}
-      onScroll={() => undefined}
+      onScroll={handlers.onScroll ?? (() => undefined)}
       onDiffInteraction={onDiffInteraction}
-      onActivate={() => undefined}
+      onActivate={handlers.onActivate ?? (() => undefined)}
     />
   );
 }

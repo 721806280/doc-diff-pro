@@ -27,4 +27,16 @@ describe('externalDocumentApi', () => {
 
     expect(window.DocDiffPro).toBe(replacement);
   });
+
+  it('installs nothing when no window exists', () => {
+    vi.stubGlobal('window', undefined);
+    try {
+      const uninstall = installExternalDocumentApi(async () => undefined);
+
+      expect(uninstall()).toBeUndefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(window.DocDiffPro).toBeUndefined();
+  });
 });
