@@ -392,7 +392,9 @@ describe('React app workflow', () => {
     expect(host.querySelector('[data-diff-id="diff-2"]')?.classList).toContain('focus-diff');
     expect(document.body.querySelector('.diff-action-popover__label')?.textContent).toContain('#2');
 
-    await act(async () => document.body.querySelector<HTMLButtonElement>('.diff-action-popover__button--main')?.click());
+    await act(async () =>
+      document.body.querySelector<HTMLButtonElement>('.diff-action-popover__button--main')?.click()
+    );
     expect(host.querySelectorAll('.side-original .ignored-diff')).toHaveLength(1);
 
     await act(async () => host.querySelector<HTMLButtonElement>('.summary-chip.ignored')?.click());
