@@ -85,7 +85,7 @@ describe('review components', () => {
     expect(document.body.textContent).toContain('已忽略差异');
     act(() => document.body.querySelector<HTMLButtonElement>('.ignored-diff-row-actions button')?.click());
     const exportButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
-      button.textContent?.includes('导出报告')
+      button.textContent?.includes('导出')
     );
     act(() => exportButton?.click());
     expect(events).toEqual(['locate:diff-2', 'export']);

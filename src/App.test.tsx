@@ -344,7 +344,7 @@ describe('React app workflow', () => {
   it('exports a local html review report', async () => {
     await mountComparedApp();
     const exportButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
-      button.textContent?.includes('Export report')
+      button.textContent?.includes('Export')
     );
     await act(async () => exportButton?.click());
     expect(mocks.downloadReviewReport).toHaveBeenCalledTimes(1);

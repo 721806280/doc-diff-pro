@@ -60,7 +60,7 @@ const en = {
     }
   },
   reviewReport: {
-    exportLabel: 'Export report',
+    exportLabel: 'Export',
     exportTitle: 'Download a local, printable review report.',
     title: 'DocDiff review report',
     generatedAt: 'Generated at',
@@ -341,7 +341,7 @@ const zhCN: I18nMessages = {
     }
   },
   reviewReport: {
-    exportLabel: '导出报告',
+    exportLabel: '导出',
     exportTitle: '下载在浏览器本地生成、可打印的审阅报告',
     title: 'DocDiff 审阅报告',
     generatedAt: '生成时间',
