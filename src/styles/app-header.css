@@ -321,6 +321,9 @@
   right: 0;
   z-index: var(--z-settings-popover);
   width: min(286px, calc(100vw - 24px));
+  max-height: calc(100vh - 76px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: grid;
   gap: 12px;
   padding: 12px;

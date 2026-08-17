@@ -76,7 +76,7 @@
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 500;
   min-width: 0;
   flex: 1 1 auto;
@@ -101,7 +101,7 @@
 }
 
 .file-badge-empty {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   color: var(--text-tertiary);
   margin-left: 4px;
 }
@@ -180,8 +180,8 @@
   border-radius: 8px;
   padding: 34px 38px;
   width: 100%;
-  max-width: 600px;
-  min-height: 224px;
+  max-width: 480px;
+  min-height: 208px;
   box-sizing: border-box;
   background:
     linear-gradient(90deg, var(--pane-soft) 0%, var(--bg-transparent) 42%),
