@@ -137,26 +137,34 @@ Deployments can inject runtime configuration before the application entry module
 </script>
 ```
 
-| Option                | Default | Description                                                                                                  |
-| --------------------- | ------- | ------------------------------------------------------------------------------------------------------------ |
-| `documentInput`       | `local` | `local` shows browser file inputs; `external` disables local upload and enables the `window.DocDiffPro` API. |
-| `showHeader`          | `true`  | Controls the top toolbar.                                                                                    |
-| `showSampleDocuments` | `true`  | Controls the bundled sample action.                                                                          |
-| `showGithubLink`      | `true`  | Controls the author repository link in the toolbar.                                                          |
-| `locale`              | `auto`  | Accepts `auto`, `zh-CN`, or `en`. `auto` prefers a saved locale before browser detection.                    |
-| `maxDocxSizeMb`       | `25`    | Per-file size limit; it must be a finite number greater than zero.                                           |
+| Option                | Default | Description                                                                                                                                                                 |
+| --------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `documentInput`       | `local` | `local` shows browser file inputs; `external` disables local upload and enables the `window.DocDiffPro` API; `both` keeps local upload enabled while also exposing the API. |
+| `showHeader`          | `true`  | Controls the top toolbar.                                                                                                                                                   |
+| `showSampleDocuments` | `true`  | Controls the bundled sample action.                                                                                                                                         |
+| `showGithubLink`      | `true`  | Controls the author repository link in the toolbar.                                                                                                                         |
+| `locale`              | `auto`  | Accepts `auto`, `zh-CN`, or `en`. `auto` prefers a saved locale before browser detection.                                                                                   |
+| `maxDocxSizeMb`       | `25`    | Per-file size limit; it must be a finite number greater than zero.                                                                                                          |
 
-`documentInput: 'external'` does not accept URLs. The integrating system must handle authentication, source validation, and file retrieval, then pass browser `File` objects after DocDiff Pro has mounted:
+`documentInput: 'external'` does not accept URLs. The integrating system must handle authentication, source validation, and file retrieval, then pass browser `File` objects to the mounted app. The API exposes a `ready` flag plus a `doc-diff-pro:ready` window event so integrators no longer need to poll, lifecycle/comparison subscriptions via `on()`, and `getState()`:
 
 ```js
-// Run after window.DocDiffPro becomes available.
-await window.DocDiffPro.loadDocuments({
-  baseline: baselineFile,
-  revised: revisedFile
+// Subscribe before mount so you never miss the ready signal.
+window.addEventListener('doc-diff-pro:ready', () => {
+  window.DocDiffPro.loadDocuments({ baseline: baselineFile, revised: revisedFile });
 });
+
+// Subscribe to outcomes for correlation with your business flow.
+window.DocDiffPro.on('result', ({ summary, meta }) => {
+  console.log(meta.bizId, summary.total);
+});
+window.DocDiffPro.on('error', ({ message, meta }) => {
+  console.warn(meta.bizId, message);
+});
+const state = window.DocDiffPro.getState(); // { ready, comparing, hasDocuments, hasResult, error }
 ```
 
-Either `baseline` or `revised` may be supplied independently. The API is installed only in `external` mode and works on the same page or in a same-origin iframe. Cross-origin iframes require an integration-owned `postMessage` adapter with explicit origin validation; the app does not expose an unrestricted message listener.
+`baseline` and `revised` may be supplied independently — passing one side updates only that pane without blocking on the other. An optional `meta` (`{ bizId?, source? }`) travels with the call and is echoed back on `result` / `error` / `cleared` events for correlation. The API is installed in `external` and `both` modes and works on the same page or in a same-origin iframe. Cross-origin iframes require an integration-owned `postMessage` adapter with explicit origin validation; the app does not expose an unrestricted message listener.
 
 The GitHub entry always points to the author's repository and cannot be replaced at runtime; only its visibility is configurable. Setting `showHeader: false` hides the entire toolbar, including comparison settings and UI preference controls.
 

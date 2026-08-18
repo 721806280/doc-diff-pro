@@ -137,26 +137,34 @@ DocDiff Pro 会在正式比对前把版面内容和正文内容分离：
 </script>
 ```
 
-| 配置项                | 默认值  | 说明                                                                              |
-| --------------------- | ------- | --------------------------------------------------------------------------------- |
-| `documentInput`       | `local` | `local` 显示本地文件入口；`external` 关闭本地上传并启用 `window.DocDiffPro` API。 |
-| `showHeader`          | `true`  | 是否显示顶部工具栏。                                                              |
-| `showSampleDocuments` | `true`  | 是否显示内置示例文档入口。                                                        |
-| `showGithubLink`      | `true`  | 是否在顶部工具栏显示作者仓库入口。                                                |
-| `locale`              | `auto`  | 支持 `auto`、`zh-CN` 和 `en`。`auto` 优先使用已保存语言，再检测浏览器语言。       |
-| `maxDocxSizeMb`       | `25`    | 单个文件大小上限，必须是大于 0 的有限数字。                                       |
+| 配置项                | 默认值  | 说明                                                                                                             |
+| --------------------- | ------- | ---------------------------------------------------------------------------------------------------------------- |
+| `documentInput`       | `local` | `local` 显示本地文件入口；`external` 关闭本地上传并启用 `window.DocDiffPro` API；`both` 同时保留本地上传与 API。 |
+| `showHeader`          | `true`  | 是否显示顶部工具栏。                                                                                             |
+| `showSampleDocuments` | `true`  | 是否显示内置示例文档入口。                                                                                       |
+| `showGithubLink`      | `true`  | 是否在顶部工具栏显示作者仓库入口。                                                                               |
+| `locale`              | `auto`  | 支持 `auto`、`zh-CN` 和 `en`。`auto` 优先使用已保存语言，再检测浏览器语言。                                      |
+| `maxDocxSizeMb`       | `25`    | 单个文件大小上限，必须是大于 0 的有限数字。                                                                      |
 
-`documentInput: 'external'` 不支持 URL 输入。接入方应先完成鉴权、来源验证和文件获取，再在 DocDiff Pro 挂载完成后传入浏览器 `File` 对象：
+`documentInput: 'external'` 不支持 URL 输入。接入方应先完成鉴权、来源验证和文件获取，再将浏览器 `File` 对象传给已挂载的应用。API 暴露 `ready` 标志与 `doc-diff-pro:ready` 窗口事件让接入方无需轮询，`on()` 订阅生命周期与比对事件，`getState()` 查询当前状态：
 
 ```js
-// Run after window.DocDiffPro becomes available.
-await window.DocDiffPro.loadDocuments({
-  baseline: baselineFile,
-  revised: revisedFile
+// 挂载前订阅，避免遗漏 ready 信号。
+window.addEventListener('doc-diff-pro:ready', () => {
+  window.DocDiffPro.loadDocuments({ baseline: baselineFile, revised: revisedFile });
 });
+
+// 订阅比对结果，与业务流程对账。
+window.DocDiffPro.on('result', ({ summary, meta }) => {
+  console.log(meta.bizId, summary.total);
+});
+window.DocDiffPro.on('error', ({ message, meta }) => {
+  console.warn(meta.bizId, message);
+});
+const state = window.DocDiffPro.getState(); // { ready, comparing, hasDocuments, hasResult, error }
 ```
 
-`baseline` 和 `revised` 可只传入其中一侧。该 API 仅在 `external` 模式下安装，适用于同页面或同源 iframe。跨域 iframe 需要接入方增加带明确来源校验的 `postMessage` 适配层；应用不会开放无来源校验的消息入口。
+`baseline` 和 `revised` 可只传入其中一侧——只传一侧时仅更新对应面板，不会因缺另一侧阻断。可选 `meta`（`{ bizId?, source? }`）随调用透传，并在 `result` / `error` / `cleared` 事件中原样回传，便于业务对账。该 API 在 `external` 与 `both` 模式下安装，适用于同页面或同源 iframe。跨域 iframe 需要接入方增加带明确来源校验的 `postMessage` 适配层；应用不会开放无来源校验的消息入口。
 
 GitHub 入口固定指向作者仓库，不支持运行时替换，只能通过 `showGithubLink` 控制显示。设置 `showHeader: false` 会隐藏整个顶部工具栏，包括比对设置和界面偏好入口。
 
