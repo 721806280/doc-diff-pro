@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { I18nMessages } from '@/i18n/messages';
-import { installExternalDocumentApi, type ExternalDocumentSet } from '@/services/externalDocumentApi';
+import {
+  createExternalDocumentApi,
+  type DocDiffProState,
+  type ExternalDocumentMeta,
+  type ExternalDocumentSet
+} from '@/services/externalDocumentApi';
 import { loadSampleDocuments } from '@/services/sampleDocuments';
 import { parseDocx } from '@/services/docxParser';
 import type { DocumentPair, PaneSide } from '@/types/document';
@@ -15,17 +20,23 @@ import {
 type Documents = DocumentPair;
 
 type DocumentSessionOptions = {
-  allowLocalInput: boolean;
+  allowsExternalApi: boolean;
   i18n: I18nMessages;
   maxSizeMb: number;
+  /** Live app-state reader for the external API; updated by App via a ref. */
+  getStateRef: RefObject<() => DocDiffProState>;
+  /** Receives the meta attached to each loadDocuments call, for event correlation. */
+  onMeta: (meta: ExternalDocumentMeta | undefined) => void;
   onBeforeDocumentChange: () => void;
   onNotice: (message: string) => void;
 };
 
 export function useDocumentSession({
-  allowLocalInput,
+  allowsExternalApi,
   i18n,
   maxSizeMb,
+  getStateRef,
+  onMeta,
   onBeforeDocumentChange,
   onNotice
 }: DocumentSessionOptions) {
@@ -71,7 +82,6 @@ export function useDocumentSession({
     if (!hasActiveSession) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = '';
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -161,18 +171,32 @@ export function useDocumentSession({
     [adoptImageUrls, i18n, maxSizeMb, onBeforeDocumentChange, onNotice]
   );
 
+  const externalApiHost = useMemo(
+    () =>
+      createExternalDocumentApi(
+        async (input: ExternalDocumentSet) => {
+          if (!input?.baseline && !input?.revised) throw new TypeError('Provide a baseline or revised DOCX file.');
+          if (input.baseline && !isFileLike(input.baseline))
+            throw new TypeError('Baseline must be a browser File object.');
+          if (input.revised && !isFileLike(input.revised))
+            throw new TypeError('Revised must be a browser File object.');
+          onMeta(input.meta);
+          const loads: Promise<void>[] = [];
+          if (input.baseline) loads.push(handleFile('A', input.baseline));
+          if (input.revised) loads.push(handleFile('B', input.revised));
+          await Promise.all(loads);
+        },
+        () => getStateRef.current()
+      ),
+    [getStateRef, handleFile, onMeta]
+  );
+
+  const externalEmit = externalApiHost.emit;
+
   useEffect(() => {
-    if (allowLocalInput) return;
-    return installExternalDocumentApi(async (input: ExternalDocumentSet) => {
-      if (!input?.baseline && !input?.revised) throw new TypeError('Provide a baseline or revised DOCX file.');
-      if (input.baseline && !isFileLike(input.baseline)) throw new TypeError('Baseline must be a browser File object.');
-      if (input.revised && !isFileLike(input.revised)) throw new TypeError('Revised must be a browser File object.');
-      await Promise.all([
-        ...(input.baseline ? [handleFile('A', input.baseline)] : []),
-        ...(input.revised ? [handleFile('B', input.revised)] : [])
-      ]);
-    });
-  }, [allowLocalInput, handleFile]);
+    if (!allowsExternalApi) return;
+    return externalApiHost.install();
+  }, [allowsExternalApi, externalApiHost]);
 
   const loadSamples = useCallback(async () => {
     if (loadingSample || hasDocuments) return;
@@ -224,6 +248,7 @@ export function useDocumentSession({
     ready,
     loadingSample,
     handleFile,
+    externalEmit,
     loadSamples,
     resetDocuments,
     swapDocuments

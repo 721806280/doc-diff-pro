@@ -18,6 +18,7 @@ import { useComparisonResultIndex } from '@/hooks/useComparisonResultIndex';
 import { useComparisonLayout } from '@/hooks/useComparisonLayout';
 import { useDiffActionPosition } from '@/hooks/useDiffActionPosition';
 import { useDocumentSession } from '@/hooks/useDocumentSession';
+import type { DocDiffProState, ExternalDocumentMeta } from '@/services/externalDocumentApi';
 import { useBindLatest, useLatestRef } from '@/hooks/useLatestRef';
 import { useRecompareOnSettingsChange } from '@/hooks/useRecompareOnSettingsChange';
 import { useReviewShortcuts } from '@/hooks/useReviewShortcuts';
@@ -81,6 +82,14 @@ export default function App() {
   // binds it with useBindLatest once the other side exists.
   const clearDiffActionPositionRef = useRef<() => void>(() => undefined);
   const comparisonClearRef = useRef<() => void>(() => undefined);
+  const externalGetStateRef = useRef<() => DocDiffProState>(() => ({
+    ready: false,
+    comparing: false,
+    hasDocuments: false,
+    hasResult: false,
+    error: ''
+  }));
+  const externalMetaRef = useRef<ExternalDocumentMeta | undefined>(undefined);
   const resetTableHintRef = useRef<() => void>(() => undefined);
 
   const {
@@ -99,7 +108,8 @@ export default function App() {
     similarDiffLevel
   } = settings;
 
-  const allowsLocalInput = deploymentConfig.documentInput === 'local';
+  const allowsLocalInput = deploymentConfig.documentInput !== 'external';
+  const allowsExternalApi = deploymentConfig.documentInput !== 'local';
 
   const clearReviewState = useCallback(() => {
     setIgnoredDiffs(new Map());
@@ -133,6 +143,10 @@ export default function App() {
     comparisonClearRef.current();
   }, []);
 
+  const handleExternalMeta = useCallback((meta: ExternalDocumentMeta | undefined) => {
+    externalMetaRef.current = meta;
+  }, []);
+
   const {
     documents,
     setDocuments,
@@ -140,21 +154,28 @@ export default function App() {
     ready,
     loadingSample,
     handleFile,
+    externalEmit,
     loadSamples,
     resetDocuments,
     swapDocuments
   } = useDocumentSession({
-    allowLocalInput: allowsLocalInput,
+    allowsExternalApi,
     i18n,
     maxSizeMb: deploymentConfig.maxDocxSizeMb,
+    getStateRef: externalGetStateRef,
+    onMeta: handleExternalMeta,
     onBeforeDocumentChange,
     onNotice: setNotice
   });
 
-  const handleComparisonResult = useCallback((result: DiffSummary) => {
-    setCurrentDiff(result.total ? 1 : 0);
-    setMobilePane('A');
-  }, []);
+  const handleComparisonResult = useCallback(
+    (result: DiffSummary) => {
+      setCurrentDiff(result.total ? 1 : 0);
+      setMobilePane('A');
+      externalEmit('result', { summary: result, meta: externalMetaRef.current });
+    },
+    [externalEmit]
+  );
 
   const { comparing, error, summary, runCompare, clearComparison } = useComparisonSession({
     documents,
@@ -172,6 +193,13 @@ export default function App() {
     onNotice: setNotice
   });
   const hasComparisonResult = documents.A.highlightedHtml.length > 0 && documents.B.highlightedHtml.length > 0;
+  externalGetStateRef.current = () => ({
+    ready,
+    comparing,
+    hasDocuments,
+    hasResult: hasComparisonResult,
+    error
+  });
   const {
     diffIndex,
     items: diffMapItems,
@@ -218,10 +246,16 @@ export default function App() {
     clearComparison();
     setCurrentDiff(0);
     setMobilePane('A');
-  }, [clearComparison, clearResultIndex]);
+    externalEmit('cleared', { meta: externalMetaRef.current });
+  }, [clearComparison, clearResultIndex, externalEmit]);
 
   useBindLatest(clearDiffActionPositionRef, clearDiffActionPosition);
   useBindLatest(comparisonClearRef, comparisonClear);
+
+  useEffect(() => {
+    if (!error) return;
+    externalEmit('error', { message: error, meta: externalMetaRef.current });
+  }, [error, externalEmit]);
   useBindLatest(resetTableHintRef, resetTableHint);
 
   const clearNotice = useCallback(() => setNotice(''), []);

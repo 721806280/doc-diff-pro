@@ -36,16 +36,22 @@ function docxFile(name = 'review.docx'): File {
 function mountSession(overrides: { allowLocalInput?: boolean } = {}) {
   const onNotice = vi.fn();
   const onBeforeDocumentChange = vi.fn();
+  const onMeta = vi.fn();
+  const getStateRef = {
+    current: () => ({ ready: false, comparing: false, hasDocuments: false, hasResult: false, error: '' })
+  };
   const view = renderHook(() =>
     useDocumentSession({
-      allowLocalInput: overrides.allowLocalInput ?? true,
+      allowsExternalApi: !(overrides.allowLocalInput ?? true),
       i18n,
       maxSizeMb: 10,
+      getStateRef,
+      onMeta,
       onBeforeDocumentChange,
       onNotice
     })
   );
-  return { ...view, onNotice, onBeforeDocumentChange };
+  return { ...view, onNotice, onBeforeDocumentChange, onMeta, getStateRef };
 }
 
 describe('useDocumentSession', () => {
