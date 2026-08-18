@@ -29,6 +29,10 @@ describe('deploymentConfig', () => {
     });
   });
 
+  it('accepts documentInput: "both" for local + external coexistence', () => {
+    expect(resolveDeploymentConfig({ documentInput: 'both' }).documentInput).toBe('both');
+  });
+
   it('falls back for malformed runtime values', () => {
     const config = resolveDeploymentConfig({
       documentInput: 'remote',

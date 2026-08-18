@@ -1,4 +1,4 @@
-export type DocumentInputMode = 'local' | 'external';
+export type DocumentInputMode = 'local' | 'external' | 'both';
 export type ConfiguredLocale = 'auto' | 'zh-CN' | 'en';
 
 export type DeploymentConfig = {
@@ -49,7 +49,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isDocumentInputMode(value: unknown): value is DocumentInputMode {
-  return value === 'local' || value === 'external';
+  return value === 'local' || value === 'external' || value === 'both';
 }
 
 function isConfiguredLocale(value: unknown): value is ConfiguredLocale {
