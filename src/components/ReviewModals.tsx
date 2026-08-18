@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useI18n } from '@/i18n';
 import { useLatestRef } from '@/hooks/useLatestRef';
@@ -6,7 +6,7 @@ import type { IgnoredDiffItem, LayoutNoiseItem, SimilarDiffItem } from '@/types/
 import { createBodyScrollLock } from '@/utils/bodyScrollLock';
 import { createFocusTrap } from '@/utils/focusTrap';
 
-function useDialog(open: boolean, panelRef: React.RefObject<HTMLElement | null>, onClose: () => void): void {
+function useDialog(open: boolean, panelRef: RefObject<HTMLElement | null>, onClose: () => void): void {
   const bodyLock = useMemo(createBodyScrollLock, []);
   const focusTrap = useMemo(createFocusTrap, []);
   // Read at keypress time so the Escape listener is not rebound per render.

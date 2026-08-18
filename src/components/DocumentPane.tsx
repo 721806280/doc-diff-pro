@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState, type RefObject, type MouseEvent, type KeyboardEvent } from 'react';
 import { useI18n } from '@/i18n';
 import type { DocumentPaneState, PaneSide } from '@/types/document';
 export type { DocumentPaneState, PaneSide } from '@/types/document';
@@ -10,10 +10,10 @@ type DocumentPaneProps = {
   hasResult: boolean;
   comparing: boolean;
   allowFileInput: boolean;
-  paneRef: React.RefObject<HTMLDivElement | null>;
+  paneRef: RefObject<HTMLDivElement | null>;
   onFile: (side: PaneSide, file: File) => Promise<void>;
   onScroll: (side: PaneSide) => void;
-  onDiffInteraction: (event: React.MouseEvent | React.KeyboardEvent) => void;
+  onDiffInteraction: (event: MouseEvent | KeyboardEvent) => void;
   onActivate: (side: PaneSide) => void;
 };
 
