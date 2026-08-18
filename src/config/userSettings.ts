@@ -1,5 +1,6 @@
 import type { DiffGranularity, SimilarDiffLevel } from '@/types/diff';
 import { isAppearanceMode, isThemeColor, type AppearanceMode, type ThemeColor } from '@/utils/themeColor';
+import { getLocalStorage, readJson, writeJson } from './storage';
 
 const STORAGE_KEY = 'doc-diff-settings';
 const DIFF_GRANULARITIES: readonly DiffGranularity[] = ['semantic', 'word', 'char'];
@@ -38,28 +39,12 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
 };
 
 export function readSavedUserSettings(): UserSettings {
-  const storage = getStorage();
-  if (!storage) return { ...DEFAULT_USER_SETTINGS };
-
-  try {
-    const rawValue = storage.getItem(STORAGE_KEY);
-    if (!rawValue) return { ...DEFAULT_USER_SETTINGS };
-
-    return normalizeUserSettings(JSON.parse(rawValue));
-  } catch {
-    return { ...DEFAULT_USER_SETTINGS };
-  }
+  const raw = readJson<unknown>(getLocalStorage(), STORAGE_KEY);
+  return raw === null ? { ...DEFAULT_USER_SETTINGS } : normalizeUserSettings(raw);
 }
 
 export function writeSavedUserSettings(settings: UserSettings): void {
-  const storage = getStorage();
-  if (!storage) return;
-
-  try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // Storage can be unavailable in private browsing or locked-down embeds.
-  }
+  writeJson(getLocalStorage(), STORAGE_KEY, settings);
 }
 
 function normalizeUserSettings(value: unknown): UserSettings {
@@ -96,11 +81,6 @@ function normalizeUserSettings(value: unknown): UserSettings {
       ? value.similarDiffLevel
       : DEFAULT_USER_SETTINGS.similarDiffLevel
   };
-}
-
-function getStorage(): Storage | null {
-  if (typeof localStorage === 'undefined') return null;
-  return localStorage;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

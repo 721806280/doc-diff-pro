@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { deploymentConfig, type ConfiguredLocale } from '@/config/deploymentConfig';
+import { getLocalStorage, readString, writeString } from '@/config/storage';
 import { messages, SUPPORTED_LOCALES, type Locale } from './messages';
 
 const STORAGE_KEY = 'doc-diff-locale';
@@ -61,24 +62,12 @@ function normalizeLocale(value: string): Locale | null {
 }
 
 function readSavedLocale(): Locale | null {
-  if (typeof localStorage === 'undefined') return null;
-
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return isSupportedLocale(saved) ? saved : null;
-  } catch {
-    return null;
-  }
+  const saved = readString(getLocalStorage(), STORAGE_KEY);
+  return isSupportedLocale(saved) ? saved : null;
 }
 
 function writeSavedLocale(nextLocale: Locale): void {
-  if (typeof localStorage === 'undefined') return;
-
-  try {
-    localStorage.setItem(STORAGE_KEY, nextLocale);
-  } catch {
-    // Storage can be unavailable in private browsing or locked-down embeds.
-  }
+  writeString(getLocalStorage(), STORAGE_KEY, nextLocale);
 }
 
 function isSupportedLocale(value: string | null): value is Locale {
