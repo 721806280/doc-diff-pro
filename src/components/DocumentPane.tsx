@@ -173,16 +173,31 @@ export default function DocumentPane({
         }}
       >
         {!document.name && allowFileInput ? (
-          <label className={`pane-upload-zone ${dragging ? 'dragging' : ''}`} aria-label={copy.uploadTitle}>
-            <div className="upload-icon-box">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
+          // The whole empty pane is the drop target, so it is also the click
+          // target: the label stretches across it and only the card is drawn.
+          <label className={`pane-upload-shell ${dragging ? 'dragging' : ''}`} aria-label={copy.uploadTitle}>
+            <div className="pane-upload-zone">
+              <span className="upload-icon-box" aria-hidden="true">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 16V4" />
+                  <path d="M8 8l4-4 4 4" />
+                  <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+                </svg>
+              </span>
+              <h3>{copy.uploadTitle}</h3>
+              <p>{copy.uploadHint}</p>
+              <span className="pane-upload-action">{i18n.documentPane.uploadAction}</span>
+              <small>{i18n.documentPane.uploadSupport}</small>
             </div>
-            <h3>{copy.uploadTitle}</h3>
-            <p>{copy.uploadHint}</p>
-            <small>{i18n.documentPane.uploadSupport}</small>
             <input type="file" accept=".docx" onChange={(event) => selectFile(event.currentTarget)} />
           </label>
         ) : !document.name ? (

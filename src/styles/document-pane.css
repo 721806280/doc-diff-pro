@@ -1,6 +1,7 @@
 .view-dock-panel {
   --pane-accent: var(--accent);
   --pane-soft: rgba(var(--accent-rgb), 0.08);
+  --pane-soft-strong: rgba(var(--accent-rgb), 0.15);
   --pane-line: rgba(var(--accent-rgb), 0.28);
 
   flex: 1;
@@ -19,12 +20,14 @@
 .side-original {
   --pane-accent: var(--del-focus);
   --pane-soft: rgba(var(--del-rgb), 0.07);
+  --pane-soft-strong: rgba(var(--del-rgb), 0.14);
   --pane-line: rgba(var(--del-rgb), 0.28);
 }
 
 .side-revision {
   --pane-accent: var(--ins-focus);
   --pane-soft: rgba(var(--ins-rgb), 0.07);
+  --pane-soft-strong: rgba(var(--ins-rgb), 0.14);
   --pane-line: rgba(var(--ins-rgb), 0.28);
 }
 
@@ -153,61 +156,87 @@
   overflow: hidden;
 }
 
-.render-viewport.is-empty::before {
-  content: '';
-  position: absolute;
-  inset: 18px;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
-  pointer-events: none;
-}
-
 .render-viewport.is-dragging {
   outline: 2px solid var(--pane-accent);
   outline-offset: -6px;
+}
+/* While a file is over the pane the tint belongs to the pane itself: a rectangle
+   drawn inside it would read as a second, misaligned drop target. */
+.render-viewport.is-empty.is-dragging {
+  background:
+    linear-gradient(0deg, var(--pane-soft), var(--pane-soft)),
+    linear-gradient(180deg, var(--surface-card) 0%, var(--bg-empty) 100%);
 }
 .render-viewport:not(.is-empty) {
   padding: 24px 32px 140px;
 }
 
-.pane-upload-zone {
+/* Stretches over the whole empty pane so the click target matches the drop
+   target. The pane itself stays clean: hovering anywhere in it lifts the card
+   inside, which is the only thing the reviewer sees change. A pane-wide tint is
+   reserved for dragging, where "this whole area accepts the file" is the point. */
+.pane-upload-shell {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  border: 1px dashed var(--pane-line);
-  border-left: 4px solid var(--pane-accent);
-  border-radius: 8px;
-  padding: 34px 38px;
+  align-self: stretch;
+  flex: 1;
   width: 100%;
-  max-width: 480px;
-  min-height: 208px;
+  min-height: 0;
+  padding: 4px;
   box-sizing: border-box;
-  background:
-    linear-gradient(90deg, var(--pane-soft) 0%, var(--bg-transparent) 42%),
-    linear-gradient(180deg, var(--surface-card) 0%, var(--surface-card-muted) 100%);
   cursor: pointer;
-  transition: all 0.2s ease;
   position: relative;
   z-index: 1;
 }
 
-.pane-upload-zone:hover,
-.pane-upload-zone.dragging {
-  border-color: var(--pane-accent);
-  box-shadow:
-    0 0 0 3px var(--pane-soft),
-    0 8px 20px rgba(15, 23, 42, 0.06);
-}
-.pane-upload-zone.dragging {
+.pane-upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  padding: 30px 34px 26px;
+  width: 100%;
+  max-width: 380px;
+  box-sizing: border-box;
   background: var(--surface-card-solid);
-}
-.pane-upload-zone:focus-within {
-  outline: 3px solid var(--pane-soft);
-  outline-offset: 3px;
+  box-shadow: var(--shadow-panel);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+  position: relative;
+  z-index: 1;
 }
 
-.pane-upload-zone input[type='file'],
+.pane-upload-shell:hover .pane-upload-zone {
+  border-color: var(--pane-line);
+  box-shadow: var(--shadow-panel-hover);
+  transform: translateY(-2px);
+}
+
+/* Keyboard focus and dragging both mean "this is armed", so they trade the soft
+   dashed edge for a solid one; only focus adds a ring, since dragging already
+   outlines the whole pane. */
+.pane-upload-shell:focus-within .pane-upload-zone,
+.pane-upload-shell.dragging .pane-upload-zone {
+  border-style: solid;
+  border-color: var(--pane-accent);
+  box-shadow: var(--shadow-panel-hover);
+}
+.pane-upload-shell:focus-within .pane-upload-zone {
+  box-shadow:
+    0 0 0 3px var(--pane-soft-strong),
+    var(--shadow-panel-hover);
+}
+.pane-upload-shell.dragging .pane-upload-zone {
+  transform: none;
+}
+
+.pane-upload-shell input[type='file'],
 .reupload-trigger input[type='file'] {
   position: absolute;
   width: 1px;
@@ -218,27 +247,61 @@
 }
 
 .upload-icon-box {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: var(--surface-card-solid);
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--pane-soft);
   border: 1px solid var(--pane-line);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--pane-accent);
-  margin-bottom: 18px;
-  transition: all 0.2s ease;
+  margin-bottom: 16px;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
 }
 
-.pane-upload-zone:hover .upload-icon-box {
-  background: var(--pane-accent);
-  color: white;
+.pane-upload-shell:hover .upload-icon-box,
+.pane-upload-shell:focus-within .upload-icon-box,
+.pane-upload-shell.dragging .upload-icon-box {
+  background: var(--pane-soft-strong);
   border-color: var(--pane-accent);
+  transform: translateY(-1px);
 }
+
+/* Looks like the button the whole card behaves as; it stays a span because the
+   label around it is what opens the file dialog. It wears the brand accent
+   rather than the pane's own colour: red and green mean "removed" and "added"
+   everywhere else in the app, and neither is what "choose a file" does. */
+.pane-upload-action {
+  margin-top: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 18px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.pane-upload-shell:hover .pane-upload-action,
+.pane-upload-shell.dragging .pane-upload-action,
+.pane-upload-shell:focus-within .pane-upload-action {
+  background: var(--accent-soft-strong);
+  border-color: var(--accent-border-strong);
+}
+
 .pane-upload-zone h3 {
-  margin: 0 0 8px 0;
-  font-size: 1rem;
+  margin: 0 0 6px 0;
+  font-size: 0.96rem;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -249,8 +312,9 @@
   color: var(--text-secondary);
 }
 .pane-upload-zone small {
-  margin-top: 10px;
-  font-size: 0.72rem;
+  margin-top: 12px;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
 }
 
 .pane-waiting-zone {
@@ -666,23 +730,27 @@
     align-items: stretch;
     padding: 18px;
   }
-  .render-viewport.is-empty::before {
-    inset: 10px;
-  }
 
   .pane-upload-zone {
-    min-height: 176px;
-    padding: 22px;
+    padding: 24px 20px 20px;
+    max-width: 320px;
   }
   .upload-icon-box {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    margin-bottom: 12px;
   }
   .pane-upload-zone h3 {
-    font-size: 0.8rem;
+    font-size: 0.86rem;
   }
   .pane-upload-zone p {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
+  }
+  .pane-upload-action {
+    margin-top: 14px;
+    padding: 6px 15px;
+    font-size: 0.74rem;
   }
 
   .render-viewport:not(.is-empty) {
@@ -723,12 +791,20 @@
   }
   .view-dock-panel,
   .file-badge-inline,
+  .pane-upload-shell,
   .pane-upload-zone,
+  .pane-upload-action,
   .upload-icon-box,
   .reupload-trigger,
   .warning-popover,
   .docx-render-content ins,
   .docx-render-content del {
     transition: none !important;
+  }
+  /* The lift is decoration; the border and shadow still report the hover. */
+  .pane-upload-shell:hover .pane-upload-zone,
+  .pane-upload-shell:hover .upload-icon-box,
+  .pane-upload-shell.dragging .upload-icon-box {
+    transform: none;
   }
 }
