@@ -12,19 +12,35 @@
   background: linear-gradient(180deg, var(--popup-surface), var(--popup-surface-soft)), var(--bg-panel-solid);
   color: var(--text-primary);
   box-shadow: var(--shadow-floating);
-  transform: translate(-50%, calc(-100% - 9px));
+  /* `top` is the popover's own edge; only the horizontal centring is a transform. */
+  transform: translateX(-50%);
 }
+
+/* The arrow keeps pointing at the difference even when the popover has slid
+   sideways to avoid covering text, so it tracks a per-placement offset. */
 .diff-action-popover::after {
   content: '';
   position: absolute;
-  left: 50%;
-  bottom: -5px;
+  left: var(--diff-action-arrow, 50%);
   width: 8px;
   height: 8px;
-  border-right: 1px solid var(--popup-border);
-  border-bottom: 1px solid var(--popup-border);
+  border-style: solid;
+  border-width: 0;
+  border-color: var(--popup-border);
   background: linear-gradient(135deg, var(--popup-surface-soft), var(--popup-surface-soft)), var(--bg-panel-solid);
   transform: translateX(-50%) rotate(45deg);
+}
+
+.diff-action-popover--above::after {
+  bottom: -5px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.diff-action-popover--below::after {
+  top: -5px;
+  border-left-width: 1px;
+  border-top-width: 1px;
 }
 
 .diff-action-popover.ignored {
@@ -187,7 +203,12 @@
 .diff-action-popover-enter-from,
 .diff-action-popover-leave-to {
   opacity: 0;
-  transform: translate(-50%, calc(-100% - 5px));
+  transform: translateX(-50%) translateY(4px);
+}
+
+.diff-action-popover--below.diff-action-popover-enter-from,
+.diff-action-popover--below.diff-action-popover-leave-to {
+  transform: translateX(-50%) translateY(-4px);
 }
 
 @media (max-width: 520px) {

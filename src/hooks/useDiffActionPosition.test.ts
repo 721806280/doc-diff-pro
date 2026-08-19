@@ -112,13 +112,14 @@ describe('useDiffActionPosition', () => {
     });
   };
 
-  it('positions the popover at the top centre of the active difference', () => {
+  it('positions the popover above the active difference', () => {
     const { index } = buildScene({ top: 300, left: 200, width: 100, height: 20 });
     const { result } = mountPosition(index);
 
     flushFrames();
 
-    expect(result.current.position).toEqual({ top: 300, left: 250 });
+    // 300 - 9px gap - 34px popover height, centred on the difference.
+    expect(result.current.position).toEqual({ top: 257, left: 250, side: 'above', arrow: 95 });
   });
 
   it('clamps the popover away from the viewport edges', () => {
@@ -127,7 +128,8 @@ describe('useDiffActionPosition', () => {
 
     flushFrames();
 
-    expect(result.current.position?.left).toBe(132);
+    // 12px window margin plus half of the popover's 190px default width.
+    expect(result.current.position?.left).toBe(107);
   });
 
   it('stays unset while the settings panel is open', () => {
@@ -166,15 +168,15 @@ describe('useDiffActionPosition', () => {
     expect(result.current.position).toBeNull();
   });
 
-  // POPOVER_CLEARANCE reserves 48px below the viewport top so the popover has
-  // somewhere to render without covering the difference it belongs to.
-  it('stays unset for a difference scrolled under the clearance band', () => {
+  // A difference near the pane's top edge leaves no room above, so the popover
+  // flips below it instead of disappearing.
+  it('flips below a difference that sits under the pane top', () => {
     const { index } = buildScene({ top: 10, left: 200, width: 100, height: 20 });
     const { result } = mountPosition(index);
 
     flushFrames();
 
-    expect(result.current.position).toBeNull();
+    expect(result.current.position).toMatchObject({ top: 39, side: 'below' });
   });
 
   it('keeps the same position object when the geometry is unchanged', () => {
@@ -200,7 +202,7 @@ describe('useDiffActionPosition', () => {
     act(() => view.result.current.schedule());
     flushFrames();
 
-    expect(view.result.current.position).toEqual({ top: 420, left: 250 });
+    expect(view.result.current.position).toEqual({ top: 377, left: 250, side: 'above', arrow: 95 });
   });
 
   it('drops the position when cleared', () => {

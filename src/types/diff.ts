@@ -1,3 +1,5 @@
+import type { DiffActionSide } from '@/utils/diffActionPlacement';
+
 export type DiffGranularity = 'semantic' | 'word' | 'char';
 
 export type SimilarDiffLevel = 'strict' | 'balanced' | 'loose';
@@ -27,8 +29,13 @@ export type DiffMapItem = {
 };
 
 export type DiffActionPosition = {
+  /** Viewport coordinates of the popover itself, not of the difference. */
   top: number;
+  /** Horizontal centre of the popover, which is drawn translated by -50%. */
   left: number;
+  side: DiffActionSide;
+  /** Arrow offset from the popover's left edge, so it keeps pointing at the difference. */
+  arrow: number;
 };
 
 export type IgnoredDiffItem = {
