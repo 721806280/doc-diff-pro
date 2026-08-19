@@ -22,6 +22,11 @@ describe('DocumentPane', () => {
     const local = mountPane(true);
     expect(local.host.querySelector('.pane-upload-zone')).toBeTruthy();
     expect(local.host.querySelector('input[type="file"]')).toBeTruthy();
+    // The visible affordance is a span: the label around it opens the dialog, so
+    // a nested button would be a second, competing control.
+    const action = local.host.querySelector('.pane-upload-action');
+    expect(action?.tagName).toBe('SPAN');
+    expect(action?.textContent).toBe('选择文件');
   });
 
   it('selects and drops files only when local input is enabled', () => {
