@@ -67,4 +67,61 @@ describe('presentation components', () => {
     act(() => markers[0]?.click());
     expect(selected).toEqual([1]);
   });
+
+  it('walks the map with the arrow, Home and End keys', () => {
+    const selected: number[] = [];
+    const items = [
+      { index: 1, kind: 'deleted' as const, position: 10 },
+      { index: 2, kind: 'modified' as const, position: 52 },
+      { index: 3, kind: 'inserted' as const, position: 88 }
+    ];
+    const view = renders.render(
+      <DiffMap
+        items={items}
+        currentIndex={2}
+        ignoredIndices={new Set()}
+        collapsed={false}
+        i18n={messages['zh-CN']}
+        onSelect={(index) => selected.push(index)}
+      />
+    );
+    const markers = view.host.querySelectorAll<HTMLButtonElement>('.diff-map__marker');
+    const press = (from: HTMLButtonElement, key: string) => {
+      act(() => {
+        from.focus();
+        from.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+      });
+    };
+
+    press(markers[1]!, 'ArrowDown');
+    // Focus follows the selection so the next key press continues from there.
+    expect(selected).toEqual([3]);
+    expect(document.activeElement).toBe(markers[2]);
+
+    press(markers[2]!, 'ArrowUp');
+    press(markers[1]!, 'Home');
+    press(markers[0]!, 'End');
+    expect(selected).toEqual([3, 2, 1, 3]);
+
+    // The edges stay put rather than wrapping around.
+    press(markers[2]!, 'ArrowDown');
+    press(markers[0]!, 'ArrowUp');
+    expect(selected).toEqual([3, 2, 1, 3]);
+  });
+
+  it('keeps the map reachable by keyboard before a difference is active', () => {
+    const { host } = renders.render(
+      <DiffMap
+        items={[{ index: 1, kind: 'modified', position: 30 }]}
+        currentIndex={0}
+        ignoredIndices={new Set()}
+        collapsed={false}
+        i18n={messages['zh-CN']}
+        onSelect={() => undefined}
+      />
+    );
+
+    expect(host.querySelector<HTMLButtonElement>('.diff-map__marker')?.tabIndex).toBe(0);
+    expect(host.querySelector('.diff-map')?.getAttribute('aria-orientation')).toBe('vertical');
+  });
 });

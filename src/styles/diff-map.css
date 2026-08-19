@@ -30,8 +30,10 @@
   position: absolute;
   left: 50%;
   z-index: 1;
-  width: 16px;
-  height: 12px;
+  /* Wider than the dot it draws: the rail is 8px, which is far below the
+     comfortable pointer target, so the button spills over the rail edges. */
+  width: 22px;
+  height: 14px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -78,6 +80,13 @@
 
 .diff-map__marker.is-active {
   z-index: 2;
+}
+
+/* Dense documents stack markers on top of each other, so whichever one the
+   pointer or keyboard is on has to win the paint order. */
+.diff-map__marker:hover,
+.diff-map__marker:focus-visible {
+  z-index: 3;
 }
 
 .diff-map__marker:focus-visible {
