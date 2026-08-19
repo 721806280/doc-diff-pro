@@ -651,6 +651,14 @@
   .view-dock-panel {
     height: 50%;
   }
+
+  /* In single-pane mode the switch above the panel already names the document
+     on screen, so the banner spends its width on the file name instead. */
+  .mobile-pane-active .dock-banner .main-title,
+  .mobile-pane-inactive .dock-banner .main-title {
+    display: none;
+  }
+
   .render-viewport {
     padding: 12px 16px;
   }
