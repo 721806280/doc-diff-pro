@@ -1,6 +1,8 @@
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { I18nMessages } from '@/i18n/messages';
 import type { DiffActionPosition } from '@/types/diff';
+import type { PlacementSize } from '@/utils/diffActionPlacement';
 
 export default function DiffActionPopover({
   open,
@@ -11,7 +13,8 @@ export default function DiffActionPopover({
   i18n,
   onIgnore,
   onRestore,
-  onShowSimilar
+  onShowSimilar,
+  onMeasure
 }: {
   open: boolean;
   position: DiffActionPosition | null;
@@ -22,7 +25,29 @@ export default function DiffActionPopover({
   onIgnore: () => void;
   onRestore: () => void;
   onShowSimilar: () => void;
+  onMeasure?: (size: PlacementSize) => void;
 }) {
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const report = useCallback(
+    (element: HTMLDivElement | null) => {
+      setNode(element);
+      if (element) onMeasure?.({ width: element.offsetWidth, height: element.offsetHeight });
+    },
+    [onMeasure]
+  );
+
+  /**
+   * The popover keeps the same node while the reviewer walks the differences,
+   * yet its width changes with the label and the optional "similar" button, so
+   * placement needs every resize — not just the first mount.
+   */
+  useEffect(() => {
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => onMeasure?.({ width: node.offsetWidth, height: node.offsetHeight }));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [node, onMeasure]);
+
   if (!open || !position) return null;
   const actionTitle = i18n.diffNavigator.shortcutTitle(
     ignored ? i18n.diffNavigator.unignoreHereTitle : i18n.diffNavigator.ignoreHereTitle,
@@ -30,8 +55,9 @@ export default function DiffActionPopover({
   );
   return createPortal(
     <div
-      className={`diff-action-popover ${ignored ? 'ignored' : ''}`}
-      style={{ top: position.top, left: position.left }}
+      ref={report}
+      className={`diff-action-popover diff-action-popover--${position.side} ${ignored ? 'ignored' : ''}`}
+      style={{ top: position.top, left: position.left, '--diff-action-arrow': `${position.arrow}px` } as CSSProperties}
     >
       <span className="diff-action-popover__rail" aria-hidden="true" />
       <span className="diff-action-popover__label">

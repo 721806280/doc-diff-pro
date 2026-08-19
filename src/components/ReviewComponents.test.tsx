@@ -1,9 +1,10 @@
 import { act } from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '@/i18n';
 import { messages } from '@/i18n/messages';
 import { createRenderRegistry } from '@/test-utils/renderReact';
 import type { DiffSummary } from '@/types/diff';
+import type { PlacementSize } from '@/utils/diffActionPlacement';
 import DiffActionPopover from './DiffActionPopover';
 import DiffNavigator from './DiffNavigator';
 import { IgnoredDiffModal, LayoutNoiseModal, SimilarDiffModal } from './ReviewModals';
@@ -24,7 +25,7 @@ describe('review components', () => {
     const first = renders.render(
       <DiffActionPopover
         open
-        position={{ top: 120, left: 240 }}
+        position={{ top: 120, left: 240, side: 'above', arrow: 95 }}
         label="差异 1"
         ignored={false}
         similarCount={2}
@@ -40,7 +41,7 @@ describe('review components', () => {
     first.rerender(
       <DiffActionPopover
         open
-        position={{ top: 120, left: 240 }}
+        position={{ top: 120, left: 240, side: 'above', arrow: 95 }}
         label="差异 1"
         ignored
         similarCount={2}
@@ -53,6 +54,52 @@ describe('review components', () => {
     act(() => document.body.querySelector<HTMLButtonElement>('.diff-action-popover__button--main')?.click());
     expect(events).toEqual(['ignore', 'similar', 'restore']);
     expect(document.body.querySelector('.diff-action-popover__button--similar')).toBeNull();
+  });
+
+  // Placement is computed from the popover's real width, and that width changes
+  // with the label and the optional "similar" button while the popover stays
+  // mounted on the same difference.
+  it('reports its box on mount and on every later resize', () => {
+    const sizes: PlacementSize[] = [];
+    let width = 190;
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(() => width);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(() => 34);
+    let notify: (() => void) | null = null;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          notify = callback;
+        }
+        observe() {}
+        disconnect() {}
+      }
+    );
+
+    renders.render(
+      <DiffActionPopover
+        open
+        position={{ top: 120, left: 240, side: 'above', arrow: 95 }}
+        label="差异 1"
+        ignored={false}
+        similarCount={2}
+        i18n={messages['zh-CN']}
+        onIgnore={() => undefined}
+        onRestore={() => undefined}
+        onShowSimilar={() => undefined}
+        onMeasure={(size) => sizes.push(size)}
+      />
+    );
+
+    expect(sizes).toEqual([{ width: 190, height: 34 }]);
+
+    width = 240;
+    act(() => notify?.());
+
+    expect(sizes.at(-1)).toEqual({ width: 240, height: 34 });
+
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('exposes original navigation labels, shortcuts, ignored details, and report export', () => {

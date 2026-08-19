@@ -211,6 +211,7 @@ export default function App() {
   const {
     position: diffActionPosition,
     schedule: scheduleDiffActionUpdate,
+    measure: measureDiffAction,
     clear: clearDiffActionPosition
   } = useDiffActionPosition({
     currentDiff,
@@ -555,6 +556,7 @@ export default function App() {
         onIgnore={() => ignoreDiffsById([diffReviewId(currentDiff)])}
         onRestore={() => restoreIgnored(diffReviewId(currentDiff))}
         onShowSimilar={() => setSimilarOpen(true)}
+        onMeasure={measureDiffAction}
       />
       <SimilarDiffModal
         open={similarOpen}
