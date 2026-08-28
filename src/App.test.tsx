@@ -1,3 +1,4 @@
+import { createEmptyGraphicsReport } from '@/services/docxGraphics';
 import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -530,6 +531,7 @@ function parsed(html: string): ParsedDocx {
     textLength: html.length,
     imageCount: 0,
     droppedImageCount: 0,
+    graphics: createEmptyGraphicsReport(),
     imageUrls: [],
     imageDescriptors: new Map(),
     warnings: [],

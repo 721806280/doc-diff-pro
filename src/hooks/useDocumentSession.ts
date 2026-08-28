@@ -143,6 +143,7 @@ export function useDocumentSession({
             textLength: parsed.textLength,
             imageCount: parsed.imageCount,
             droppedImageCount: parsed.droppedImageCount,
+            graphics: parsed.graphics,
             warnings: parsed.warnings,
             layoutNoise: parsed.layoutNoise,
             imageUrls: parsed.imageUrls,

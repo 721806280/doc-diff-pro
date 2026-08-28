@@ -54,6 +54,25 @@ export default function DocumentPane({
     .filter(Boolean)
     .join(' · ');
 
+  // One chip for everything the comparison could not look at, whatever the
+  // reason: a reader needs to know the coverage was incomplete far more than they
+  // need the categories separated. The breakdown lives in the popover.
+  const uncomparableReasons = [
+    document.droppedImageCount > 0 ? i18n.documentPane.droppedImageTitle : '',
+    document.graphics.nativeGraphics > 0
+      ? i18n.documentPane.nativeGraphicsDetail(document.graphics.nativeGraphics)
+      : '',
+    document.graphics.embeddedObjects > 0
+      ? i18n.documentPane.embeddedObjectDetail(document.graphics.embeddedObjects)
+      : '',
+    document.graphics.formulas > 0 ? i18n.documentPane.formulaDetail(document.graphics.formulas) : ''
+  ].filter(Boolean);
+  const uncomparableCount =
+    document.droppedImageCount +
+    document.graphics.nativeGraphics +
+    document.graphics.embeddedObjects +
+    document.graphics.formulas;
+
   function selectFile(input: HTMLInputElement): void {
     const file = input.files?.[0];
     if (file) void onFile(side, file);
@@ -132,19 +151,21 @@ export default function DocumentPane({
                 </div>
               </div>
             )}
-            {document.droppedImageCount > 0 && (
-              <div className="warning-chip" tabIndex={0}>
+            {uncomparableCount > 0 && (
+              <div className="warning-chip uncomparable" tabIndex={0}>
                 <span className="status-chip warning">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <rect x="3" y="3" width="18" height="18" rx="2" />
                     <path d="m3 16 5-5 4 4M14 14l2-2 5 5" />
                   </svg>
-                  {document.droppedImageCount}
+                  {uncomparableCount}
                 </span>
                 <div className="warning-popover" role="tooltip">
-                  <strong>{i18n.documentPane.droppedImageCount(document.droppedImageCount)}</strong>
+                  <strong>{i18n.documentPane.droppedImageCount(uncomparableCount)}</strong>
                   <ul>
-                    <li>{i18n.documentPane.droppedImageTitle}</li>
+                    {uncomparableReasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
                   </ul>
                 </div>
               </div>

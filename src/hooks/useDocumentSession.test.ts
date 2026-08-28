@@ -1,3 +1,4 @@
+import { createEmptyGraphicsReport } from '@/services/docxGraphics';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { messages } from '@/i18n/messages';
@@ -21,6 +22,7 @@ function parsed(overrides: Partial<ParsedDocx> = {}): ParsedDocx {
     textLength: 7,
     imageCount: 0,
     droppedImageCount: 0,
+    graphics: createEmptyGraphicsReport(),
     imageUrls: [],
     imageDescriptors: new Map(),
     warnings: [],

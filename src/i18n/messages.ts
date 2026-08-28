@@ -183,10 +183,25 @@ const en = {
       return `${countLabel} ${count === 1 ? 'image' : 'images'}`;
     },
     droppedImageCount(count: number): string {
-      return `${count} ${count === 1 ? 'graphic' : 'graphics'} not comparable`;
+      return `${count} ${count === 1 ? 'item' : 'items'} not comparable`;
     },
     droppedImageTitle:
-      'Word drew these itself, or supplied them in a format no browser renders. The converter cannot read them, so they take no part in the comparison.'
+      'Images in a format the converter supplied but no browser renders, usually EMF or WMF vector art.',
+    nativeGraphicsDetail(count: number): string {
+      return (
+        `${count} ${count === 1 ? 'figure' : 'figures'} Word draws itself — charts, SmartArt, shapes or text` +
+        ' boxes. The converter emits nothing at all for these.'
+      );
+    },
+    embeddedObjectDetail(count: number): string {
+      return `${count} embedded ${count === 1 ? 'object' : 'objects'}, such as a spreadsheet or a pasted drawing.`;
+    },
+    formulaDetail(count: number): string {
+      return (
+        `${count} ${count === 1 ? 'formula' : 'formulas'}. These leave no placeholder behind, so an edited` +
+        ' equation produces no difference.'
+      );
+    }
   },
   diffNavigator: {
     noDiffsTag: 'No differences',
@@ -482,9 +497,18 @@ const zhCN: I18nMessages = {
       return `${countLabel} 张图`;
     },
     droppedImageCount(count: number): string {
-      return `${count} 个图形无法对比`;
+      return `${count} 处内容无法对比`;
     },
-    droppedImageTitle: '这些是 Word 自己绘制的图形，或浏览器无法渲染的格式。转换器读不出来，因此不参与对比。'
+    droppedImageTitle: '格式浏览器无法渲染的图片，通常是 EMF/WMF 矢量图。',
+    nativeGraphicsDetail(count: number): string {
+      return `${count} 个 Word 自绘图形：图表、SmartArt、形状或文本框。转换器对这些不产生任何输出。`;
+    },
+    embeddedObjectDetail(count: number): string {
+      return `${count} 个嵌入对象，例如内嵌表格或粘贴的图形。`;
+    },
+    formulaDetail(count: number): string {
+      return `${count} 个公式。它们连占位元素都不会留下，所以公式被改动也不会产生差异。`;
+    }
   },
   diffNavigator: {
     noDiffsTag: '无差异',

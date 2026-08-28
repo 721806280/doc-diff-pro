@@ -3,6 +3,7 @@ import { revokeDocumentImageUrls } from '@/services/documentFile';
 import type { ImageSourceEntry } from '@/services/imageFingerprint';
 import { extractLayoutNoise, type LayoutNoiseData } from '@/utils/layoutNoise';
 import type { ImageDescriptorTable } from '@/utils/imageDescriptor';
+import type { DocxGraphicsReport } from '@/types/document';
 import { sanitizeDocumentBody } from '@/utils/sanitizeDocumentHtml';
 
 type MammothImage = {
@@ -37,6 +38,12 @@ export type ParsedDocx = {
    * silently ignores part of a document is worse than one that says it did.
    */
   droppedImageCount: number;
+  /**
+   * Figures the converter never emitted at all — Word's own charts, shapes and
+   * text boxes, embedded objects, and formulas. Unlike a dropped image these
+   * leave no element behind, so counting them here is the only trace of them.
+   */
+  graphics: DocxGraphicsReport;
   imageUrls: string[];
   /** Fingerprints keyed by the `src` each `<img>` carries in `html`. */
   imageDescriptors: ImageDescriptorTable;
@@ -74,6 +81,8 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
       // slow phase the reader is waiting through, and every image is hashed
       // without being decoded, which is the part that would have cost.
       imageDescriptors: await fingerprintImages(adopted),
+      // The same buffer mammoth was handed, read again for what it discarded.
+      graphics: await scanGraphics(arrayBuffer),
       ...collectDocxMetadata(body),
       warnings: collectMammothWarnings((result as MammothResultWithMessages).messages)
     };
@@ -83,6 +92,15 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
     console.error('[DOCX parse error]', error);
     throw error;
   }
+}
+
+/**
+ * Loaded on demand: a zip reader is of no use until there is a package to read,
+ * and this module is reachable from the landing screen.
+ */
+async function scanGraphics(archive: ArrayBuffer): Promise<DocxGraphicsReport> {
+  const { scanDocxGraphics } = await import('@/services/docxGraphics');
+  return scanDocxGraphics(archive);
 }
 
 /**

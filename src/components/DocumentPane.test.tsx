@@ -1,3 +1,4 @@
+import { createEmptyGraphicsReport } from '@/services/docxGraphics';
 import { act, createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setLocale } from '@/i18n';
@@ -138,9 +139,25 @@ describe('DocumentPane', () => {
     // be incomplete: silently.
     const { host } = mountPane(true, { ...emptyDocument(), name: 'plan.docx', droppedImageCount: 3 });
 
-    expect(host.textContent).toContain('3 个图形无法对比');
+    expect(host.textContent).toContain('3 处内容无法对比');
     // Reachable by keyboard, since the explanation lives in a hover popover.
     expect(host.querySelectorAll('.warning-chip[tabindex="0"]').length).toBeGreaterThan(0);
+  });
+
+  it('counts converter-dropped figures and formulas in the same notice', () => {
+    // These leave no element behind at all — mammoth emits neither markup nor a
+    // warning for a chart — so this chip is their only trace.
+    const { host } = mountPane(true, {
+      ...emptyDocument(),
+      name: 'plan.docx',
+      droppedImageCount: 1,
+      graphics: { nativeGraphics: 2, embeddedObjects: 1, formulas: 4 }
+    });
+
+    expect(host.textContent).toContain('8 处内容无法对比');
+    expect(host.textContent).toContain('2 个 Word 自绘图形');
+    expect(host.textContent).toContain('1 个嵌入对象');
+    expect(host.textContent).toContain('4 个公式');
   });
 
   it('keeps the notice away from documents whose graphics all came through', () => {
@@ -183,6 +200,7 @@ function emptyDocument(): DocumentPaneState {
     textLength: 0,
     imageCount: 0,
     droppedImageCount: 0,
+    graphics: createEmptyGraphicsReport(),
     warnings: [],
     layoutNoise: createEmptyLayoutNoise(),
     imageUrls: [],
