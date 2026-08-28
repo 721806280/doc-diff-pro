@@ -1,3 +1,4 @@
+import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
 import { renderHook, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +14,7 @@ function summaryWith(total: number): DiffSummary {
     deleted: 0,
     modified: 0,
     similarity: 0.5,
+    images: createEmptyImageComparisonSummary(),
     layoutNoiseFiltered: 0,
     layoutNoiseItems: []
   };

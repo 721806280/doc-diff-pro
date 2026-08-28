@@ -1,10 +1,15 @@
-import type { DiffGranularity, DiffOperation, DiffSummary, DiffTuple } from '@/types/diff';
+import type { DiffGranularity, DiffOperation, DiffSummary, DiffTuple, ImageComparisonSummary } from '@/types/diff';
 
 /**
  * Difference identifiers and summary arithmetic — everything about a diff that
  * does not require computing one. Deliberately free of diff-match-patch: the
  * review UI reads these from the first paint, while the engine that produces
  * the diffs (`textDiffCompute`) only loads once there is something to compare.
+ *
+ * The image marker and empty image summary live here for the same reason. Both
+ * are needed eagerly — the review list reads the marker to preview a figure, and
+ * an empty summary exists before any comparison has run — while the descriptor
+ * arithmetic that produces a real one has no business on the landing screen.
  */
 export const DIFF_DELETE = -1 satisfies DiffOperation;
 export const DIFF_EQUAL = 0 satisfies DiffOperation;
@@ -12,6 +17,13 @@ export const DIFF_INSERT = 1 satisfies DiffOperation;
 const MIN_SIMILARITY = 0;
 const MAX_SIMILARITY = 1;
 const DIFF_ID_PREFIX = 'diff-';
+
+/** Marks a `<del>`/`<ins>` that wraps an image, and carries its review label. */
+export const IMAGE_DIFF_ATTRIBUTE = 'data-diff-image';
+
+export function createEmptyImageComparisonSummary(): ImageComparisonSummary {
+  return { paired: 0, revised: 0, moved: 0, inserted: 0, deleted: 0, cosmetic: 0 };
+}
 
 export function diffId(index: number): string {
   return `${DIFF_ID_PREFIX}${index}`;
@@ -89,6 +101,7 @@ function buildDiffSummary(
     deleted: 0,
     modified: 0,
     similarity: calculateSimilarity(diffs, originalLength, revisedLength),
+    images: createEmptyImageComparisonSummary(),
     layoutNoiseFiltered: 0,
     layoutNoiseItems: []
   };

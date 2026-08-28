@@ -17,9 +17,11 @@ export function createEmptyDocument(): DocumentPaneState {
     highlightedHtml: '',
     textLength: 0,
     imageCount: 0,
+    droppedImageCount: 0,
     warnings: [],
     layoutNoise: createEmptyLayoutNoise(),
     imageUrls: [],
+    imageDescriptors: new Map(),
     status: 'idle',
     error: ''
   };

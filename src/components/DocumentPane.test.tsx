@@ -131,6 +131,23 @@ describe('DocumentPane', () => {
     });
     expect(externalViewport.classList.contains('is-dragging')).toBe(false);
   });
+
+  it('says so when the document holds graphics that cannot be compared', () => {
+    // A Word chart or vector graphic loses its source to the sanitizer and would
+    // otherwise leave no trace at all, which is the worst way for a comparison to
+    // be incomplete: silently.
+    const { host } = mountPane(true, { ...emptyDocument(), name: 'plan.docx', droppedImageCount: 3 });
+
+    expect(host.textContent).toContain('3 个图形无法对比');
+    // Reachable by keyboard, since the explanation lives in a hover popover.
+    expect(host.querySelectorAll('.warning-chip[tabindex="0"]').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the notice away from documents whose graphics all came through', () => {
+    const { host } = mountPane(true, { ...emptyDocument(), name: 'plan.docx', droppedImageCount: 0 });
+
+    expect(host.textContent).not.toContain('无法对比');
+  });
 });
 
 function mountPane(
@@ -165,9 +182,11 @@ function emptyDocument(): DocumentPaneState {
     highlightedHtml: '',
     textLength: 0,
     imageCount: 0,
+    droppedImageCount: 0,
     warnings: [],
     layoutNoise: createEmptyLayoutNoise(),
     imageUrls: [],
+    imageDescriptors: new Map(),
     status: 'idle',
     error: ''
   };

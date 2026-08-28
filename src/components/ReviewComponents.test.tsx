@@ -1,3 +1,4 @@
+import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '@/i18n';
@@ -136,6 +137,61 @@ describe('review components', () => {
     );
     act(() => exportButton?.click());
     expect(events).toEqual(['locate:diff-2', 'export']);
+  });
+
+  it('reports how much of the difference tally is figures, and how much is cosmetic', () => {
+    // The chip does not add to the total — figures are already counted in it —
+    // so what it has to convey is composition, including the one signal that
+    // says a figure can be passed over quickly.
+    const withImages: DiffSummary = {
+      ...summary(),
+      images: { paired: 3, revised: 2, moved: 0, inserted: 1, deleted: 1, cosmetic: 1 }
+    };
+    const { host } = renders.render(
+      <DiffNavigator
+        summary={withImages}
+        activeDiffCount={3}
+        activeDiffIndex={1}
+        ignoredDiffs={[]}
+        canPrevious
+        canNext
+        canExportReport={false}
+        onPrevious={() => undefined}
+        onNext={() => undefined}
+        onLocateIgnored={() => undefined}
+        onRestoreIgnored={() => undefined}
+        onRestoreAllIgnored={() => undefined}
+        onExportReport={() => undefined}
+      />
+    );
+
+    const chip = host.querySelector('.summary-chip.images');
+    expect(chip?.textContent).toBe('图片 4');
+    expect(chip?.getAttribute('title')).toContain('仅重新导出');
+    // Three paired, two of them revised, so one came through untouched.
+    expect(chip?.getAttribute('title')).toContain('另有 1 张未改动');
+  });
+
+  it('leaves the figure chip out of a comparison with no figure differences', () => {
+    const { host } = renders.render(
+      <DiffNavigator
+        summary={summary()}
+        activeDiffCount={3}
+        activeDiffIndex={1}
+        ignoredDiffs={[]}
+        canPrevious
+        canNext
+        canExportReport={false}
+        onPrevious={() => undefined}
+        onNext={() => undefined}
+        onLocateIgnored={() => undefined}
+        onRestoreIgnored={() => undefined}
+        onRestoreAllIgnored={() => undefined}
+        onExportReport={() => undefined}
+      />
+    );
+
+    expect(host.querySelector('.summary-chip.images')).toBeNull();
   });
 
   it('opens layout-noise details from its chip and restores all from the ignored modal', () => {
@@ -409,6 +465,7 @@ function summary(): DiffSummary {
     deleted: 1,
     modified: 1,
     similarity: 0.82,
+    images: createEmptyImageComparisonSummary(),
     layoutNoiseFiltered: 0,
     layoutNoiseItems: []
   };

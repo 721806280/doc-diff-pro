@@ -50,6 +50,21 @@ export default function DiffNavigator({
       : ignoredCount === 0
         ? i18n.diffNavigator.differenceCount(summary.total)
         : i18n.diffNavigator.activeDifferenceCount(activeDiffCount, summary.total);
+  // Figures are counted in `summary.total` alongside the text differences, so
+  // this chip does not add to the tally — it says how much of it is pictures,
+  // and how much of that a reader can pass over quickly.
+  const imageDiffCount =
+    summary.images.revised + summary.images.moved + summary.images.inserted + summary.images.deleted;
+  const imageCounts = {
+    revised: summary.images.revised,
+    moved: summary.images.moved,
+    inserted: summary.images.inserted,
+    deleted: summary.images.deleted,
+    cosmetic: summary.images.cosmetic,
+    // A moved figure is paired and byte-identical, but it is not one the reader
+    // can pass over: it is reported, so it does not belong in this count.
+    unchanged: summary.images.paired - summary.images.revised - summary.images.moved
+  };
 
   useEffect(() => {
     if (ignoredCount === 0) setIgnoredOpen(false);
@@ -83,6 +98,11 @@ export default function DiffNavigator({
                   {i18n.diffNavigator.deleted} <strong>{summary.deleted}</strong>
                 </span>
               </>
+            )}
+            {imageDiffCount > 0 && (
+              <span className="summary-chip images" title={i18n.diffNavigator.imageDiffsTitle(imageCounts)}>
+                {i18n.diffNavigator.imageDiffs(imageDiffCount)}
+              </span>
             )}
             {summary.layoutNoiseFiltered > 0 && (
               <button

@@ -8,7 +8,11 @@ type DiffRange = { start: number; length: number; groupId: string };
 type TextNodeRange = { startOffset: number; endOffset: number; groupId: string };
 type NodeRangeMap = Map<Text, TextNodeRange[]>;
 const MERGE_CONTAINER_SELECTOR = 'p, li, td, th, div, h1, h2, h3, h4, h5, h6, blockquote, pre';
-const BLOCKING_BRIDGE_SELECTOR = 'p, li, td, th, table, tr, ol, ul, div, h1, h2, h3, h4, h5, h6, blockquote, pre';
+// `img` blocks a bridge despite carrying no text: an image difference is its own
+// difference, and without this a `<del>` around a figure would be swallowed by a
+// text edit merging across it — the image contributes zero characters, so the
+// bridge looks empty however wide it is.
+const BLOCKING_BRIDGE_SELECTOR = 'p, li, td, th, table, tr, ol, ul, div, h1, h2, h3, h4, h5, h6, blockquote, pre, img';
 const DIFF_FRAGMENT_SELECTOR = 'ins[data-diff-id], del[data-diff-id]';
 const BRIDGE_BLOCKING_SELECTOR = `${BLOCKING_BRIDGE_SELECTOR}, ${DIFF_FRAGMENT_SELECTOR}`;
 const MAX_MERGE_BRIDGE_LENGTH = 2;

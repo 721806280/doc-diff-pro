@@ -142,9 +142,11 @@ export function useDocumentSession({
             highlightedHtml: '',
             textLength: parsed.textLength,
             imageCount: parsed.imageCount,
+            droppedImageCount: parsed.droppedImageCount,
             warnings: parsed.warnings,
             layoutNoise: parsed.layoutNoise,
             imageUrls: parsed.imageUrls,
+            imageDescriptors: parsed.imageDescriptors,
             status: 'ready',
             error: ''
           }

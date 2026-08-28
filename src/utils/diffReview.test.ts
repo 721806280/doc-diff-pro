@@ -61,6 +61,35 @@ describe('diffReview', () => {
     });
   });
 
+  it('previews an image difference by its label, since it has no text', () => {
+    // Without this an image difference would appear in the review list as a
+    // blank row, indistinguishable from every other image difference.
+    const item = createReviewItem(1, {
+      A: [imageElement('图片 1024×768')],
+      B: [imageElement('图片 800×600')]
+    });
+
+    expect(item).toMatchObject({
+      kind: 'modified',
+      context: 'image',
+      originalPreview: '图片 1024×768',
+      revisedPreview: '图片 800×600'
+    });
+  });
+
+  it('keeps an image difference in a table out of the table context', () => {
+    // Contexts are what stop the similar-difference scan offering to batch a
+    // figure together with a paragraph, so a figure in a cell is still a figure.
+    const cell = document.createElement('td');
+    const table = document.createElement('table');
+    const image = imageElement('图片 400×300');
+    cell.appendChild(image);
+    table.appendChild(cell);
+
+    expect(createReviewItem(1, { A: [image], B: [] })?.context).toBe('image');
+    expect(createReviewItem(2, { A: [textElement('单元格文本')], B: [] })?.context).toBe('body');
+  });
+
   it('finds similar inserted differences by configured threshold', () => {
     const groups = new Map<number, DiffElementGroup>([
       [1, insertedGroup('abcdefghij')],
@@ -172,5 +201,13 @@ function insertedGroupFrom(element: HTMLElement): DiffElementGroup {
 function textElement(text: string): HTMLElement {
   const element = document.createElement('span');
   element.textContent = text;
+  return element;
+}
+
+/** A `<del>` around an image, as the image pass leaves it. */
+function imageElement(label: string): HTMLElement {
+  const element = document.createElement('del');
+  element.setAttribute('data-diff-image', label);
+  element.appendChild(document.createElement('img'));
   return element;
 }

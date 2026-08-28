@@ -132,6 +132,23 @@ export default function DocumentPane({
                 </div>
               </div>
             )}
+            {document.droppedImageCount > 0 && (
+              <div className="warning-chip" tabIndex={0}>
+                <span className="status-chip warning">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="m3 16 5-5 4 4M14 14l2-2 5 5" />
+                  </svg>
+                  {document.droppedImageCount}
+                </span>
+                <div className="warning-popover" role="tooltip">
+                  <strong>{i18n.documentPane.droppedImageCount(document.droppedImageCount)}</strong>
+                  <ul>
+                    <li>{i18n.documentPane.droppedImageTitle}</li>
+                  </ul>
+                </div>
+              </div>
+            )}
             {allowFileInput && (
               <label className="reupload-trigger" title={copy.reuploadTitle} aria-label={copy.reuploadTitle}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

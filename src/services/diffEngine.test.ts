@@ -362,6 +362,93 @@ describe('compareDocuments', () => {
   });
 });
 
+/**
+ * Images reach the comparison as fingerprints because the markup only carries
+ * object URLs by then. These check that they come out the far end as ordinary
+ * differences — numbered, scoped and counted alongside the text ones.
+ */
+describe('compareDocuments with image fingerprints', () => {
+  const figure = (source: string) => `<p><img src="${source}" alt="figure"></p>`;
+
+  function descriptors(original: Record<string, string>, revised: Record<string, string>): CompareOptions['images'] {
+    const table = (entries: Record<string, string>) =>
+      new Map(Object.entries(entries).map(([src, hash]) => [src, { hash, width: 400, height: 300, byteLength: 2048 }]));
+
+    return { original: table(original), revised: table(revised) };
+  }
+
+  it('reports nothing for an image whose bytes did not change', async () => {
+    // Different object URLs on the two sides, as always: only the fingerprint
+    // can say it is the same image.
+    const result = await compareDocuments(figure('blob:a'), figure('blob:b'), {
+      ...DEFAULT_OPTIONS,
+      images: descriptors({ 'blob:a': 'same' }, { 'blob:b': 'same' })
+    });
+
+    expect(result.summary.total).toBe(0);
+    expect(result.summary.images).toMatchObject({ paired: 1, revised: 0 });
+  });
+
+  it('reports a replaced figure as one difference on both sides', async () => {
+    const result = await compareDocuments(figure('blob:a'), figure('blob:b'), {
+      ...DEFAULT_OPTIONS,
+      images: descriptors({ 'blob:a': 'before' }, { 'blob:b': 'after' }),
+      imageLabel: '图片'
+    });
+
+    expect(result.summary).toMatchObject({ total: 1, modified: 1 });
+    expect(result.summary.images).toMatchObject({ paired: 1, revised: 1 });
+    // Renumbered into the text diff's own sequence, which is what lets the
+    // reader step through both kinds of difference without knowing the
+    // difference.
+    expect(result.originalHtml).toContain('<del data-diff-id="diff-1" data-diff-image="图片 400×300">');
+    expect(result.revisedHtml).toContain('<ins data-diff-id="diff-1" data-diff-image="图片 400×300">');
+  });
+
+  it('reports an added figure on the revised side alone', async () => {
+    const result = await compareDocuments(figure('blob:a'), figure('blob:a2') + figure('blob:new'), {
+      ...DEFAULT_OPTIONS,
+      images: descriptors({ 'blob:a': 'kept' }, { 'blob:a2': 'kept', 'blob:new': 'added' })
+    });
+
+    expect(result.summary).toMatchObject({ total: 1, inserted: 1 });
+    expect(result.summary.images).toMatchObject({ inserted: 1, revised: 0 });
+    expect(result.originalHtml).not.toContain('<del');
+  });
+
+  it('numbers an image difference in document order among the text ones', async () => {
+    const result = await compareDocuments(
+      `<p>前言甲</p>${figure('blob:a')}<p>结语</p>`,
+      `<p>前言乙</p>${figure('blob:b')}<p>结语</p>`,
+      { ...DEFAULT_OPTIONS, images: descriptors({ 'blob:a': 'before' }, { 'blob:b': 'after' }) }
+    );
+
+    expect(result.summary.total).toBe(2);
+    expect(result.originalHtml.indexOf('diff-1')).toBeLessThan(result.originalHtml.indexOf('diff-2'));
+    expect(result.originalHtml).toContain('data-diff-id="diff-2" data-diff-image');
+  });
+
+  it('keeps a figure difference out of an adjacent text difference', async () => {
+    // The merge pass bridges nearby edits across short gaps. An image
+    // contributes no characters, so without `img` blocking the bridge the two
+    // edits either side of this figure would swallow it into one difference.
+    const result = await compareDocuments(`<p>甲${figure('blob:a')}乙</p>`, `<p>丙${figure('blob:b')}丁</p>`, {
+      ...DEFAULT_OPTIONS,
+      images: descriptors({ 'blob:a': 'before' }, { 'blob:b': 'after' })
+    });
+
+    expect(result.summary.images).toMatchObject({ revised: 1 });
+    expect(result.originalHtml).toContain('data-diff-image');
+  });
+
+  it('leaves images alone when no fingerprints were taken', async () => {
+    const result = await compareDocuments(figure('blob:a'), figure('blob:b'), DEFAULT_OPTIONS);
+
+    expect(result.summary.total).toBe(0);
+    expect(result.summary.images).toMatchObject({ paired: 0, revised: 0 });
+  });
+});
+
 function createLayoutNoiseWithHints(hints: LayoutNoiseHints): LayoutNoiseBySide {
   const layoutNoise = createEmptyLayoutNoiseBySide();
   layoutNoise.original.hints = hints;

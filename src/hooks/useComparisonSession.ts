@@ -4,6 +4,7 @@ import type { I18nMessages } from '@/i18n/messages';
 import { cancelPendingTextDiffs } from '@/services/diffWorkerClient';
 import type { DiffSummary } from '@/types/diff';
 import type { DocumentPair } from '@/types/document';
+import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
 
 const EMPTY_SUMMARY: DiffSummary = {
   total: 0,
@@ -11,6 +12,7 @@ const EMPTY_SUMMARY: DiffSummary = {
   deleted: 0,
   modified: 0,
   similarity: 1,
+  images: createEmptyImageComparisonSummary(),
   layoutNoiseFiltered: 0,
   layoutNoiseItems: []
 };
@@ -76,6 +78,8 @@ export function useComparisonSession({
           ignoreFullHalfWidth: rules.ignoreFullHalfWidth,
           filterLayoutNoise: rules.filterLayoutNoise,
           layoutNoise: { original: nextDocuments.A.layoutNoise, revised: nextDocuments.B.layoutNoise },
+          images: { original: nextDocuments.A.imageDescriptors, revised: nextDocuments.B.imageDescriptors },
+          imageLabel: i18n.documentPane.imageDifferenceLabel,
           signal: compare.signal
         });
         if (sequence !== compareSequence.current) return;

@@ -1,3 +1,4 @@
+import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createExternalDocumentApi, type DocDiffProState } from './externalDocumentApi';
 
@@ -88,6 +89,7 @@ describe('externalDocumentApi', () => {
         deleted: 1,
         modified: 1,
         similarity: 0.5,
+        images: createEmptyImageComparisonSummary(),
         layoutNoiseFiltered: 0,
         layoutNoiseItems: []
       },
@@ -115,6 +117,7 @@ describe('externalDocumentApi', () => {
         deleted: 0,
         modified: 0,
         similarity: 1,
+        images: createEmptyImageComparisonSummary(),
         layoutNoiseFiltered: 0,
         layoutNoiseItems: []
       }
@@ -127,6 +130,7 @@ describe('externalDocumentApi', () => {
         deleted: 0,
         modified: 0,
         similarity: 1,
+        images: createEmptyImageComparisonSummary(),
         layoutNoiseFiltered: 0,
         layoutNoiseItems: []
       }

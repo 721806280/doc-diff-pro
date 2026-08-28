@@ -1,3 +1,4 @@
+import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -528,7 +529,9 @@ function parsed(html: string): ParsedDocx {
     html,
     textLength: html.length,
     imageCount: 0,
+    droppedImageCount: 0,
     imageUrls: [],
+    imageDescriptors: new Map(),
     warnings: [],
     layoutNoise: { hints: { exact: [], fragments: [] }, nativeItems: [] }
   };
@@ -581,6 +584,7 @@ const EMPTY_TEST_SUMMARY = {
   deleted: 0,
   modified: 0,
   similarity: 1,
+  images: createEmptyImageComparisonSummary(),
   layoutNoiseFiltered: 0,
   layoutNoiseItems: []
 };

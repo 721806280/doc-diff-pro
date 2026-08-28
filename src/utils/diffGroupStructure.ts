@@ -9,7 +9,14 @@ import {
   type TableAlignmentEntry
 } from './tableAlignment';
 import { createTextDiffs } from './textDiffCompute';
-import { DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, parseDiffId, summarizeDiffs } from './textDiffCore';
+import {
+  DIFF_DELETE,
+  DIFF_EQUAL,
+  DIFF_INSERT,
+  IMAGE_DIFF_ATTRIBUTE,
+  parseDiffId,
+  summarizeDiffs
+} from './textDiffCore';
 
 const DIFF_ELEMENT_SELECTOR = 'ins[data-diff-id], del[data-diff-id]';
 const BODY_BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, div, section, article';
@@ -375,8 +382,20 @@ function mergeMovedTableGroups(
   });
 }
 
+/**
+ * What identifies a difference group when looking for the same one on the other
+ * side of the document.
+ *
+ * Image groups have no text at all, so they are identified by the label the
+ * image markup left behind instead. Without that every image group in a table
+ * would produce the same key and they could only be told apart by never being
+ * unique enough to pair.
+ */
 function normalizedGroupText(elements: HTMLElement[]): string {
-  return normalizeStructureText(elements.map((element) => element.textContent ?? '').join(''));
+  const text = normalizeStructureText(elements.map((element) => element.textContent ?? '').join(''));
+  if (text) return text;
+
+  return elements.map((element) => element.getAttribute(IMAGE_DIFF_ATTRIBUTE) ?? '').join(' ');
 }
 
 function repairTableRowDiffMarkup(alignment: TableAlignmentEntry[], options: DiffGroupRefinementOptions): void {
@@ -481,7 +500,13 @@ function remarkCellDifference(
   nextRepairGroupId: () => string
 ): void {
   [originalCell, revisedCell].forEach((cell) => {
-    Array.from(cell.querySelectorAll<HTMLElement>(DIFF_ELEMENT_SELECTOR)).reverse().forEach(unwrapDiffElement);
+    Array.from(cell.querySelectorAll<HTMLElement>(DIFF_ELEMENT_SELECTOR))
+      // Image markup is not this pass's to redo. Re-diffing a cell's text and
+      // then reapplying markup to its text nodes would leave the `<img>` behind
+      // unwrapped, silently dropping a difference this pass never examined.
+      .filter((element) => element.querySelector('img') === null)
+      .reverse()
+      .forEach(unwrapDiffElement);
   });
 
   const originalTrack = prepareCellText(originalCell, options);

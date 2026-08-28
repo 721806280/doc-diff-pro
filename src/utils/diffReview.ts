@@ -7,7 +7,7 @@ import type {
 } from '@/types/diff';
 import type { DiffElementGroup, DiffElementIndex } from './diffElementIndex';
 import { longestCommonSubsequenceLength } from './longestCommonSubsequence';
-import { diffId, parseDiffId } from './textDiffCore';
+import { diffId, IMAGE_DIFF_ATTRIBUTE, parseDiffId } from './textDiffCore';
 
 export const SIMILAR_DIFF_THRESHOLDS: Record<SimilarDiffLevel, number> = {
   strict: 0.86,
@@ -194,13 +194,24 @@ function resolveReviewKind(group: DiffElementGroup): DiffChangeKind {
 
 function resolveReviewContext(group: DiffElementGroup): DiffReviewContext {
   const firstElement = [...group.A, ...group.B][0];
-  return firstElement?.closest('table') ? 'table' : 'body';
+  if (!firstElement) return 'body';
+  // Ahead of the table test: an image inside a table is still an image
+  // difference, and keeping the contexts distinct is what stops the
+  // similar-difference scan from offering to batch a figure with a paragraph.
+  if (firstElement.hasAttribute(IMAGE_DIFF_ATTRIBUTE)) return 'image';
+
+  return firstElement.closest('table') ? 'table' : 'body';
 }
 
+/**
+ * An image difference has no text to preview, so the label the image markup left
+ * behind stands in for it — otherwise every figure would appear in the review
+ * list as a blank row.
+ */
 function previewElements(elements: HTMLElement[]): string {
   return truncateReviewPreview(
     elements
-      .map((element) => element.textContent ?? '')
+      .map((element) => element.textContent?.trim() || element.getAttribute(IMAGE_DIFF_ATTRIBUTE) || '')
       .join(' / ')
       .replace(/\s+/g, ' ')
       .trim()

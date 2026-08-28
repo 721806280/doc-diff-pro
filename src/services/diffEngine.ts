@@ -12,6 +12,12 @@ import {
 import { DIFF_DELETE, DIFF_INSERT, summarizeDiffs } from '@/utils/textDiffCore';
 import { throwIfAborted, yieldToBrowser } from '@/utils/comparisonScheduling';
 import { refineDiffGroups } from '@/utils/diffGroupStructure';
+import {
+  alignDocumentImages,
+  markImageDifferences,
+  summarizeImageAlignment,
+  type ImageDescriptorsBySide
+} from '@/utils/imageAlignment';
 
 export type LayoutNoiseBySide = Record<LayoutNoiseSide, LayoutNoiseData>;
 
@@ -21,6 +27,14 @@ export type CompareOptions = {
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
   layoutNoise: LayoutNoiseBySide;
+  /**
+   * Image fingerprints taken when each document was parsed. Absent means images
+   * are left out of the comparison: by then the markup points at object URLs and
+   * the pixels are no longer reachable, so this is the only way they can be.
+   */
+  images?: ImageDescriptorsBySide;
+  /** Localized word for an image, for the label a review list shows. */
+  imageLabel?: string;
   /** Stops the comparison at the next phase boundary when a newer one starts. */
   signal?: AbortSignal;
 };
@@ -34,8 +48,8 @@ export type CompareResult = {
 /**
  * Runs one comparison end to end and returns both documents marked up.
  *
- * The phases are: parse and strip layout noise, flatten each side to text,
- * diff that text in the worker, then apply the markup and regroup the
+ * The phases are: parse and strip layout noise, flatten each side to text, diff
+ * that text in the worker, apply the markup, pair the images, then regroup the
  * differences into the units the reader steps through. Only the diff itself
  * leaves the main thread — everything either side of it needs the DOM — so the
  * phases hand the thread back between them, which is also where a superseded
@@ -44,6 +58,7 @@ export type CompareResult = {
  * The two summaries are not redundant: the text diff counts changed runs of
  * characters, and refineDiffGroups then splits and merges those to respect
  * table cells and paragraph boundaries, which is the count the reader sees.
+ * Image differences join before that, so they are counted the same way.
  */
 export async function compareDocuments(
   originalHtml: string,
@@ -93,6 +108,15 @@ export async function compareDocuments(
   applyDiffMarkup(originalDom, originalTrack.mapping, diffs, DIFF_DELETE, 'del');
   await yieldToBrowser(signal);
   applyDiffMarkup(revisedDom, revisedTrack.mapping, diffs, DIFF_INSERT, 'ins');
+
+  // After the text markup and before the groups are refined: the image pass
+  // produces the same `<del>`/`<ins>` elements, so refinement scopes, pairs and
+  // renumbers image differences alongside the text ones without knowing that is
+  // what it is doing.
+  await yieldToBrowser(signal);
+  const imageAlignment = options.images ? alignDocumentImages(originalDom, revisedDom, options.images) : [];
+  markImageDifferences(imageAlignment, { label: options.imageLabel });
+  summary.images = summarizeImageAlignment(imageAlignment);
 
   await yieldToBrowser(signal);
   const refinedSummary = refineDiffGroups(originalDom, revisedDom, {

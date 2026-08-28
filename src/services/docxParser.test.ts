@@ -10,16 +10,20 @@ vi.mock('mammoth', () => ({
 }));
 
 describe('docxParser metadata helpers', () => {
-  it('counts text characters and sanitized embedded images', () => {
+  it('counts text characters, comparable images, and the graphics that were dropped', () => {
     const body = new DOMParser().parseFromString(
       '<p>合 同 A</p><img src="data:image/png;base64,iVBORw0KGgo="><img>',
       'text/html'
     ).body;
     const metadata = collectDocxMetadata(body);
 
+    // The sourceless element is what a Word chart or vector graphic becomes once
+    // the sanitizer has refused its content type. Counting it is the only reason
+    // the reader ever hears that part of the document was not compared.
     expect(metadata).toEqual({
       textLength: 3,
-      imageCount: 1
+      imageCount: 1,
+      droppedImageCount: 1
     });
   });
 

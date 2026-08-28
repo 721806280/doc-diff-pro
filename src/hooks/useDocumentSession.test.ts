@@ -20,7 +20,9 @@ function parsed(overrides: Partial<ParsedDocx> = {}): ParsedDocx {
     html: '<p>content</p>',
     textLength: 7,
     imageCount: 0,
+    droppedImageCount: 0,
     imageUrls: [],
+    imageDescriptors: new Map(),
     warnings: [],
     layoutNoise: createEmptyLayoutNoise(),
     ...overrides

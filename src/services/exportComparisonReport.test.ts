@@ -1,3 +1,4 @@
+import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
 import { describe, expect, it, vi } from 'vitest';
 import { messages } from '@/i18n/messages';
 import { DEFAULT_USER_SETTINGS } from '@/config/userSettings';
@@ -40,6 +41,7 @@ function summaryWith(total: number): DiffSummary {
     deleted: 0,
     modified: total,
     similarity: 0.87,
+    images: createEmptyImageComparisonSummary(),
     layoutNoiseFiltered: 0,
     layoutNoiseItems: []
   };

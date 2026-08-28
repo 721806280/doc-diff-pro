@@ -2,6 +2,19 @@ export const SUPPORTED_LOCALES = ['en', 'zh-CN'] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
+/** What the image chip's tooltip spells out, so both locales phrase one shape. */
+type ImageDiffCounts = {
+  revised: number;
+  /** Byte-identical but no longer in the same place. */
+  moved: number;
+  inserted: number;
+  deleted: number;
+  /** Of the revised, how many only look re-encoded rather than redrawn. */
+  cosmetic: number;
+  /** Figures present on both sides with identical bytes. */
+  unchanged: number;
+};
+
 const en = {
   app: {
     documentTitle: 'DocDiff Pro - DOCX Document Comparison',
@@ -155,6 +168,7 @@ const en = {
     comparing: 'Analyzing differences...',
     failedTitle: 'Could not process document',
     embeddedImageAlt: 'Embedded document image',
+    imageDifferenceLabel: 'Image',
     emptyDocumentHtml: '<p>(Empty document)</p>',
     status: {
       parsing: 'Parsing',
@@ -167,7 +181,12 @@ const en = {
     },
     imageCount(countLabel: string, count: number): string {
       return `${countLabel} ${count === 1 ? 'image' : 'images'}`;
-    }
+    },
+    droppedImageCount(count: number): string {
+      return `${count} ${count === 1 ? 'graphic' : 'graphics'} not comparable`;
+    },
+    droppedImageTitle:
+      'Word drew these itself, or supplied them in a format no browser renders. The converter cannot read them, so they take no part in the comparison.'
   },
   diffNavigator: {
     noDiffsTag: 'No differences',
@@ -182,6 +201,18 @@ const en = {
     modified: 'Modified',
     inserted: 'Added',
     deleted: 'Deleted',
+    imageDiffs(count: number): string {
+      return `Images ${count}`;
+    },
+    imageDiffsTitle(counts: ImageDiffCounts): string {
+      const cosmetic = counts.cosmetic > 0 ? ` (${counts.cosmetic} only re-exported)` : '';
+      const moved = counts.moved > 0 ? `, ${counts.moved} moved` : '';
+      const unchanged = counts.unchanged > 0 ? `; ${counts.unchanged} unchanged` : '';
+      return (
+        `Figure differences: ${counts.revised} changed${cosmetic}${moved},` +
+        ` ${counts.inserted} added, ${counts.deleted} removed${unchanged}.`
+      );
+    },
     layoutNoiseFiltered(count: number): string {
       return `Layout ${count}`;
     },
@@ -436,6 +467,7 @@ const zhCN: I18nMessages = {
     comparing: '正在分析文档差异...',
     failedTitle: '文档处理失败',
     embeddedImageAlt: '文档嵌入图片',
+    imageDifferenceLabel: '图片',
     emptyDocumentHtml: '<p>（空文档）</p>',
     status: {
       parsing: '解析中',
@@ -448,7 +480,11 @@ const zhCN: I18nMessages = {
     },
     imageCount(countLabel: string): string {
       return `${countLabel} 张图`;
-    }
+    },
+    droppedImageCount(count: number): string {
+      return `${count} 个图形无法对比`;
+    },
+    droppedImageTitle: '这些是 Word 自己绘制的图形，或浏览器无法渲染的格式。转换器读不出来，因此不参与对比。'
   },
   diffNavigator: {
     noDiffsTag: '无差异',
@@ -463,6 +499,18 @@ const zhCN: I18nMessages = {
     modified: '修改',
     inserted: '新增',
     deleted: '删除',
+    imageDiffs(count: number): string {
+      return `图片 ${count}`;
+    },
+    imageDiffsTitle(counts: ImageDiffCounts): string {
+      const cosmetic = counts.cosmetic > 0 ? `（其中 ${counts.cosmetic} 处仅重新导出）` : '';
+      const moved = counts.moved > 0 ? `、移动 ${counts.moved}` : '';
+      const unchanged = counts.unchanged > 0 ? `；另有 ${counts.unchanged} 张未改动` : '';
+      return (
+        `图片差异：修改 ${counts.revised}${cosmetic}${moved}、` +
+        `新增 ${counts.inserted}、删除 ${counts.deleted}${unchanged}。`
+      );
+    },
     layoutNoiseFiltered(count: number): string {
       return `版面 ${count}`;
     },

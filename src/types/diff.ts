@@ -8,19 +8,39 @@ export type DiffOperation = -1 | 0 | 1;
 
 export type DiffTuple = [DiffOperation, string] & { groupId?: string };
 
+/** What the image pass found, counted the way the reader is told about it. */
+export type ImageComparisonSummary = {
+  /** Images paired across the two documents, whether or not they changed. */
+  paired: number;
+  revised: number;
+  /** Paired with identical bytes, but no longer in the same place. */
+  moved: number;
+  inserted: number;
+  deleted: number;
+  /** Of the revised, how many look like a re-export rather than an edit. */
+  cosmetic: number;
+};
+
 export type DiffSummary = {
   total: number;
   inserted: number;
   deleted: number;
   modified: number;
+  /**
+   * How much of the text survived the revision. Text only, on purpose: folding
+   * images in would mean charging each one some invented number of characters,
+   * and a headline figure nobody can explain is worse than two they can. The
+   * image counts are reported beside it.
+   */
   similarity: number;
+  images: ImageComparisonSummary;
   layoutNoiseFiltered: number;
   layoutNoiseItems: LayoutNoiseItem[];
 };
 
 export type DiffChangeKind = 'modified' | 'inserted' | 'deleted';
 
-export type DiffReviewContext = 'body' | 'table';
+export type DiffReviewContext = 'body' | 'table' | 'image';
 
 export type DiffMapItem = {
   index: number;
