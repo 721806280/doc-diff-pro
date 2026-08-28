@@ -3,9 +3,14 @@ import type { DiffTuple } from '@/types/diff';
 import { DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, summarizeDiffs } from './textDiffCore';
 import { createTextDiffs } from './textDiffCompute';
 
+/** A document side with no block boundaries, which is all these tests need. */
+function side(text: string) {
+  return { text, boundaries: [] };
+}
+
 describe('textDiffCore', () => {
   it('creates grouped diffs and summary for replacements', () => {
-    const diffs = createTextDiffs('abc', 'axc', 'char');
+    const diffs = createTextDiffs(side('abc'), side('axc'), 'char');
     const summary = summarizeDiffs(diffs, 'char', 3, 3);
 
     expect(summary).toMatchObject({
@@ -19,7 +24,7 @@ describe('textDiffCore', () => {
   });
 
   it('bridges nearby changes for semantic grouping', () => {
-    const diffs = createTextDiffs('ab12cd', 'ax12yd', 'semantic');
+    const diffs = createTextDiffs(side('ab12cd'), side('ax12yd'), 'semantic');
     const summary = summarizeDiffs(diffs, 'semantic', 6, 6);
 
     expect(summary.total).toBe(1);

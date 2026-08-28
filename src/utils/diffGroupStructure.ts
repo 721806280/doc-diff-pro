@@ -486,15 +486,15 @@ function remarkCellDifference(
 
   const originalTrack = prepareCellText(originalCell, options);
   const revisedTrack = prepareCellText(revisedCell, options);
-  const diffs = createCellRepairDiff(originalTrack.text, revisedTrack.text, options.granularity);
+  const diffs = createCellRepairDiff(originalTrack, revisedTrack, options.granularity);
   assignRepairGroupIds(diffs, id, nextRepairGroupId);
 
   applyDiffMarkup(originalCell, originalTrack.mapping, diffs, DIFF_DELETE, 'del');
   applyDiffMarkup(revisedCell, revisedTrack.mapping, diffs, DIFF_INSERT, 'ins');
 }
 
-function createCellRepairDiff(original: string, revised: string, granularity: DiffGranularity): DiffTuple[] {
-  if (Math.max(original.length, revised.length) <= MAX_MAIN_THREAD_CELL_DIFF_LENGTH) {
+function createCellRepairDiff(original: TextMapping, revised: TextMapping, granularity: DiffGranularity): DiffTuple[] {
+  if (Math.max(original.text.length, revised.text.length) <= MAX_MAIN_THREAD_CELL_DIFF_LENGTH) {
     // Within a single repaired cell each change should stay its own marker, so
     // skip the efficiency pass that merges edits across short equal runs
     // ("旧|中|旧" collapsing into one "旧中旧" span).
@@ -502,7 +502,7 @@ function createCellRepairDiff(original: string, revised: string, granularity: Di
   }
 
   // ponytail: keep huge-cell repair linear; move exact cell diffing into the worker if multi-span precision is needed.
-  return createSingleSpanDiff(original, revised);
+  return createSingleSpanDiff(original.text, revised.text);
 }
 
 function assignRepairGroupIds(diffs: DiffTuple[], firstId: string, nextRepairGroupId: () => string): void {
@@ -530,7 +530,8 @@ function prepareCellText(cell: HTMLTableCellElement, options: DiffGroupRefinemen
   const track = options.ignoreSpaces ? collapseWhitespace(mapping) : mapping;
   return {
     text: normalizeText(track.text, options.ignoreFullHalfWidth, false),
-    mapping: track.mapping
+    mapping: track.mapping,
+    boundaries: track.boundaries
   };
 }
 

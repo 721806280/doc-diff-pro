@@ -19,6 +19,11 @@ function dispatch(data: DiffWorkerRequest): void {
   handler({ data } as MessageEvent<DiffWorkerRequest>);
 }
 
+/** A document side with no block boundaries, which is all these tests need. */
+function side(text: string) {
+  return { text, boundaries: [] };
+}
+
 describe('diffWorker', () => {
   const postMessage = vi.fn();
 
@@ -44,9 +49,9 @@ describe('diffWorker', () => {
   it('computes diffs and posts them back with the request id', () => {
     mocks.createTextDiffs.mockReturnValue([[1, 'after']] as DiffTuple[]);
 
-    dispatch({ id: 7, originalText: 'before', revisedText: 'after', granularity: 'word' });
+    dispatch({ id: 7, original: side('before'), revised: side('after'), granularity: 'word' });
 
-    expect(mocks.createTextDiffs).toHaveBeenCalledWith('before', 'after', 'word');
+    expect(mocks.createTextDiffs).toHaveBeenCalledWith(side('before'), side('after'), 'word');
     expect(postMessage).toHaveBeenCalledWith({ id: 7, diffs: [[1, 'after']] });
   });
 
@@ -55,7 +60,7 @@ describe('diffWorker', () => {
       throw new Error('boom');
     });
 
-    dispatch({ id: 3, originalText: 'a', revisedText: 'b', granularity: 'char' });
+    dispatch({ id: 3, original: side('a'), revised: side('b'), granularity: 'char' });
 
     expect(postMessage).toHaveBeenCalledWith({ id: 3, error: 'boom' });
   });
@@ -68,7 +73,7 @@ describe('diffWorker', () => {
       throw 'plain failure';
     });
 
-    dispatch({ id: 42, originalText: 'a', revisedText: 'b', granularity: 'semantic' });
+    dispatch({ id: 42, original: side('a'), revised: side('b'), granularity: 'semantic' });
 
     expect(postMessage).toHaveBeenCalledWith({ id: 42, error: 'plain failure' });
   });
@@ -77,8 +82,8 @@ describe('diffWorker', () => {
     mocks.createTextDiffs.mockReturnValueOnce([[-1, 'x']] as DiffTuple[]);
     mocks.createTextDiffs.mockReturnValueOnce([[1, 'y']] as DiffTuple[]);
 
-    dispatch({ id: 1, originalText: 'x', revisedText: '', granularity: 'char' });
-    dispatch({ id: 2, originalText: '', revisedText: 'y', granularity: 'char' });
+    dispatch({ id: 1, original: side('x'), revised: side(''), granularity: 'char' });
+    dispatch({ id: 2, original: side(''), revised: side('y'), granularity: 'char' });
 
     expect(postMessage).toHaveBeenNthCalledWith(1, { id: 1, diffs: [[-1, 'x']] });
     expect(postMessage).toHaveBeenNthCalledWith(2, { id: 2, diffs: [[1, 'y']] });

@@ -26,6 +26,15 @@ const MAX_TABLE_ALIGNMENT_PAIRS = 1_000_000;
 type AlignmentPair<T> = { original?: T; revised?: T };
 export type TableAlignmentEntry = AlignmentPair<HTMLTableElement> & { id: string };
 
+export type SequenceAlignmentOptions = {
+  /** Lowest similarity at which two items may be paired at all. */
+  matchThreshold: number;
+  /** What leaving one item unpaired costs, charged once per side. */
+  gapPenalty: number;
+  /** Above this many candidate pairs, fall back to pairing by position. */
+  maxPairs: number;
+};
+
 /**
  * Pairs each table in the original with the table in the revision it most
  * likely became, leaving genuinely added or removed tables unpaired.
@@ -50,7 +59,7 @@ export function alignDocumentTables(originalRoot: HTMLElement, revisedRoot: HTML
     original,
     revised,
     (left, right, threshold) => tableSimilarity(signatures.get(left)!, signatures.get(right)!, threshold),
-    matchThreshold
+    { matchThreshold, gapPenalty: TABLE_GAP_PENALTY, maxPairs: MAX_TABLE_ALIGNMENT_PAIRS }
   ).map((entry, index) => ({ ...entry, id: `table-${index}` }));
 }
 
@@ -64,16 +73,22 @@ export function alignDocumentTables(originalRoot: HTMLElement, revisedRoot: HTML
  * rewritten. Working out the best whole-document pairing costs an
  * (n+1) x (m+1) pass and is what keeps a single inserted table from
  * cascading.
+ *
+ * Shared with image alignment, which wants the same shape for the same reason
+ * and differs only in what it means by similar. Order preservation is part of
+ * what it offers: a document repeating one logo forty times needs no tiebreak
+ * between the copies, because the alignment cannot cross them.
  */
-function alignSequences<T>(
+export function alignSequences<T>(
   original: T[],
   revised: T[],
   similarity: (original: T, revised: T, matchThreshold: number) => number,
-  matchThreshold: number
+  options: SequenceAlignmentOptions
 ): Array<AlignmentPair<T>> {
   type AlignmentChoice = 'match' | 'original' | 'revised';
+  const { matchThreshold, gapPenalty } = options;
 
-  if (original.length * revised.length > MAX_TABLE_ALIGNMENT_PAIRS) {
+  if (original.length * revised.length > options.maxPairs) {
     return alignByPosition(original, revised);
   }
 
@@ -104,20 +119,20 @@ function alignSequences<T>(
 
   setScore(0, 0, 0);
   for (let index = 1; index <= original.length; index++) {
-    setScore(index, 0, scoreAt(index - 1, 0) - TABLE_GAP_PENALTY);
+    setScore(index, 0, scoreAt(index - 1, 0) - gapPenalty);
     setChoice(index, 0, 'original');
   }
   for (let index = 1; index <= revised.length; index++) {
-    setScore(0, index, scoreAt(0, index - 1) - TABLE_GAP_PENALTY);
+    setScore(0, index, scoreAt(0, index - 1) - gapPenalty);
     setChoice(0, index, 'revised');
   }
 
   for (let originalIndex = 1; originalIndex <= original.length; originalIndex++) {
     for (let revisedIndex = 1; revisedIndex <= revised.length; revisedIndex++) {
       const matchScore = similarity(originalAt(originalIndex - 1), revisedAt(revisedIndex - 1), matchThreshold);
-      let bestScore = scoreAt(originalIndex - 1, revisedIndex) - TABLE_GAP_PENALTY;
+      let bestScore = scoreAt(originalIndex - 1, revisedIndex) - gapPenalty;
       let bestChoice: AlignmentChoice = 'original';
-      const revisedScore = scoreAt(originalIndex, revisedIndex - 1) - TABLE_GAP_PENALTY;
+      const revisedScore = scoreAt(originalIndex, revisedIndex - 1) - gapPenalty;
       if (revisedScore > bestScore) {
         bestScore = revisedScore;
         bestChoice = 'revised';
@@ -239,8 +254,11 @@ function maxDiceSimilarity(left: string, right: string): number {
  * 方乙方" and "乙方甲方" share every character but few pairs. The count map is
  * consumed as it matches, so a pair occurring twice on one side and once on
  * the other is credited once rather than twice.
+ *
+ * Shared with line alignment, which needs the same question answered about two
+ * paragraphs and wants it answered in linear time.
  */
-function diceSimilarity(left: string, right: string): number {
+export function diceSimilarity(left: string, right: string): number {
   if (left === right) return 1;
   if (!left || !right) return 0;
   if (left.length < 2 || right.length < 2) return 0;

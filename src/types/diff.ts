@@ -97,10 +97,22 @@ export type DiffTableContextHint = {
   rowPreviews?: Record<LayoutNoiseSide, DiffTableRowPreview[]>;
 };
 
+/**
+ * One side of a comparison: the text, and where its blocks begin.
+ *
+ * The boundaries travel with the text because normalizing it destroys them — a
+ * separator between two CJK paragraphs collapses to nothing at all — and the
+ * comparison compares one block at a time.
+ */
+export type DiffSide = {
+  text: string;
+  boundaries: readonly number[];
+};
+
 export type DiffWorkerRequest = {
   id: number;
-  originalText: string;
-  revisedText: string;
+  original: DiffSide;
+  revised: DiffSide;
   granularity: DiffGranularity;
 };
 

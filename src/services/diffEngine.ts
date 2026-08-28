@@ -69,7 +69,11 @@ export async function compareDocuments(
   await yieldToBrowser(signal);
   const revisedTrack = prepareDocumentText(revisedDom, options);
 
-  const diffs = await createTextDiffsAsync(originalTrack.text, revisedTrack.text, options.granularity);
+  const diffs = await createTextDiffsAsync(
+    { text: originalTrack.text, boundaries: originalTrack.boundaries },
+    { text: revisedTrack.text, boundaries: revisedTrack.boundaries },
+    options.granularity
+  );
   throwIfAborted(signal);
   const summary = summarizeDiffs(diffs, options.granularity, originalTrack.text.length, revisedTrack.text.length);
   const nativeNoiseItems = [
@@ -151,7 +155,10 @@ function prepareDocumentText(root: HTMLElement, options: CompareOptions): TextMa
   const track = options.ignoreSpaces ? collapseWhitespace(textMapping) : textMapping;
 
   return {
+    // Every substitution normalization makes is one character for one, so the
+    // block boundaries recorded above still point where they did.
     text: normalizeText(track.text, options.ignoreFullHalfWidth, false),
-    mapping: track.mapping
+    mapping: track.mapping,
+    boundaries: track.boundaries
   };
 }

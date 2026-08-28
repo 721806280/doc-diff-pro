@@ -1,4 +1,4 @@
-import type { DiffGranularity, DiffTuple, DiffWorkerRequest, DiffWorkerResponse } from '@/types/diff';
+import type { DiffGranularity, DiffSide, DiffTuple, DiffWorkerRequest, DiffWorkerResponse } from '@/types/diff';
 
 type PendingRequest = {
   worker: Worker;
@@ -23,9 +23,9 @@ class DiffTimeoutError extends Error {
 
 /**
  * Backstop for a wedged worker rather than a budget for a slow one:
- * `createTextDiffs` stops bisecting after DIFF_COMPUTE_TIMEOUT_SECONDS and
- * returns a coarse diff, so a healthy worker always answers first. The gap
- * between the two leaves room for the cleanup passes that follow the bisect.
+ * `createTextDiffs` bounds every comparison it makes by size, so a healthy
+ * worker always answers, and it answers with the same diff whatever machine it
+ * is running on. Missing this deadline means something is stuck, not slow.
  */
 export const DIFF_WORKER_TIMEOUT_MS = 15000;
 export const MAX_MAIN_THREAD_DIFF_CHARS = 300_000;
@@ -35,21 +35,21 @@ let nextRequestId = 1;
 const pendingRequests = new Map<number, PendingRequest>();
 
 export async function createTextDiffsAsync(
-  originalText: string,
-  revisedText: string,
+  original: DiffSide,
+  revised: DiffSide,
   granularity: DiffGranularity
 ): Promise<DiffTuple[]> {
   if (!canUseWorker()) {
-    return createMainThreadDiffs(originalText, revisedText, granularity);
+    return createMainThreadDiffs(original, revised, granularity);
   }
 
   try {
-    return await requestWorkerDiff(originalText, revisedText, granularity);
+    return await requestWorkerDiff(original, revised, granularity);
   } catch (error) {
     if (error instanceof DiffCanceledError || error instanceof DiffTimeoutError) throw error;
 
     console.warn('[Document diff worker fallback]', error);
-    return createMainThreadDiffs(originalText, revisedText, granularity);
+    return createMainThreadDiffs(original, revised, granularity);
   }
 }
 
@@ -65,11 +65,7 @@ function canUseWorker(): boolean {
   return typeof Worker !== 'undefined';
 }
 
-function requestWorkerDiff(
-  originalText: string,
-  revisedText: string,
-  granularity: DiffGranularity
-): Promise<DiffTuple[]> {
+function requestWorkerDiff(original: DiffSide, revised: DiffSide, granularity: DiffGranularity): Promise<DiffTuple[]> {
   const currentWorker = getWorker();
   const id = nextRequestId++;
 
@@ -84,7 +80,16 @@ function requestWorkerDiff(
     }, DIFF_WORKER_TIMEOUT_MS);
 
     pendingRequests.set(id, { worker: currentWorker, resolve, reject, timeoutId });
-    currentWorker.postMessage({ id, originalText, revisedText, granularity } satisfies DiffWorkerRequest);
+    // Rebuilt field by field rather than forwarded. The caller's text track also
+    // carries the live DOM nodes the markup pass needs, and a Text node cannot be
+    // structured-cloned — posting one made every comparison fail to reach the
+    // worker and quietly finish on the main thread instead.
+    currentWorker.postMessage({
+      id,
+      original: { text: original.text, boundaries: original.boundaries },
+      revised: { text: revised.text, boundaries: revised.boundaries },
+      granularity
+    } satisfies DiffWorkerRequest);
   });
 }
 
@@ -136,11 +141,11 @@ function rejectPendingRequests(error: Error, targetWorker?: Worker): void {
 }
 
 async function createMainThreadDiffs(
-  originalText: string,
-  revisedText: string,
+  original: DiffSide,
+  revised: DiffSide,
   granularity: DiffGranularity
 ): Promise<DiffTuple[]> {
-  if (originalText.length + revisedText.length > MAX_MAIN_THREAD_DIFF_CHARS) {
+  if (original.text.length + revised.text.length > MAX_MAIN_THREAD_DIFF_CHARS) {
     throw new Error('Document is too large to compare safely without a Web Worker.');
   }
 
@@ -148,5 +153,5 @@ async function createMainThreadDiffs(
   // itself died, and keeping it static would pull diff-match-patch back onto
   // the main thread's own chunk.
   const { createTextDiffs } = await import('@/utils/textDiffCompute');
-  return createTextDiffs(originalText, revisedText, granularity);
+  return createTextDiffs(original, revised, granularity);
 }

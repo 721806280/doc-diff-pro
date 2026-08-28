@@ -11,6 +11,17 @@
 export type TextMapping = {
   text: string;
   mapping: TextPositionMap;
+  /**
+   * Offsets into `text` at which a new block begins; never includes 0.
+   *
+   * Carried alongside because collapsing whitespace destroys the evidence. A
+   * block separator is a newline on the way in, and by the time the text is
+   * normalized it has become a space or nothing at all — between two CJK
+   * paragraphs it is dropped entirely, leaving the two running together with no
+   * character between them. The comparison engine splits on these to compare one
+   * paragraph at a time, so the structure has to survive the trip.
+   */
+  boundaries: number[];
 };
 
 export type TextPositionMap = {
@@ -55,6 +66,39 @@ const BLOCK_TAGS = new Set([
   'PRE',
   'ARTICLE'
 ]);
+/**
+ * Blocks whose start is where the comparison is allowed to cut the text.
+ *
+ * A subset of the tags that contribute a newline, and deliberately not the same
+ * set: table cells separate text but are not review boundaries. The rest of the
+ * comparison treats a table row as one difference so that two cells edited in the
+ * same row read as one change, and cutting between cells here would report them
+ * as two.
+ */
+const BOUNDARY_TAGS = new Set([
+  'P',
+  'DIV',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'LI',
+  'TR',
+  'TABLE',
+  'SECTION',
+  'PRE',
+  'ARTICLE'
+]);
+/**
+ * Inside these, nothing is a boundary: a table row is the finest cut allowed.
+ *
+ * Converters wrap cell text in paragraphs, so without this a row would be cut up
+ * cell by cell — and then an inserted row's "30%" would match the identical
+ * "30%" of some other row, anchor to it, and leave the new row reported in
+ * pieces with parts of it not marked at all.
+ */
+const BOUNDARY_OPAQUE_TAGS = new Set(['TD', 'TH']);
 const INLINE_WHITESPACE_PATTERN = /[ \t\v\f\r\u00a0\u1680\u180e\u2000-\u200a\u202f\u205f\u3000]/;
 const CJK_NUMBER_PATTERN = '零〇一二三四五六七八九十百千万两壹贰叁肆伍陆柒捌玖拾佰仟萬';
 
@@ -104,8 +148,17 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
   const textBuffer: string[] = [];
   const mapping = createMappingBuilder();
   const orderedListCounters = new WeakMap<HTMLElement, number>();
+  const boundaries: number[] = [];
+  let length = 0;
+  let cellDepth = 0;
 
   const endsWithNewline = (): boolean => textBuffer.at(-1)?.at(-1) === '\n';
+  const pushSeparator = (isBoundary: boolean): void => {
+    textBuffer.push('\n');
+    appendMapping(mapping, NO_TEXT_NODE, 0);
+    length++;
+    if (isBoundary && boundaries.at(-1) !== length) boundaries.push(length);
+  };
 
   function walk(node: Node): void {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -119,30 +172,30 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
         appendMapping(mapping, nodeId, index);
       }
       textBuffer.push(value);
+      length += value.length;
       return;
     }
 
     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
     const element = node as HTMLElement;
-    const isBlock = BLOCK_TAGS.has(element.tagName.toUpperCase());
+    const tagName = element.tagName.toUpperCase();
+    const isBlock = BLOCK_TAGS.has(tagName);
+    const isBoundary = BOUNDARY_TAGS.has(tagName) && cellDepth === 0;
+    const isCell = BOUNDARY_OPAQUE_TAGS.has(tagName);
 
-    if (isBlock && textBuffer.length > 0 && !endsWithNewline()) {
-      textBuffer.push('\n');
-      appendMapping(mapping, NO_TEXT_NODE, 0);
-    }
+    if (isBlock && textBuffer.length > 0 && !endsWithNewline()) pushSeparator(isBoundary);
 
     ensureSyntheticListMarkerElement(element, orderedListCounters);
+    if (isCell) cellDepth++;
     Array.from(element.childNodes).forEach(walk);
+    if (isCell) cellDepth--;
 
-    if (isBlock && textBuffer.length > 0 && !endsWithNewline()) {
-      textBuffer.push('\n');
-      appendMapping(mapping, NO_TEXT_NODE, 0);
-    }
+    if (isBlock && textBuffer.length > 0 && !endsWithNewline()) pushSeparator(isBoundary);
   }
 
   walk(rootDom);
-  return { text: textBuffer.join(''), mapping: finishMapping(mapping) };
+  return { text: textBuffer.join(''), mapping: finishMapping(mapping), boundaries };
 }
 
 type MappingBuilder = {
@@ -191,12 +244,25 @@ function finishMapping(builder: MappingBuilder): TextPositionMap {
   };
 }
 
-export function collapseWhitespace({ text, mapping }: TextMapping): TextMapping {
+export function collapseWhitespace({ text, mapping, boundaries: sourceBoundaries }: TextMapping): TextMapping {
   const resultTextChunks: string[] = [];
   // Collapsing only ever drops characters, so the source length is an exact
   // ceiling and the columns never have to grow. The node table is shared: the
   // surviving characters point at the very same text nodes.
   const resultMapping = createMappingBuilder(mapping.nodes, text.length);
+  // The boundaries arrive as offsets into the source and have to leave as offsets
+  // into the collapsed text, because a separator between two CJK paragraphs is
+  // dropped here and leaves no character to find it by afterwards. Walked in step
+  // with the source, which is already in order.
+  const boundaries: number[] = [];
+  let boundaryCursor = 0;
+  const markBoundaryAfter = (sourceIndex: number): void => {
+    if (sourceBoundaries[boundaryCursor] !== sourceIndex + 1) return;
+
+    boundaryCursor++;
+    const offset = resultTextChunks.length;
+    if (offset > 0 && boundaries.at(-1) !== offset) boundaries.push(offset);
+  };
   let lastChar = '';
   let currentLine = '';
 
@@ -219,12 +285,14 @@ export function collapseWhitespace({ text, mapping }: TextMapping): TextMapping 
         shouldDropWhitespaceBetween(resultTextChunks, text, index, lastChar, nextChar)
       ) {
         if (ch === '\n') currentLine = '';
+        markBoundaryAfter(index);
         continue;
       }
       ch = ' ';
     }
 
     appendResult(ch, index, text[index] === '\n');
+    markBoundaryAfter(index);
   }
 
   while (resultTextChunks.at(-1) === ' ') {
@@ -232,7 +300,14 @@ export function collapseWhitespace({ text, mapping }: TextMapping): TextMapping 
     resultMapping.size--;
   }
 
-  return { text: resultTextChunks.join(''), mapping: finishMapping(resultMapping) };
+  const length = resultTextChunks.length;
+  return {
+    text: resultTextChunks.join(''),
+    mapping: finishMapping(resultMapping),
+    // A trailing space just went, so a boundary that sat behind it now sits past
+    // the end of the text.
+    boundaries: boundaries.filter((offset) => offset < length)
+  };
 }
 
 export function normalizeText(text: string, ignoreFullHalf: boolean, ignoreCase: boolean): string {
