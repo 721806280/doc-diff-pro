@@ -29,8 +29,9 @@ import {
   type ImageDescriptor,
   type ImageDescriptorTable
 } from './imageDescriptor';
+import { UNRENDERABLE_IMAGE_ATTRIBUTE } from './sanitizeDocumentHtml';
 import { alignSequences } from './tableAlignment';
-import { createEmptyImageComparisonSummary, IMAGE_DIFF_ATTRIBUTE } from './textDiffCore';
+import { createEmptyImageComparisonSummary, IMAGE_DIFF_ATTRIBUTE, IMAGE_ID_ATTRIBUTE } from './textDiffCore';
 
 /**
  * What leaving an image unpaired costs, charged once per side.
@@ -76,14 +77,15 @@ export type ImageDescriptorsBySide = {
 };
 
 /**
- * Only images the reader can actually see.
+ * Every figure that was fingerprinted, whether or not it can be drawn.
  *
- * An `<img>` without a `src` is one the sanitizer rejected — a vector graphic
- * Word supplied as EMF, most often. There is nothing to compare and nothing on
- * the page, so it is counted elsewhere and left out here.
+ * Keyed off the stamped id rather than the `src`, so an EMF equation — which
+ * loses its source because no browser renders it — is still compared. Its bytes
+ * say whether it changed, which is the question, and a figure whose change goes
+ * unreported is worse than one that cannot be shown.
  */
 export function collectDocumentImages(root: HTMLElement): HTMLImageElement[] {
-  return Array.from(root.querySelectorAll<HTMLImageElement>('img[src]'));
+  return Array.from(root.querySelectorAll<HTMLImageElement>(`img[${IMAGE_ID_ATTRIBUTE}]`));
 }
 
 export function alignDocumentImages(
@@ -96,7 +98,7 @@ export function alignDocumentImages(
   if (original.length === 0 && revised.length === 0) return [];
 
   const descriptorOf = (image: HTMLImageElement, side: keyof ImageDescriptorsBySide) =>
-    descriptors[side].get(image.getAttribute('src') ?? '');
+    descriptors[side].get(image.getAttribute(IMAGE_ID_ATTRIBUTE) ?? '');
 
   const aligned = alignSequences(
     original,
@@ -195,6 +197,8 @@ function classifyPair(
 export type ImageMarkupOptions = {
   /** Localized word for an image, prefixed to the label review lists show. */
   label?: string;
+  /** Localized note for a figure that changed but cannot be drawn. */
+  unrenderableLabel?: string;
   /** First group number to hand out; ids must not collide with the text diff's. */
   startIndex?: number;
 };
@@ -219,8 +223,8 @@ export function markImageDifferences(
     if (entry.kind === 'unchanged') continue;
 
     const groupId = `image-${group++}`;
-    if (entry.original) wrapImage(entry.original, 'del', groupId, entry, options.label);
-    if (entry.revised) wrapImage(entry.revised, 'ins', groupId, entry, options.label);
+    if (entry.original) wrapImage(entry.original, 'del', groupId, entry, options);
+    if (entry.revised) wrapImage(entry.revised, 'ins', groupId, entry, options);
   }
 
   return group - (options.startIndex ?? 1);
@@ -231,11 +235,11 @@ function wrapImage(
   tag: 'del' | 'ins',
   groupId: string,
   entry: ImageAlignmentEntry,
-  label: string | undefined
+  options: ImageMarkupOptions
 ): void {
   const wrapper = image.ownerDocument.createElement(tag);
   wrapper.dataset.diffId = groupId;
-  wrapper.setAttribute(IMAGE_DIFF_ATTRIBUTE, describeImage(entry, tag, label));
+  wrapper.setAttribute(IMAGE_DIFF_ATTRIBUTE, describeImage(entry, tag, image, options));
 
   image.parentNode?.insertBefore(wrapper, image);
   wrapper.appendChild(image);
@@ -244,12 +248,23 @@ function wrapImage(
 /**
  * The text a review list shows in place of the image, since an image group has
  * no text of its own to preview.
+ *
+ * A figure nothing can draw has no dimensions either — the container header a
+ * metafile carries is not one this reader parses — so it is named for what it is
+ * instead. Saying "cannot be previewed" is the difference between a reader
+ * knowing a figure changed and wondering why the row is blank.
  */
-function describeImage(entry: ImageAlignmentEntry, tag: 'del' | 'ins', label: string | undefined): string {
+function describeImage(
+  entry: ImageAlignmentEntry,
+  tag: 'del' | 'ins',
+  image: HTMLImageElement,
+  options: ImageMarkupOptions
+): string {
   const descriptor = tag === 'del' ? entry.originalDescriptor : entry.revisedDescriptor;
   const size = descriptor && descriptor.width > 0 ? `${descriptor.width}×${descriptor.height}` : '';
+  const note = image.hasAttribute(UNRENDERABLE_IMAGE_ATTRIBUTE) ? options.unrenderableLabel : '';
 
-  return [label, size].filter(Boolean).join(' ');
+  return [options.label, size, note].filter(Boolean).join(' ');
 }
 
 /**

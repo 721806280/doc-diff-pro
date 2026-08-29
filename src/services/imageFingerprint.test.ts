@@ -33,8 +33,8 @@ function pngOf(width: number, height: number, marker = 0): Uint8Array<ArrayBuffe
   ]);
 }
 
-function entry(src: string, bytes: Uint8Array<ArrayBuffer>): ImageSourceEntry {
-  return { src, blob: new Blob([bytes], { type: 'image/png' }) };
+function entry(id: string, bytes: Uint8Array<ArrayBuffer>): ImageSourceEntry {
+  return { id, blob: new Blob([bytes], { type: 'image/png' }) };
 }
 
 /** A decoder that reports every image as a flat mid-grey of the requested size. */

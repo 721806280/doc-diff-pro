@@ -35,6 +35,8 @@ export type CompareOptions = {
   images?: ImageDescriptorsBySide;
   /** Localized word for an image, for the label a review list shows. */
   imageLabel?: string;
+  /** Localized note for a figure that changed but cannot be drawn. */
+  unrenderableImageLabel?: string;
   /** Stops the comparison at the next phase boundary when a newer one starts. */
   signal?: AbortSignal;
 };
@@ -115,7 +117,10 @@ export async function compareDocuments(
   // what it is doing.
   await yieldToBrowser(signal);
   const imageAlignment = options.images ? alignDocumentImages(originalDom, revisedDom, options.images) : [];
-  markImageDifferences(imageAlignment, { label: options.imageLabel });
+  markImageDifferences(imageAlignment, {
+    label: options.imageLabel,
+    unrenderableLabel: options.unrenderableImageLabel
+  });
   summary.images = summarizeImageAlignment(imageAlignment);
 
   await yieldToBrowser(signal);

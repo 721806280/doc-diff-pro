@@ -30,6 +30,33 @@ describe('sanitizeDocumentHtml', () => {
     expect(body.querySelector('img')?.getAttribute('src')).toBe(imageSource);
   });
 
+  it('keeps a metafile figure for comparison while marking it undrawable', async () => {
+    // Word stores OLE previews and equations as EMF, which no browser renders.
+    // Stripping the payload here would mean the figure could never be compared
+    // either, and an unreported change to a figure is worse than one that cannot
+    // be shown. The parse takes the bytes and removes the source right after.
+    const emf = 'data:image/x-emf;base64,AQAAAGwAAAA=';
+    const body = new DOMParser().parseFromString(
+      await sanitizeDocumentHtml(`<p><img src="${emf}" alt="公式"></p>`),
+      'text/html'
+    ).body;
+    const image = body.querySelector('img');
+
+    expect(image?.getAttribute('src')).toBe(emf);
+    expect(image?.hasAttribute('data-ddv-unrenderable')).toBe(true);
+  });
+
+  it('still strips an image whose type is neither drawable nor comparable', async () => {
+    const body = new DOMParser().parseFromString(
+      await sanitizeDocumentHtml('<p><img src="data:image/svg+xml;base64,PHN2Zy8+" alt="矢量"></p>'),
+      'text/html'
+    ).body;
+    const image = body.querySelector('img');
+
+    expect(image?.hasAttribute('src')).toBe(false);
+    expect(image?.hasAttribute('data-ddv-unrenderable')).toBe(false);
+  });
+
   it('keeps document formatting styles but drops overlay and network-capable ones', async () => {
     const sanitized = await sanitizeDocumentHtml(
       '<p style="color: rgb(255, 0, 0); font-weight: 700; position: fixed; z-index: 9999">正文</p>' +

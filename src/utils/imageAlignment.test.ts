@@ -17,9 +17,12 @@ function bodyFromHtml(html: string): HTMLElement {
   return new DOMParser().parseFromString(html, 'text/html').body;
 }
 
-/** Markup with one `<img>` per source, in the order given. */
-function documentWith(...sources: string[]): HTMLElement {
-  return bodyFromHtml(sources.map((src) => `<p><img src="${src}" alt="figure"></p>`).join(''));
+/**
+ * Markup with one fingerprinted `<img>` per id, in the order given, as
+ * `adoptInlineImages` leaves it.
+ */
+function documentWith(...ids: string[]): HTMLElement {
+  return bodyFromHtml(ids.map((id) => `<p><img data-ddv-image-id="${id}" src="${id}" alt="figure"></p>`).join(''));
 }
 
 /**
@@ -56,10 +59,18 @@ function sides(
 }
 
 describe('collectDocumentImages', () => {
-  it('leaves out images the sanitizer stripped the source from', () => {
-    // What a Word vector graphic becomes: an element with nothing to show and
-    // nothing to compare.
-    const body = bodyFromHtml('<p><img src="blob:a"></p><p><img alt="dropped"></p>');
+  it('leaves out an image that was never fingerprinted', () => {
+    // No stamped id means the parse could not read its bytes, so there is
+    // nothing to compare it by.
+    const body = bodyFromHtml('<p><img data-ddv-image-id="a" src="a"></p><p><img alt="unreadable"></p>');
+
+    expect(collectDocumentImages(body)).toHaveLength(1);
+  });
+
+  it('includes a figure that has no source because nothing can draw it', () => {
+    // An EMF equation keeps its fingerprint and loses its source. Comparing it is
+    // the whole point: the bytes say whether it changed.
+    const body = bodyFromHtml('<p><img data-ddv-image-id="a" data-ddv-unrenderable=""></p>');
 
     expect(collectDocumentImages(body)).toHaveLength(1);
   });

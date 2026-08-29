@@ -3,8 +3,9 @@ import { revokeDocumentImageUrls } from '@/services/documentFile';
 import type { ImageSourceEntry } from '@/services/imageFingerprint';
 import { extractLayoutNoise, type LayoutNoiseData } from '@/utils/layoutNoise';
 import type { ImageDescriptorTable } from '@/utils/imageDescriptor';
+import { IMAGE_ID_ATTRIBUTE } from '@/utils/textDiffCore';
 import type { DocxGraphicsReport } from '@/types/document';
-import { sanitizeDocumentBody } from '@/utils/sanitizeDocumentHtml';
+import { sanitizeDocumentBody, UNRENDERABLE_IMAGE_ATTRIBUTE } from '@/utils/sanitizeDocumentHtml';
 
 type MammothImage = {
   read(format: 'base64'): Promise<string>;
@@ -71,7 +72,7 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
     const body = await sanitizeDocumentBody(html);
     const layoutNoise = extractLayoutNoise(body);
     const adopted = adoptInlineImages(body);
-    imageUrls = adopted.map((entry) => entry.src);
+    imageUrls = adopted.urls;
 
     return {
       html: body.innerHTML,
@@ -80,7 +81,7 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
       // Awaited here rather than handed on as a promise: parsing is already the
       // slow phase the reader is waiting through, and every image is hashed
       // without being decoded, which is the part that would have cost.
-      imageDescriptors: await fingerprintImages(adopted),
+      imageDescriptors: await fingerprintImages(adopted.entries),
       // The same buffer mammoth was handed, read again for what it discarded.
       graphics: await scanGraphics(arrayBuffer),
       ...collectDocxMetadata(body),
@@ -119,36 +120,50 @@ async function fingerprintImages(entries: ImageSourceEntry[]): Promise<ImageDesc
 }
 
 /**
- * Swaps each inlined `data:` image for an object URL, and hands back the blobs
- * behind them.
+ * Takes the bytes out of each inlined `data:` image and stamps the element with
+ * the id its fingerprint will be filed under.
  *
- * Base64 inflates the bytes by a third and then rides along inside the
- * document string — through React state, through the comparison DOM, through
- * every copy either makes. An object URL is a few dozen characters pointing at
- * the same bytes held once. Runs after sanitizing so the payload has already
- * been checked to be a raster image.
+ * Base64 inflates the bytes by a third and then rides along inside the document
+ * string — through React state, through the comparison DOM, through every copy
+ * either makes. An object URL is a few dozen characters pointing at the same
+ * bytes held once.
+ *
+ * A figure no browser can draw gets no URL at all: its source is removed, so
+ * nothing tries to load it, and only the stamped id remains to tie it to its
+ * fingerprint. That is the whole point of the id — an EMF equation still has
+ * bytes worth comparing after there is nothing left to show.
  *
  * The blobs go to the fingerprinter directly rather than by their URL. A pane
  * replaced mid-parse revokes its URLs, and a fingerprinter holding one would
  * fail exactly then; holding the blob keeps the bytes alive for as long as it
  * needs them and no longer.
  */
-function adoptInlineImages(body: HTMLElement): ImageSourceEntry[] {
-  const adopted: ImageSourceEntry[] = [];
+function adoptInlineImages(body: HTMLElement): { entries: ImageSourceEntry[]; urls: string[] } {
+  const entries: ImageSourceEntry[] = [];
+  const urls: string[] = [];
 
-  body.querySelectorAll<HTMLImageElement>('img[src^="data:"]').forEach((image) => {
+  body.querySelectorAll<HTMLImageElement>('img[src^="data:"]').forEach((image, index) => {
     const blob = dataUrlToBlob(image.getAttribute('src') ?? '');
     if (!blob) {
       image.removeAttribute('src');
       return;
     }
 
+    const id = `figure-${index}`;
+    image.setAttribute(IMAGE_ID_ATTRIBUTE, id);
+    entries.push({ id, blob });
+
+    if (image.hasAttribute(UNRENDERABLE_IMAGE_ATTRIBUTE)) {
+      image.removeAttribute('src');
+      return;
+    }
+
     const url = URL.createObjectURL(blob);
-    adopted.push({ src: url, blob });
+    urls.push(url);
     image.setAttribute('src', url);
   });
 
-  return adopted;
+  return { entries, urls };
 }
 
 function dataUrlToBlob(dataUrl: string): Blob | null {

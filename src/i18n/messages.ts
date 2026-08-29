@@ -169,6 +169,7 @@ const en = {
     failedTitle: 'Could not process document',
     embeddedImageAlt: 'Embedded document image',
     imageDifferenceLabel: 'Image',
+    unrenderableImageLabel: '(cannot be previewed)',
     emptyDocumentHtml: '<p>(Empty document)</p>',
     status: {
       parsing: 'Parsing',
@@ -483,6 +484,7 @@ const zhCN: I18nMessages = {
     failedTitle: '文档处理失败',
     embeddedImageAlt: '文档嵌入图片',
     imageDifferenceLabel: '图片',
+    unrenderableImageLabel: '（无法预览）',
     emptyDocumentHtml: '<p>（空文档）</p>',
     status: {
       parsing: '解析中',

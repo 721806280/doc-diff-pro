@@ -368,13 +368,25 @@ describe('compareDocuments', () => {
  * differences — numbered, scoped and counted alongside the text ones.
  */
 describe('compareDocuments with image fingerprints', () => {
-  const figure = (source: string) => `<p><img src="${source}" alt="figure"></p>`;
+  const figure = (id: string) => `<p><img data-ddv-image-id="${id}" src="${id}" alt="figure"></p>`;
 
   function descriptors(original: Record<string, string>, revised: Record<string, string>): CompareOptions['images'] {
     const table = (entries: Record<string, string>) =>
       new Map(Object.entries(entries).map(([src, hash]) => [src, { hash, width: 400, height: 300, byteLength: 2048 }]));
 
     return { original: table(original), revised: table(revised) };
+  }
+
+  const undrawable = (id: string) => `<p><img data-ddv-image-id="${id}" data-ddv-unrenderable="" alt="公式"></p>`;
+
+  /**
+   * What a metafile really produces: a hash and nothing else. `readImageHeader`
+   * does not parse EMF, so there are no dimensions and never a visual descriptor.
+   */
+  function undrawableDescriptors(original: string, revised: string): CompareOptions['images'] {
+    const metafile = (id: string, hash: string) => new Map([[id, { hash, width: 0, height: 0, byteLength: 10256 }]]);
+
+    return { original: metafile('a', original), revised: metafile('b', revised) };
   }
 
   it('reports nothing for an image whose bytes did not change', async () => {
@@ -446,6 +458,34 @@ describe('compareDocuments with image fingerprints', () => {
 
     expect(result.summary.total).toBe(0);
     expect(result.summary.images).toMatchObject({ paired: 0, revised: 0 });
+  });
+
+  it('reports a changed figure that cannot be drawn, and says so', async () => {
+    // An EMF equation keeps its fingerprint and loses its source, so the bytes
+    // still answer the only question that matters. Before this it changed in
+    // silence: no element, no marker, nothing.
+    const result = await compareDocuments(undrawable('a'), undrawable('b'), {
+      ...DEFAULT_OPTIONS,
+      images: undrawableDescriptors('before', 'after'),
+      imageLabel: '图片',
+      unrenderableImageLabel: '（无法预览）'
+    });
+
+    expect(result.summary).toMatchObject({ total: 1, modified: 1 });
+    expect(result.summary.images).toMatchObject({ paired: 1, revised: 1 });
+    // No dimensions to report — a metafile header is not one this reader parses —
+    // so the label has to carry the reason instead.
+    expect(result.originalHtml).toContain('data-diff-image="图片 （无法预览）"');
+  });
+
+  it('reports nothing for an undrawable figure whose bytes are unchanged', async () => {
+    const result = await compareDocuments(undrawable('a'), undrawable('b'), {
+      ...DEFAULT_OPTIONS,
+      images: undrawableDescriptors('same', 'same')
+    });
+
+    expect(result.summary.total).toBe(0);
+    expect(result.summary.images).toMatchObject({ paired: 1, revised: 0 });
   });
 });
 

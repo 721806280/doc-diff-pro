@@ -14,7 +14,21 @@ const FORBIDDEN_TAGS = [
   'textarea'
 ];
 
-const SAFE_IMAGE_SOURCE_PATTERN = /^data:image\/(?:bmp|gif|jpeg|png|webp);base64,/i;
+const RENDERABLE_IMAGE_SOURCE_PATTERN = /^data:image\/(?:bmp|gif|jpeg|png|webp);base64,/i;
+
+/**
+ * Image formats a .docx legitimately carries that no browser draws: the
+ * metafiles Word uses for OLE previews and equations, and the occasional TIFF
+ * from a scanner.
+ *
+ * Kept apart from the renderable list because these are worth comparing even
+ * though they cannot be shown. Their bytes say whether the figure changed, and
+ * a figure whose change goes unreported is worse than one that cannot be drawn.
+ */
+const COMPARABLE_ONLY_IMAGE_SOURCE_PATTERN = /^data:image\/(?:x-emf|emf|x-wmf|wmf|tiff|x-tiff);base64,/i;
+
+/** Marks an image kept for comparison that must never be rendered. */
+export const UNRENDERABLE_IMAGE_ATTRIBUTE = 'data-ddv-unrenderable';
 
 /**
  * Inline declarations kept from a converted document.
@@ -71,9 +85,18 @@ export async function sanitizeDocumentBody(html: string): Promise<HTMLElement> {
   });
 
   body.querySelectorAll<HTMLImageElement>('img').forEach((image) => {
-    if (!SAFE_IMAGE_SOURCE_PATTERN.test(image.src)) {
-      image.removeAttribute('src');
+    const source = image.getAttribute('src') ?? '';
+    if (RENDERABLE_IMAGE_SOURCE_PATTERN.test(source)) return;
+
+    if (COMPARABLE_ONLY_IMAGE_SOURCE_PATTERN.test(source)) {
+      // The payload survives only as far as `adoptInlineImages`, which takes the
+      // bytes for the fingerprint and then removes the source, so nothing ever
+      // asks the browser to draw it.
+      image.setAttribute(UNRENDERABLE_IMAGE_ATTRIBUTE, '');
+      return;
     }
+
+    image.removeAttribute('src');
   });
 
   filterInlineStyles(body);

@@ -21,6 +21,12 @@ const DIFF_ID_PREFIX = 'diff-';
 /** Marks a `<del>`/`<ins>` that wraps an image, and carries its review label. */
 export const IMAGE_DIFF_ATTRIBUTE = 'data-diff-image';
 
+/**
+ * Ties an `<img>` to its fingerprint. Stamped while parsing, because a figure no
+ * browser can draw ends up with no `src` to be found by.
+ */
+export const IMAGE_ID_ATTRIBUTE = 'data-ddv-image-id';
+
 export function createEmptyImageComparisonSummary(): ImageComparisonSummary {
   return { paired: 0, revised: 0, moved: 0, inserted: 0, deleted: 0, cosmetic: 0 };
 }

@@ -79,10 +79,10 @@ test('fingerprints real images through the browser decoder', async ({ page }) =>
     const untouched = await canvasBlob(barChart([0.3, 0.55, 0.4, 0.7, 0.5]));
 
     const table = await fingerprint.fingerprintDocumentImages([
-      { src: 'blob:original', blob: original },
-      { src: 'blob:edited', blob: edited },
-      { src: 'blob:unrelated', blob: unrelated },
-      { src: 'blob:untouched', blob: untouched }
+      { id: 'blob:original', blob: original },
+      { id: 'blob:edited', blob: edited },
+      { id: 'blob:unrelated', blob: unrelated },
+      { id: 'blob:untouched', blob: untouched }
     ]);
 
     const get = (key: string) => {

@@ -12,10 +12,10 @@ import {
  * Fingerprints the images a document carries, once, at parse time.
  *
  * Parse time is the only place the bytes are in hand: the markup that leaves
- * `parseDocx` points at object URLs, so by the time a comparison runs the
- * pixels are no longer reachable from it. The table produced here is keyed by
- * exactly the `src` those `<img>` elements carry, which is what lets the
- * comparison look a descriptor up from the DOM alone.
+ * `parseDocx` points at object URLs — or, for a figure nothing can draw, at
+ * nothing at all — so by the time a comparison runs the pixels are no longer
+ * reachable from it. The table is keyed by an id stamped on each element, which
+ * is what lets the comparison look a descriptor up from the DOM alone.
  *
  * Two properties are worth more than the speed of any of it:
  *
@@ -35,8 +35,8 @@ import {
 export type { ImageDescriptorTable };
 
 export type ImageSourceEntry = {
-  /** The `src` the markup will carry, used as the table key. */
-  src: string;
+  /** The id stamped on the element, used as the table key. */
+  id: string;
   blob: Blob;
 };
 
@@ -87,26 +87,26 @@ export async function fingerprintDocumentImages(entries: readonly ImageSourceEnt
   for (const entry of identified) {
     const existing = groups.get(entry.descriptor.hash);
     if (existing) {
-      table.set(entry.src, existing.descriptor);
+      table.set(entry.id, existing.descriptor);
       continue;
     }
 
     groups.set(entry.descriptor.hash, { descriptor: entry.descriptor, blob: entry.blob });
-    table.set(entry.src, entry.descriptor);
+    table.set(entry.id, entry.descriptor);
   }
 
   await decodeWithinBudget([...groups.values()]);
   return table;
 }
 
-type IdentifiedImage = { src: string; blob: Blob; descriptor: ImageDescriptor };
+type IdentifiedImage = { id: string; blob: Blob; descriptor: ImageDescriptor };
 
 async function identifyImage(entry: ImageSourceEntry): Promise<IdentifiedImage> {
   const bytes = new Uint8Array(await entry.blob.arrayBuffer());
   const header = readImageHeader(bytes);
 
   return {
-    src: entry.src,
+    id: entry.id,
     blob: entry.blob,
     descriptor: {
       hash: await contentHash(bytes),

@@ -80,6 +80,7 @@ export function useComparisonSession({
           layoutNoise: { original: nextDocuments.A.layoutNoise, revised: nextDocuments.B.layoutNoise },
           images: { original: nextDocuments.A.imageDescriptors, revised: nextDocuments.B.imageDescriptors },
           imageLabel: i18n.documentPane.imageDifferenceLabel,
+          unrenderableImageLabel: i18n.documentPane.unrenderableImageLabel,
           signal: compare.signal
         });
         if (sequence !== compareSequence.current) return;

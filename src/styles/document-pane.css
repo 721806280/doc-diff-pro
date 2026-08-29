@@ -598,6 +598,28 @@
   height: auto;
 }
 
+/*
+ * A figure no browser draws — an EMF equation, a metafile OLE preview. Its source
+ * is removed once the bytes have been fingerprinted, so nothing tries to load it
+ * and the alt text is all that is left. Given a box to sit in, that reads as a
+ * placeholder standing in for the figure rather than as a broken image.
+ */
+.docx-render-content img[data-ddv-unrenderable] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  min-height: 44px;
+  padding: 8px 14px;
+  box-sizing: border-box;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 6px;
+  background: var(--muted-chip-bg);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
 .docx-render-content ins,
 .docx-render-content del {
   text-decoration: none;

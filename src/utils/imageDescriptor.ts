@@ -119,12 +119,11 @@ export type ImageDescriptor = {
 };
 
 /**
- * Descriptors by the `src` of the element they were taken from.
+ * Descriptors by the id stamped on the element they were taken from.
  *
- * The `src` is the key because it is the only thing that survives from parsing
- * into the comparison: the markup carries object URLs, and a comparison that
- * starts from those strings can find a descriptor without the pixels being
- * reachable any more.
+ * An id rather than the `src` because a figure nothing can draw keeps no source
+ * at all: the bytes are still worth comparing, so the key has to survive their
+ * removal.
  */
 export type ImageDescriptorTable = Map<string, ImageDescriptor>;
 
