@@ -147,10 +147,12 @@ describe('DocumentPane', () => {
   it('counts converter-dropped figures and formulas in the same notice', () => {
     // These leave no element behind at all — mammoth emits neither markup nor a
     // warning for a chart — so this chip is their only trace.
+    // One stripped image the object scan cannot account for, plus everything the
+    // scan found itself.
     const { host } = mountPane(true, {
       ...emptyDocument(),
       name: 'plan.docx',
-      droppedImageCount: 1,
+      droppedImageCount: 2,
       graphics: { nativeGraphics: 2, embeddedObjects: 1, formulas: 4 }
     });
 
@@ -158,6 +160,20 @@ describe('DocumentPane', () => {
     expect(host.textContent).toContain('2 个 Word 自绘图形');
     expect(host.textContent).toContain('1 个嵌入对象');
     expect(host.textContent).toContain('4 个公式');
+  });
+
+  it('does not count an embedded figure twice when both passes saw it', () => {
+    // An OLE-embedded EMF arrives as an <img> the sanitizer strips and as a
+    // w:object the package scan counts. Three such figures were reported as five.
+    const { host } = mountPane(true, {
+      ...emptyDocument(),
+      name: 'plan.docx',
+      droppedImageCount: 2,
+      graphics: { nativeGraphics: 0, embeddedObjects: 3, formulas: 0 }
+    });
+
+    expect(host.textContent).toContain('3 处内容无法对比');
+    expect(host.textContent).not.toContain('5 处内容无法对比');
   });
 
   it('keeps the notice away from documents whose graphics all came through', () => {

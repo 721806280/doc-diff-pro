@@ -113,9 +113,25 @@ describe('scanDocxGraphics', () => {
     expect(report.nativeGraphics).toBe(1);
   });
 
-  it('counts embedded objects and VML images, which arrive as EMF', async () => {
+  it('counts an embedded object once, not once per element', async () => {
+    // An OLE object stores its own preview, so a single embedded equation is a
+    // `w:object` wrapping a `v:imagedata` that points at an EMF. Counting both
+    // reported a real document's three equations as six.
     const report = await scanDocxGraphics(
       zip(documentWith('<w:object><v:shape><v:imagedata r:id="rId4"/></v:shape></w:object>'))
+    );
+
+    expect(report.embeddedObjects).toBe(1);
+  });
+
+  it('counts a VML image standing outside any object as its own figure', async () => {
+    const report = await scanDocxGraphics(
+      zip(
+        documentWith(
+          '<w:object><v:shape><v:imagedata r:id="rId4"/></v:shape></w:object>' +
+            '<w:p><v:shape><v:imagedata r:id="rId5"/></v:shape></w:p>'
+        )
+      )
     );
 
     expect(report.embeddedObjects).toBe(2);

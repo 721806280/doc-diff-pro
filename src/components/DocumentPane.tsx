@@ -57,8 +57,15 @@ export default function DocumentPane({
   // One chip for everything the comparison could not look at, whatever the
   // reason: a reader needs to know the coverage was incomplete far more than they
   // need the categories separated. The breakdown lives in the popover.
+  //
+  // The sanitizer's refusals and the package scan see the same figures from two
+  // sides — an OLE-embedded EMF arrives both as an <img> whose source is stripped
+  // and as a `w:object` the scan counts — so only the stripped images the scan
+  // cannot already account for are added. Three embedded equations were otherwise
+  // reported as five.
+  const unaccountedImages = Math.max(0, document.droppedImageCount - document.graphics.embeddedObjects);
   const uncomparableReasons = [
-    document.droppedImageCount > 0 ? i18n.documentPane.droppedImageTitle : '',
+    unaccountedImages > 0 ? i18n.documentPane.droppedImageTitle : '',
     document.graphics.nativeGraphics > 0
       ? i18n.documentPane.nativeGraphicsDetail(document.graphics.nativeGraphics)
       : '',
@@ -68,7 +75,7 @@ export default function DocumentPane({
     document.graphics.formulas > 0 ? i18n.documentPane.formulaDetail(document.graphics.formulas) : ''
   ].filter(Boolean);
   const uncomparableCount =
-    document.droppedImageCount +
+    unaccountedImages +
     document.graphics.nativeGraphics +
     document.graphics.embeddedObjects +
     document.graphics.formulas;

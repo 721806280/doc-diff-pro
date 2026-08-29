@@ -74,11 +74,29 @@ function countGraphics(xml: string, report: DocxGraphicsReport): void {
     if (!drawing[0].includes('<pic:pic')) report.nativeGraphics++;
   }
 
-  report.embeddedObjects += countTag(xml, 'w:object') + countTag(xml, 'v:imagedata');
+  report.embeddedObjects += countEmbeddedObjects(xml);
   // `m:oMath` only. A display formula is an `m:oMath` inside an `m:oMathPara`
   // wrapper and an inline one is not, so counting the wrapper as well would
   // report every displayed equation twice.
   report.formulas += countTag(xml, 'm:oMath');
+}
+
+/**
+ * One count per figure, not per element.
+ *
+ * An OLE object stores its own preview, so the usual shape is a `w:object`
+ * wrapping a `v:imagedata` that points at an EMF — one figure, two elements.
+ * Counting both reported a document's three embedded equations as six. Only a
+ * `v:imagedata` standing outside any object is a figure in its own right.
+ */
+function countEmbeddedObjects(xml: string): number {
+  let nestedImages = 0;
+  for (const object of xml.matchAll(/<w:object[\s>][\s\S]*?<\/w:object>/g)) {
+    nestedImages += countTag(object[0], 'v:imagedata');
+  }
+
+  const objects = countTag(xml, 'w:object');
+  return objects + Math.max(0, countTag(xml, 'v:imagedata') - nestedImages);
 }
 
 /** Occurrences of one element, counting both `<tag>` and `<tag/>` forms. */
