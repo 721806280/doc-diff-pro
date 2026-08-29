@@ -153,7 +153,7 @@ describe('DocumentPane', () => {
       ...emptyDocument(),
       name: 'plan.docx',
       droppedImageCount: 2,
-      graphics: { nativeGraphics: 2, embeddedObjects: 1, formulas: 4 }
+      graphics: { nativeGraphics: 2, embeddedObjects: 1, formulas: 4, embeddedObjectKinds: [] }
     });
 
     expect(host.textContent).toContain('8 处内容无法对比');
@@ -169,7 +169,7 @@ describe('DocumentPane', () => {
       ...emptyDocument(),
       name: 'plan.docx',
       droppedImageCount: 2,
-      graphics: { nativeGraphics: 0, embeddedObjects: 3, formulas: 0 }
+      graphics: { nativeGraphics: 0, embeddedObjects: 3, formulas: 0, embeddedObjectKinds: [] }
     });
 
     expect(host.textContent).toContain('3 处内容无法对比');

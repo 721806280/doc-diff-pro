@@ -23,7 +23,7 @@
  * names are counted, so this stays a scan over a few hundred kilobytes of XML.
  */
 
-import type { DocxGraphicsReport, DocxRevisionReport, DocxScanReport } from '@/types/document';
+import type { DocxGraphicsReport, DocxRevisionReport, DocxScanReport, EmbeddedObjectKind } from '@/types/document';
 
 /** Body parts worth scanning; headers and footers are converted too. */
 const BODY_PART_PATTERN = /^word\/(document|header\d*|footer\d*)\.xml$/;
@@ -31,6 +31,8 @@ const BODY_PART_PATTERN = /^word\/(document|header\d*|footer\d*)\.xml$/;
 const END_OF_CENTRAL_DIRECTORY = 0x06054b50;
 const CENTRAL_DIRECTORY_ENTRY = 0x02014b50;
 const LOCAL_FILE_HEADER = 0x04034b50;
+/** Sentinel ProgID for a VML image standing outside any OLE object. */
+const VML_IMAGE = 'vml-image';
 /** The end record is last, behind at most a 64 KiB comment. */
 const MAX_END_RECORD_SEARCH = 0xffff + 22;
 const STORED = 0;
@@ -39,7 +41,7 @@ const DEFLATED = 8;
 const ZIP64_SENTINEL = 0xffffffff;
 
 export function createEmptyGraphicsReport(): DocxGraphicsReport {
-  return { nativeGraphics: 0, embeddedObjects: 0, formulas: 0 };
+  return { nativeGraphics: 0, embeddedObjects: 0, formulas: 0, embeddedObjectKinds: [] };
 }
 
 export function createEmptyScanReport(): DocxScanReport {
@@ -114,6 +116,7 @@ function countGraphics(xml: string, report: DocxGraphicsReport): void {
   }
 
   report.embeddedObjects += countEmbeddedObjects(xml);
+  collectEmbeddedObjectKinds(xml, report.embeddedObjectKinds);
   // `m:oMath` only. A display formula is an `m:oMath` inside an `m:oMathPara`
   // wrapper and an inline one is not, so counting the wrapper as well would
   // report every displayed equation twice.
@@ -129,13 +132,38 @@ function countGraphics(xml: string, report: DocxGraphicsReport): void {
  * `v:imagedata` standing outside any object is a figure in its own right.
  */
 function countEmbeddedObjects(xml: string): number {
-  let nestedImages = 0;
-  for (const object of xml.matchAll(/<w:object[\s>][\s\S]*?<\/w:object>/g)) {
-    nestedImages += countTag(object[0], 'v:imagedata');
-  }
-
+  const nestedImages = nestedImageCount(xml);
   const objects = countTag(xml, 'w:object');
   return objects + Math.max(0, countTag(xml, 'v:imagedata') - nestedImages);
+}
+
+/**
+ * The type and caption of each OLE object, read off the same markup the count
+ * came from. The ProgID and the preview's `o:title` both sit on the `w:object`
+ * XML, so the package's relationship parts do not have to be walked to name
+ * what was embedded. A bare VML image outside any object has no ProgID and is
+ * listed only as a picture.
+ */
+function collectEmbeddedObjectKinds(xml: string, kinds: EmbeddedObjectKind[]): void {
+  for (const object of xml.matchAll(/<w:object[\s>][\s\S]*?<\/w:object>/g)) {
+    const progId = object[0].match(/ProgID="([^"]*)"/)?.[1] ?? '';
+    const title = object[0].match(/o:title="([^"]*)"/)?.[1] ?? '';
+    kinds.push({ progId, title });
+  }
+
+  const standalone = Math.max(0, countTag(xml, 'v:imagedata') - nestedImageCount(xml));
+  for (let i = 0; i < standalone; i++) {
+    kinds.push({ progId: VML_IMAGE, title: '' });
+  }
+}
+
+/** `v:imagedata` elements nested inside a `w:object`, i.e. previews, not figures. */
+function nestedImageCount(xml: string): number {
+  let nested = 0;
+  for (const object of xml.matchAll(/<w:object[\s>][\s\S]*?<\/w:object>/g)) {
+    nested += countTag(object[0], 'v:imagedata');
+  }
+  return nested;
 }
 
 /** Occurrences of one element, counting both `<tag>` and `<tag/>` forms. */

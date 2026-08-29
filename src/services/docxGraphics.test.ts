@@ -124,6 +124,48 @@ describe('scanDocxParts', () => {
     expect(report.embeddedObjects).toBe(1);
   });
 
+  it('reads each embedded object ProgID and preview title', async () => {
+    // The ProgID and the preview's `o:title` both sit on the `w:object` markup,
+    // so the kind can be named without walking the package's relationship parts.
+    const report = (
+      await scanDocxParts(
+        zip(
+          documentWith(
+            '<w:object><v:shape><v:imagedata r:id="rId4" o:title="Sheet1"/></v:shape>' +
+              '<o:OLEObject Type="Embed" ProgID="Excel.Sheet.12" r:id="rId8"/></w:object>' +
+              '<w:object><v:shape><v:imagedata r:id="rId5"/></v:shape>' +
+              '<o:OLEObject Type="Embed" ProgID="Equation.3" r:id="rId9"/></w:object>'
+          )
+        )
+      )
+    ).graphics;
+
+    expect(report.embeddedObjects).toBe(2);
+    expect(report.embeddedObjectKinds).toEqual([
+      { progId: 'Excel.Sheet.12', title: 'Sheet1' },
+      { progId: 'Equation.3', title: '' }
+    ]);
+  });
+
+  it('lists a bare VML image outside any object as a picture, not an OLE kind', async () => {
+    const report = (
+      await scanDocxParts(
+        zip(
+          documentWith(
+            '<w:object><v:shape><v:imagedata r:id="rId4"/></v:shape></w:object>' +
+              '<w:p><v:shape><v:imagedata r:id="rId5"/></v:shape></w:p>'
+          )
+        )
+      )
+    ).graphics;
+
+    expect(report.embeddedObjects).toBe(2);
+    expect(report.embeddedObjectKinds).toEqual([
+      { progId: '', title: '' },
+      { progId: 'vml-image', title: '' }
+    ]);
+  });
+
   it('counts a VML image standing outside any object as its own figure', async () => {
     const report = (
       await scanDocxParts(

@@ -18,7 +18,7 @@ export function createEmptyDocument(): DocumentPaneState {
     textLength: 0,
     imageCount: 0,
     droppedImageCount: 0,
-    graphics: { nativeGraphics: 0, embeddedObjects: 0, formulas: 0 },
+    graphics: { nativeGraphics: 0, embeddedObjects: 0, formulas: 0, embeddedObjectKinds: [] },
     revisions: { insertions: 0, deletions: 0 },
     warnings: [],
     layoutNoise: createEmptyLayoutNoise(),

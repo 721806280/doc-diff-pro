@@ -205,6 +205,36 @@ const en = {
     embeddedObjectDetail(count: number): string {
       return `${count} embedded ${count === 1 ? 'object' : 'objects'}, such as an embedded spreadsheet, PDF or Visio diagram — a file stored in the package with a preview picture in its place.`;
     },
+    embeddedObjectLabel(progId: string, title: string): string {
+      const base = (String(progId).split('.')[0] ?? '').toLowerCase();
+      let kind: string;
+      switch (base) {
+        case 'excel':
+          kind = 'Excel worksheet';
+          break;
+        case 'word':
+          kind = 'Word document';
+          break;
+        case 'powerpoint':
+          kind = 'PowerPoint slide';
+          break;
+        case 'visio':
+          kind = 'Visio diagram';
+          break;
+        case 'equation':
+          kind = 'Equation editor object';
+          break;
+        case 'package':
+          kind = 'Embedded file';
+          break;
+        case 'vml-image':
+          kind = 'VML image';
+          break;
+        default:
+          kind = 'Embedded object';
+      }
+      return title ? `${kind} — ${title}` : kind;
+    },
     formulaDetail(count: number): string {
       return (
         `${count} ${count === 1 ? 'formula' : 'formulas'}. These leave no placeholder behind, so an edited` +
@@ -522,6 +552,36 @@ const zhCN: I18nMessages = {
     },
     embeddedObjectDetail(count: number): string {
       return `${count} 个嵌入对象，例如内嵌的 Excel 表格、PDF 或 Visio 图——实体文件存在包内，文档里只留一张预览图。`;
+    },
+    embeddedObjectLabel(progId: string, title: string): string {
+      const base = (String(progId).split('.')[0] ?? '').toLowerCase();
+      let kind: string;
+      switch (base) {
+        case 'excel':
+          kind = 'Excel 工作表';
+          break;
+        case 'word':
+          kind = 'Word 文档';
+          break;
+        case 'powerpoint':
+          kind = 'PowerPoint 幻灯片';
+          break;
+        case 'visio':
+          kind = 'Visio 图';
+          break;
+        case 'equation':
+          kind = '公式编辑器对象';
+          break;
+        case 'package':
+          kind = '嵌入文件';
+          break;
+        case 'vml-image':
+          kind = 'VML 图片';
+          break;
+        default:
+          kind = '嵌入对象';
+      }
+      return title ? `${kind} — ${title}` : kind;
     },
     formulaDetail(count: number): string {
       return `${count} 个公式。它们连占位元素都不会留下，所以公式被改动也不会产生差异。`;

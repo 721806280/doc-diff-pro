@@ -13,6 +13,20 @@ export type DocxGraphicsReport = {
   embeddedObjects: number;
   /** Formulas, dropped without leaving an element behind. */
   formulas: number;
+  /** Each embedded object's type and caption, for listing by name. */
+  embeddedObjectKinds: EmbeddedObjectKind[];
+};
+
+/**
+ * One embedded object's identity, read from the OLE markup the body already
+ * carries. `progId` is the OLE programmatic identifier (`Excel.Sheet.12`,
+ * `Visio.Drawing.11`, `Equation.3`, `Package` …); `title` is the caption Word
+ * stored on the preview, when any. The readable label is derived in the UI
+ * layer, where it can be localised.
+ */
+export type EmbeddedObjectKind = {
+  progId: string;
+  title: string;
 };
 
 /**

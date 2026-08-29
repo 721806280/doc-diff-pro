@@ -64,14 +64,19 @@ export default function DocumentPane({
   // cannot already account for are added. Three embedded equations were otherwise
   // reported as five.
   const unaccountedImages = Math.max(0, document.droppedImageCount - document.graphics.embeddedObjects);
+  function embeddedObjectReasons(): string[] {
+    const { embeddedObjects, embeddedObjectKinds } = document.graphics;
+    if (embeddedObjects === 0) return [];
+    const intro = i18n.documentPane.embeddedObjectDetail(embeddedObjects);
+    const labels = embeddedObjectKinds.map((kind) => i18n.documentPane.embeddedObjectLabel(kind.progId, kind.title));
+    return labels.length > 0 ? [intro, ...labels] : [intro];
+  }
   const uncomparableReasons = [
     unaccountedImages > 0 ? i18n.documentPane.droppedImageTitle : '',
     document.graphics.nativeGraphics > 0
       ? i18n.documentPane.nativeGraphicsDetail(document.graphics.nativeGraphics)
       : '',
-    document.graphics.embeddedObjects > 0
-      ? i18n.documentPane.embeddedObjectDetail(document.graphics.embeddedObjects)
-      : '',
+    ...embeddedObjectReasons(),
     document.graphics.formulas > 0 ? i18n.documentPane.formulaDetail(document.graphics.formulas) : ''
   ].filter(Boolean);
   // The conversion renders every revision as accepted, so two documents that still
