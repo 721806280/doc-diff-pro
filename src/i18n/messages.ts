@@ -203,7 +203,7 @@ const en = {
       );
     },
     embeddedObjectDetail(count: number): string {
-      return `${count} embedded ${count === 1 ? 'object' : 'objects'}, such as a spreadsheet or a pasted drawing.`;
+      return `${count} embedded ${count === 1 ? 'object' : 'objects'}, such as an embedded spreadsheet, PDF or Visio diagram — a file stored in the package with a preview picture in its place.`;
     },
     formulaDetail(count: number): string {
       return (
@@ -521,7 +521,7 @@ const zhCN: I18nMessages = {
       return `${count} 个 Word 自绘图形：图表、SmartArt、形状或文本框。转换器对这些不产生任何输出。`;
     },
     embeddedObjectDetail(count: number): string {
-      return `${count} 个嵌入对象，例如内嵌表格或粘贴的图形。`;
+      return `${count} 个嵌入对象，例如内嵌的 Excel 表格、PDF 或 Visio 图——实体文件存在包内，文档里只留一张预览图。`;
     },
     formulaDetail(count: number): string {
       return `${count} 个公式。它们连占位元素都不会留下，所以公式被改动也不会产生差异。`;
