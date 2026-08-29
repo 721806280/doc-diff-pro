@@ -57,6 +57,48 @@ describe('documentText utilities', () => {
     expect(text).toContain('ii. Early');
   });
 
+  it('starts a block at a row that follows a cell, where a separator already stands', () => {
+    // A `<tr>` opening straight after a `</td>` finds the cell's own newline
+    // already there. Skipping the boundary along with the newline meant no table
+    // row ever started a block, so a whole table — and whatever followed it —
+    // ran together into one, and an untouched footnote marker came out reported
+    // as deleted on one side and inserted on the other.
+    const { boundaries, text } = buildTextMapping(
+      bodyFromHtml('<table><tr><td>甲</td><td>乙</td></tr><tr><td>丙</td></tr></table><p>丁</p>')
+    );
+    const blocks: string[] = [];
+    let start = 0;
+    for (const boundary of boundaries) {
+      blocks.push(text.slice(start, boundary));
+      start = boundary;
+    }
+    blocks.push(text.slice(start));
+
+    // Cells stay together, rows do not, and the paragraph after the table is its
+    // own block rather than part of the last row. The empties are the boundaries
+    // that fall at the very start and end of the text.
+    expect(blocks.map((block) => block.replace(/\n/g, '').trim()).filter(Boolean)).toEqual(['甲乙', '丙', '丁']);
+  });
+
+  it('keeps a list item whole, including the paragraph a converter wrapped it in', () => {
+    // `resolveBodyBlock` picks the closest `li` ahead of any paragraph, so the
+    // comparison has to cut at the same place: the item is the review unit, and
+    // the number injected in front of it belongs to the item rather than to a
+    // block of its own.
+    const { boundaries, text } = buildTextMapping(
+      bodyFromHtml('<ol><li><p>第一项</p></li><li><p>第二项</p></li></ol>')
+    );
+    const blocks: string[] = [];
+    let start = 0;
+    for (const boundary of boundaries) {
+      blocks.push(text.slice(start, boundary));
+      start = boundary;
+    }
+    blocks.push(text.slice(start));
+
+    expect(blocks.map((block) => block.replace(/\n/g, '').trim()).filter(Boolean)).toEqual(['1. 第一项', '2. 第二项']);
+  });
+
   it('leaves list items alone when a converted marker is already present', () => {
     const body = bodyFromHtml('<ol><li><span data-mammoth-list-number="true">1.</span> Kept</li></ol>');
     const { text } = buildTextMapping(body);

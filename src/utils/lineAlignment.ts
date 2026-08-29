@@ -307,10 +307,20 @@ function weighGap(
   }
 }
 
+/**
+ * Both paths score the same way — twice the agreement over the two lengths —
+ * and differ only in what they count: characters where a line is short enough
+ * for that to be affordable, adjacent character pairs where it is not.
+ *
+ * Normalizing by the longer side instead would punish a paragraph that was
+ * merely extended: "说明" against "说明新增内容" keeps all of itself and still
+ * scores 0.33, below the threshold, so the alignment would rather leave it
+ * unpaired and pick a worse arrangement elsewhere.
+ */
 function lineSimilarity(left: string, right: string): number {
   if (left.length <= MAX_EXACT_SIMILARITY_LENGTH && right.length <= MAX_EXACT_SIMILARITY_LENGTH) {
-    const longest = Math.max(left.length, right.length);
-    return longest === 0 ? 1 : longestCommonSubsequenceLength(left, right) / longest;
+    const total = left.length + right.length;
+    return total === 0 ? 1 : (2 * longestCommonSubsequenceLength(left, right)) / total;
   }
 
   return diceSimilarity(left.slice(0, MAX_SIMILARITY_LENGTH), right.slice(0, MAX_SIMILARITY_LENGTH));

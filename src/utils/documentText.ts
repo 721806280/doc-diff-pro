@@ -99,6 +99,13 @@ const BOUNDARY_TAGS = new Set([
  * pieces with parts of it not marked at all.
  */
 const BOUNDARY_OPAQUE_TAGS = new Set(['TD', 'TH']);
+/**
+ * A list item is a review unit too — `resolveBodyBlock` picks the closest `li`
+ * ahead of any paragraph — so the paragraphs a converter wraps its text in must
+ * not cut it up. Only a nested item starts a block of its own, which is the one
+ * way this differs from a table cell.
+ */
+const LIST_ITEM_TAG = 'LI';
 const INLINE_WHITESPACE_PATTERN = /[ \t\v\f\r\u00a0\u1680\u180e\u2000-\u200a\u202f\u205f\u3000]/;
 const CJK_NUMBER_PATTERN = '零〇一二三四五六七八九十百千万两壹贰叁肆伍陆柒捌玖拾佰仟萬';
 
@@ -151,13 +158,32 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
   const boundaries: number[] = [];
   let length = 0;
   let cellDepth = 0;
+  let listItemDepth = 0;
 
   const endsWithNewline = (): boolean => textBuffer.at(-1)?.at(-1) === '\n';
+  const noteBoundary = (): void => {
+    if (boundaries.at(-1) !== length) boundaries.push(length);
+  };
   const pushSeparator = (isBoundary: boolean): void => {
     textBuffer.push('\n');
     appendMapping(mapping, NO_TEXT_NODE, 0);
     length++;
-    if (isBoundary && boundaries.at(-1) !== length) boundaries.push(length);
+    if (isBoundary) noteBoundary();
+  };
+  /**
+   * A block that wants a separator where one already stands.
+   *
+   * The newline is not emitted twice, but the boundary still has to be recorded:
+   * a `<tr>` opening straight after a `</td>` finds the cell's own separator
+   * already there, and skipping the note along with the newline meant no table
+   * row ever started a block. Whole tables — and whatever followed them — ran
+   * together into one, which is how an untouched footnote marker came to be
+   * reported as deleted on one side and inserted on the other.
+   */
+  const openBlock = (isBoundary: boolean): void => {
+    if (textBuffer.length === 0) return;
+    if (!endsWithNewline()) pushSeparator(isBoundary);
+    else if (isBoundary) noteBoundary();
   };
 
   function walk(node: Node): void {
@@ -181,17 +207,20 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
     const element = node as HTMLElement;
     const tagName = element.tagName.toUpperCase();
     const isBlock = BLOCK_TAGS.has(tagName);
-    const isBoundary = BOUNDARY_TAGS.has(tagName) && cellDepth === 0;
+    const isListItem = tagName === LIST_ITEM_TAG;
+    const isBoundary = BOUNDARY_TAGS.has(tagName) && cellDepth === 0 && (listItemDepth === 0 || isListItem);
     const isCell = BOUNDARY_OPAQUE_TAGS.has(tagName);
 
-    if (isBlock && textBuffer.length > 0 && !endsWithNewline()) pushSeparator(isBoundary);
+    if (isBlock) openBlock(isBoundary);
 
     ensureSyntheticListMarkerElement(element, orderedListCounters);
     if (isCell) cellDepth++;
+    if (isListItem) listItemDepth++;
     Array.from(element.childNodes).forEach(walk);
+    if (isListItem) listItemDepth--;
     if (isCell) cellDepth--;
 
-    if (isBlock && textBuffer.length > 0 && !endsWithNewline()) pushSeparator(isBoundary);
+    if (isBlock) openBlock(isBoundary);
   }
 
   walk(rootDom);
