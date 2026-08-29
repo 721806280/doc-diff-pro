@@ -74,6 +74,10 @@ export default function DocumentPane({
       : '',
     document.graphics.formulas > 0 ? i18n.documentPane.formulaDetail(document.graphics.formulas) : ''
   ].filter(Boolean);
+  // The conversion renders every revision as accepted, so two documents that still
+  // carry tracked changes are compared in their accepted states. That is the right
+  // state to compare; not saying so is what makes it a trap.
+  const revisionCount = document.revisions.insertions + document.revisions.deletions;
   const uncomparableCount =
     unaccountedImages +
     document.graphics.nativeGraphics +
@@ -173,6 +177,26 @@ export default function DocumentPane({
                     {uncomparableReasons.map((reason) => (
                       <li key={reason}>{reason}</li>
                     ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+            {revisionCount > 0 && (
+              <div className="warning-chip revisions" tabIndex={0}>
+                <span className="status-chip neutral">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
+                  {revisionCount}
+                </span>
+                <div className="warning-popover" role="tooltip">
+                  <strong>{i18n.documentPane.revisionCount(revisionCount)}</strong>
+                  <ul>
+                    <li>{i18n.documentPane.revisionTitle}</li>
+                    <li>
+                      {i18n.documentPane.revisionBreakdown(document.revisions.insertions, document.revisions.deletions)}
+                    </li>
                   </ul>
                 </div>
               </div>

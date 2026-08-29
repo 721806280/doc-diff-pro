@@ -23,6 +23,7 @@ function parsed(overrides: Partial<ParsedDocx> = {}): ParsedDocx {
     imageCount: 0,
     droppedImageCount: 0,
     graphics: createEmptyGraphicsReport(),
+    revisions: { insertions: 0, deletions: 0 },
     imageUrls: [],
     imageDescriptors: new Map(),
     warnings: [],

@@ -176,6 +176,28 @@ describe('DocumentPane', () => {
     expect(host.textContent).not.toContain('5 处内容无法对比');
   });
 
+  it('says when the document still carries tracked changes', () => {
+    // The conversion renders every revision as accepted, so this is what the
+    // reader is actually being shown a comparison of. Not saying so is the trap:
+    // a real document turned out to carry 41 revision marks, one of which deleted
+    // a figure the comparison then had no reason to mention.
+    const { host } = mountPane(true, {
+      ...emptyDocument(),
+      name: 'plan.docx',
+      revisions: { insertions: 36, deletions: 5 }
+    });
+
+    expect(host.textContent).toContain('41 处修订标记');
+    expect(host.textContent).toContain('插入 36 处，删除 5 处');
+    expect(host.querySelector('.warning-chip.revisions')).toBeTruthy();
+  });
+
+  it('keeps the revision notice away from a document with none', () => {
+    const { host } = mountPane(true, { ...emptyDocument(), name: 'plan.docx' });
+
+    expect(host.querySelector('.warning-chip.revisions')).toBeNull();
+  });
+
   it('keeps the notice away from documents whose graphics all came through', () => {
     const { host } = mountPane(true, { ...emptyDocument(), name: 'plan.docx', droppedImageCount: 0 });
 
@@ -217,6 +239,7 @@ function emptyDocument(): DocumentPaneState {
     imageCount: 0,
     droppedImageCount: 0,
     graphics: createEmptyGraphicsReport(),
+    revisions: { insertions: 0, deletions: 0 },
     warnings: [],
     layoutNoise: createEmptyLayoutNoise(),
     imageUrls: [],

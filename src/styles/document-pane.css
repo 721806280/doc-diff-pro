@@ -432,6 +432,28 @@
   box-shadow: 0 0 0 2px var(--warning-glow);
 }
 
+/* A revision notice is informational — the document compares in its accepted
+   state by design — so it wears the neutral muted palette, not the warning
+   amber worn by the two defect chips beside it. */
+.status-chip.neutral {
+  gap: 3px;
+  background: var(--muted-chip-bg);
+  color: var(--muted-chip-strong);
+  border-color: var(--muted-chip-border);
+}
+.warning-chip.revisions:focus-visible .status-chip.neutral {
+  box-shadow: 0 0 0 2px var(--muted-chip-bg-hover);
+}
+.warning-chip.revisions .warning-popover {
+  border-color: var(--popup-border);
+}
+.warning-chip.revisions .warning-popover strong {
+  color: var(--muted-chip-strong);
+}
+.warning-chip.revisions .warning-popover li::before {
+  color: var(--muted-chip-text);
+}
+
 .warning-popover {
   position: absolute;
   top: calc(100% + 6px);

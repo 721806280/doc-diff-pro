@@ -188,6 +188,14 @@ const en = {
     },
     droppedImageTitle:
       'Images in a format the converter supplied but no browser renders, usually EMF or WMF vector art.',
+    revisionCount(count: number): string {
+      return `${count} ${count === 1 ? 'revision mark' : 'revision marks'}`;
+    },
+    revisionTitle:
+      'This document still holds tracked changes. The comparison shows it with every revision accepted — insertions applied, deletions dropped.',
+    revisionBreakdown(insertions: number, deletions: number): string {
+      return `${insertions} inserted, ${deletions} deleted.`;
+    },
     nativeGraphicsDetail(count: number): string {
       return (
         `${count} ${count === 1 ? 'figure' : 'figures'} Word draws itself — charts, SmartArt, shapes or text` +
@@ -502,6 +510,13 @@ const zhCN: I18nMessages = {
       return `${count} 处内容无法对比`;
     },
     droppedImageTitle: '格式浏览器无法渲染的图片，通常是 EMF/WMF 矢量图。',
+    revisionCount(count: number): string {
+      return `${count} 处修订标记`;
+    },
+    revisionTitle: '本文档仍带有修订痕迹。对比呈现的是全部修订被接受后的状态：插入已应用，删除已去除。',
+    revisionBreakdown(insertions: number, deletions: number): string {
+      return `插入 ${insertions} 处，删除 ${deletions} 处。`;
+    },
     nativeGraphicsDetail(count: number): string {
       return `${count} 个 Word 自绘图形：图表、SmartArt、形状或文本框。转换器对这些不产生任何输出。`;
     },

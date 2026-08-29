@@ -15,6 +15,22 @@ export type DocxGraphicsReport = {
   formulas: number;
 };
 
+/**
+ * Tracked changes still sitting in a .docx. The converter renders the accepted
+ * state — insertions applied, deletions dropped — so these say what the reader is
+ * actually being shown a comparison of.
+ */
+export type DocxRevisionReport = {
+  insertions: number;
+  deletions: number;
+};
+
+/** Everything the package scan reports, from one read of the archive. */
+export type DocxScanReport = {
+  graphics: DocxGraphicsReport;
+  revisions: DocxRevisionReport;
+};
+
 export type PaneSide = 'A' | 'B';
 export type DocumentStatus = 'idle' | 'parsing' | 'ready' | 'error';
 
@@ -29,6 +45,8 @@ export type DocumentPaneState = {
   droppedImageCount: number;
   /** Figures the converter never emitted: Word's own graphics, and formulas. */
   graphics: DocxGraphicsReport;
+  /** Tracked changes the document still carries; the comparison sees them applied. */
+  revisions: DocxRevisionReport;
   warnings: string[];
   layoutNoise: LayoutNoiseData;
   /**

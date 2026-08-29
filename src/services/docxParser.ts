@@ -4,7 +4,7 @@ import type { ImageSourceEntry } from '@/services/imageFingerprint';
 import { extractLayoutNoise, type LayoutNoiseData } from '@/utils/layoutNoise';
 import type { ImageDescriptorTable } from '@/utils/imageDescriptor';
 import { IMAGE_ID_ATTRIBUTE } from '@/utils/textDiffCore';
-import type { DocxGraphicsReport } from '@/types/document';
+import type { DocxGraphicsReport, DocxRevisionReport, DocxScanReport } from '@/types/document';
 import { sanitizeDocumentBody, UNRENDERABLE_IMAGE_ATTRIBUTE } from '@/utils/sanitizeDocumentHtml';
 
 type MammothImage = {
@@ -45,6 +45,12 @@ export type ParsedDocx = {
    * leave no element behind, so counting them here is the only trace of them.
    */
   graphics: DocxGraphicsReport;
+  /**
+   * Tracked changes the package still carries. The conversion renders them as
+   * accepted, so a reader comparing two documents is comparing accepted states —
+   * true and worth saying, since nothing else in the output reveals it.
+   */
+  revisions: DocxRevisionReport;
   imageUrls: string[];
   /** Fingerprints keyed by the `src` each `<img>` carries in `html`. */
   imageDescriptors: ImageDescriptorTable;
@@ -83,7 +89,7 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
       // without being decoded, which is the part that would have cost.
       imageDescriptors: await fingerprintImages(adopted.entries),
       // The same buffer mammoth was handed, read again for what it discarded.
-      graphics: await scanGraphics(arrayBuffer),
+      ...(await scanParts(arrayBuffer)),
       ...collectDocxMetadata(body),
       warnings: collectMammothWarnings((result as MammothResultWithMessages).messages)
     };
@@ -99,9 +105,9 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
  * Loaded on demand: a zip reader is of no use until there is a package to read,
  * and this module is reachable from the landing screen.
  */
-async function scanGraphics(archive: ArrayBuffer): Promise<DocxGraphicsReport> {
-  const { scanDocxGraphics } = await import('@/services/docxGraphics');
-  return scanDocxGraphics(archive);
+async function scanParts(archive: ArrayBuffer): Promise<DocxScanReport> {
+  const { scanDocxParts } = await import('@/services/docxGraphics');
+  return scanDocxParts(archive);
 }
 
 /**

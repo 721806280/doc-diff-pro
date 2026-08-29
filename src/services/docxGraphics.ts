@@ -13,12 +13,17 @@
  * handler, so an edited equation produces no difference and, unlike an image, not
  * even an empty element where it used to be. The scan was already open.
  *
+ * Tracked changes are counted for a different reason. The converter renders the
+ * document as if every revision had been accepted — insertions applied, deletions
+ * dropped — which is the right state to compare, but a reader who is never told
+ * has no way to know that is what they are looking at.
+ *
  * The package is read directly rather than through mammoth, which does not expose
  * the parts it unzipped. Only the body parts are read, and only their element
  * names are counted, so this stays a scan over a few hundred kilobytes of XML.
  */
 
-import type { DocxGraphicsReport } from '@/types/document';
+import type { DocxGraphicsReport, DocxRevisionReport, DocxScanReport } from '@/types/document';
 
 /** Body parts worth scanning; headers and footers are converted too. */
 const BODY_PART_PATTERN = /^word\/(document|header\d*|footer\d*)\.xml$/;
@@ -37,6 +42,10 @@ export function createEmptyGraphicsReport(): DocxGraphicsReport {
   return { nativeGraphics: 0, embeddedObjects: 0, formulas: 0 };
 }
 
+export function createEmptyScanReport(): DocxScanReport {
+  return { graphics: createEmptyGraphicsReport(), revisions: { insertions: 0, deletions: 0 } };
+}
+
 export function graphicsReportTotal(report: DocxGraphicsReport): number {
   return report.nativeGraphics + report.embeddedObjects + report.formulas;
 }
@@ -49,21 +58,51 @@ export function graphicsReportTotal(report: DocxGraphicsReport): number {
  * succeeded, and a package this reader cannot walk — Zip64, or something novel —
  * is not a reason to fail the comparison the reader is waiting for.
  */
-export async function scanDocxGraphics(archive: ArrayBuffer): Promise<DocxGraphicsReport> {
-  const report = createEmptyGraphicsReport();
+export async function scanDocxParts(archive: ArrayBuffer): Promise<DocxScanReport> {
+  const report = createEmptyScanReport();
 
   try {
     for (const entry of listEntries(archive)) {
       if (!BODY_PART_PATTERN.test(entry.name)) continue;
 
       const xml = await readEntry(archive, entry);
-      if (xml) countGraphics(xml, report);
+      if (!xml) continue;
+
+      countRevisions(xml, report.revisions);
+      // Counted against the document as the converter renders it, which is the
+      // accepted state. A figure sitting inside a tracked deletion is not in the
+      // text that was compared, and reporting it as something the comparison
+      // could not look at would be reporting a figure that is not there.
+      countGraphics(withoutRejectedContent(xml), report.graphics);
     }
   } catch {
-    return createEmptyGraphicsReport();
+    return createEmptyScanReport();
   }
 
   return report;
+}
+
+/**
+ * Tracked insertions and deletions, counted as the marks Word wrote rather than
+ * as edits: one reworded sentence can carry several of either, so the numbers say
+ * "this document still holds revisions", not "this many things changed".
+ */
+function countRevisions(xml: string, revisions: DocxRevisionReport): void {
+  revisions.insertions += countTag(xml, 'w:ins');
+  revisions.deletions += countTag(xml, 'w:del');
+}
+
+/**
+ * The document with the content a revision took out removed.
+ *
+ * Only the container forms are stripped. `w:del` also appears self-closing inside
+ * run and paragraph properties as the mark that says "this run is a deletion",
+ * and consuming from there to the next `</w:del>` would swallow content that is
+ * still in the document — hence the lookbehind for a tag that does not close
+ * itself.
+ */
+function withoutRejectedContent(xml: string): string {
+  return xml.replace(/<w:(?:del|moveFrom)\b[^>]*(?<!\/)>[\s\S]*?<\/w:(?:del|moveFrom)>/g, '');
 }
 
 function countGraphics(xml: string, report: DocxGraphicsReport): void {
