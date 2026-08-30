@@ -14,7 +14,17 @@ const FORBIDDEN_TAGS = [
   'textarea'
 ];
 
-const RENDERABLE_IMAGE_SOURCE_PATTERN = /^data:image\/(?:bmp|gif|jpeg|png|webp);base64,/i;
+/**
+ * Inline image payloads a browser can draw. SVG is included because the
+ * converter renders OLE object icons (embedded spreadsheets, documents and the
+ * like) as `data:image/svg+xml` carrying an embedded bitmap and a text label —
+ * without it those icons vanish and an embedded file leaves no visible trace.
+ *
+ * A `data:image/svg+xml` src is safe to render as an `<img>`: browsers load
+ * image-context SVG without executing any script it might contain, and inline
+ * `<svg>` elements never reach this point because DOMPurify strips them.
+ */
+const RENDERABLE_IMAGE_SOURCE_PATTERN = /^data:image\/(?:bmp|gif|jpeg|png|webp|svg\+xml);base64,/i;
 
 /**
  * Image formats a .docx legitimately carries that no browser draws: the

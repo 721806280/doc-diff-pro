@@ -46,9 +46,25 @@ describe('sanitizeDocumentHtml', () => {
     expect(image?.hasAttribute('data-ddv-unrenderable')).toBe(true);
   });
 
+  it('keeps an SVG image source so OLE object icons remain visible', async () => {
+    // The converter renders embedded-object icons (an inserted spreadsheet,
+    // for example) as `data:image/svg+xml`. Browsers draw image-context SVG
+    // without running any script it might carry, so it is safe to keep and
+    // stripping it would erase every embedded file's icon.
+    const svg = 'data:image/svg+xml;base64,PHN2Zy8+';
+    const body = new DOMParser().parseFromString(
+      await sanitizeDocumentHtml(`<p><img src="${svg}" alt="矢量"></p>`),
+      'text/html'
+    ).body;
+    const image = body.querySelector('img');
+
+    expect(image?.getAttribute('src')).toBe(svg);
+    expect(image?.hasAttribute('data-ddv-unrenderable')).toBe(false);
+  });
+
   it('still strips an image whose type is neither drawable nor comparable', async () => {
     const body = new DOMParser().parseFromString(
-      await sanitizeDocumentHtml('<p><img src="data:image/svg+xml;base64,PHN2Zy8+" alt="矢量"></p>'),
+      await sanitizeDocumentHtml('<p><img src="data:image/x-unknown;base64,AAAA" alt="未知"></p>'),
       'text/html'
     ).body;
     const image = body.querySelector('img');
