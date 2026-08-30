@@ -379,6 +379,37 @@ describe('useDocumentSession', () => {
     expect(onNotice).toHaveBeenCalledWith(i18n.app.notices.documentsSwapped);
   });
 
+  // Replacing one pane invalidates the result both panes were showing, and the
+  // empty markup is what tells the comparison session to run again. Without it a
+  // reader had to replace the second document too before anything happened.
+  it('drops the other pane markup when one pane is replaced', async () => {
+    const { result } = mountSession();
+
+    await act(async () => {
+      await Promise.all([
+        result.current.handleFile('A', docxFile('a.docx')),
+        result.current.handleFile('B', docxFile('b.docx'))
+      ]);
+    });
+    act(() => {
+      result.current.setDocuments((current) => ({
+        A: { ...current.A, highlightedHtml: '<p>marked a</p>' },
+        B: { ...current.B, highlightedHtml: '<p>marked b</p>' }
+      }));
+    });
+
+    await act(async () => {
+      await result.current.handleFile('A', docxFile('a2.docx'));
+    });
+
+    expect(result.current.documents.A.name).toBe('a2.docx');
+    expect(result.current.documents.A.highlightedHtml).toBe('');
+    expect(result.current.documents.B.highlightedHtml).toBe('');
+    // Only the markup goes: the document itself is still parsed and ready.
+    expect(result.current.documents.B.name).toBe('b.docx');
+    expect(result.current.ready).toBe(true);
+  });
+
   it('refuses to swap before both panes are ready', async () => {
     const { result, onNotice } = mountSession();
 

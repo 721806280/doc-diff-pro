@@ -262,6 +262,27 @@ describe('React app workflow', () => {
     expect(mocks.compareDocuments).toHaveBeenLastCalledWith('<p>revised</p>', '<p>baseline</p>', expect.any(Object));
   });
 
+  // The pair is what gets compared, so replacing either half has to start a new
+  // comparison on its own. It used to wait for the other half to be replaced
+  // too, leaving both panes parsed and ready with nothing on screen.
+  it('compares again when only one document is replaced', async () => {
+    await mountComparedApp();
+    mocks.parseDocx.mockResolvedValueOnce(parsed('<p>second baseline</p>'));
+    mocks.compareDocuments.mockResolvedValueOnce(comparisonWithDiffs());
+
+    await selectFile(0, new File(['a2'], 'baseline-2.docx'));
+    await flush();
+
+    expect(mocks.compareDocuments).toHaveBeenCalledTimes(2);
+    expect(mocks.compareDocuments).toHaveBeenLastCalledWith(
+      '<p>second baseline</p>',
+      '<p>revised</p>',
+      expect.any(Object)
+    );
+    expect(host.querySelector('.side-original')?.textContent).toContain('baseline-2.docx');
+    expect(host.querySelector('.floating-navigator')).toBeTruthy();
+  });
+
   it('keeps documents when reset is canceled and clears them when confirmed', async () => {
     await mountComparedApp();
     vi.stubGlobal(

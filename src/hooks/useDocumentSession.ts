@@ -8,7 +8,7 @@ import {
 } from '@/services/externalDocumentApi';
 import { loadSampleDocuments } from '@/services/sampleDocuments';
 import { parseDocx } from '@/services/docxParser';
-import type { DocumentPair, PaneSide } from '@/types/document';
+import type { DocumentPair, DocumentPaneState, PaneSide } from '@/types/document';
 import {
   createEmptyDocument,
   resolveDocumentError,
@@ -53,6 +53,23 @@ export function useDocumentSession({
   const adoptImageUrls = useCallback((side: PaneSide, urls: string[]) => {
     revokeDocumentImageUrls(liveImageUrls.current[side]);
     liveImageUrls.current[side] = urls;
+  }, []);
+
+  /**
+   * Puts a document in one pane, and takes the comparison markup out of the
+   * other.
+   *
+   * A result belongs to a pair, so a new file on either side invalidates the one
+   * both panes were showing — and its absence is also how the comparison session
+   * recognises a pair it has not compared yet. Without this, replacing one side
+   * alone left that pane waiting on a comparison that never started, and the
+   * reader had to replace the other side too before anything happened again.
+   */
+  const replaceDocument = useCallback((side: PaneSide, document: DocumentPaneState) => {
+    setDocuments((current) => ({
+      A: side === 'A' ? document : withoutComparisonMarkup(current.A),
+      B: side === 'B' ? document : withoutComparisonMarkup(current.B)
+    }));
   }, []);
 
   const hasDocuments = Boolean(documents.A.name || documents.B.name);
@@ -109,19 +126,19 @@ export function useDocumentSession({
       if (validationError) {
         documentErrors.current[side] = { kind: validationError };
         const message = resolveDocumentError(i18n, maxSizeMb, validationError);
-        setDocuments((current) => ({
-          ...current,
-          [side]: { ...createEmptyDocument(), name: file.name, size: file.size, status: 'error', error: message }
-        }));
+        replaceDocument(side, {
+          ...createEmptyDocument(),
+          name: file.name,
+          size: file.size,
+          status: 'error',
+          error: message
+        });
         onNotice(message);
         return;
       }
 
       delete documentErrors.current[side];
-      setDocuments((current) => ({
-        ...current,
-        [side]: { ...createEmptyDocument(), name: file.name, size: file.size, status: 'parsing' }
-      }));
+      replaceDocument(side, { ...createEmptyDocument(), name: file.name, size: file.size, status: 'parsing' });
       try {
         const parsed = await parseDocx(file, {
           embeddedImageAlt: i18n.documentPane.embeddedImageAlt,
@@ -133,46 +150,40 @@ export function useDocumentSession({
           return;
         }
         adoptImageUrls(side, parsed.imageUrls);
-        setDocuments((current) => ({
-          ...current,
-          [side]: {
-            name: file.name,
-            size: file.size,
-            originalHtml: parsed.html,
-            highlightedHtml: '',
-            textLength: parsed.textLength,
-            imageCount: parsed.imageCount,
-            droppedImageCount: parsed.droppedImageCount,
-            graphics: parsed.graphics,
-            revisions: parsed.revisions,
-            warnings: parsed.warnings,
-            layoutNoise: parsed.layoutNoise,
-            imageUrls: parsed.imageUrls,
-            imageDescriptors: parsed.imageDescriptors,
-            status: 'ready',
-            error: ''
-          }
-        }));
+        replaceDocument(side, {
+          name: file.name,
+          size: file.size,
+          originalHtml: parsed.html,
+          highlightedHtml: '',
+          textLength: parsed.textLength,
+          imageCount: parsed.imageCount,
+          droppedImageCount: parsed.droppedImageCount,
+          graphics: parsed.graphics,
+          revisions: parsed.revisions,
+          warnings: parsed.warnings,
+          layoutNoise: parsed.layoutNoise,
+          imageUrls: parsed.imageUrls,
+          imageDescriptors: parsed.imageDescriptors,
+          status: 'ready',
+          error: ''
+        });
         if (parsed.warnings.length)
           onNotice(i18n.app.notices.parseCompleteWithWarnings(file.name, parsed.warnings.length));
       } catch (reason) {
         if (fileSequence !== fileSequences.current[side]) return;
         const detail = reason instanceof Error ? reason.message : String(reason);
         documentErrors.current[side] = { kind: 'parseFailed', detail };
-        setDocuments((current) => ({
-          ...current,
-          [side]: {
-            ...createEmptyDocument(),
-            name: file.name,
-            size: file.size,
-            status: 'error',
-            error: resolveDocumentError(i18n, maxSizeMb, 'parseFailed', detail)
-          }
-        }));
+        replaceDocument(side, {
+          ...createEmptyDocument(),
+          name: file.name,
+          size: file.size,
+          status: 'error',
+          error: resolveDocumentError(i18n, maxSizeMb, 'parseFailed', detail)
+        });
         onNotice(i18n.app.notices.parseFailed);
       }
     },
-    [adoptImageUrls, i18n, maxSizeMb, onBeforeDocumentChange, onNotice]
+    [adoptImageUrls, i18n, maxSizeMb, onBeforeDocumentChange, onNotice, replaceDocument]
   );
 
   const externalApiHost = useMemo(
@@ -263,4 +274,9 @@ function isFileLike(value: unknown): value is File {
   if (typeof value !== 'object' || value === null) return false;
   const file = value as Partial<File>;
   return typeof file.name === 'string' && typeof file.size === 'number' && typeof file.arrayBuffer === 'function';
+}
+
+/** Left as it is when there is no markup to drop, so React sees no change. */
+function withoutComparisonMarkup(document: DocumentPaneState): DocumentPaneState {
+  return document.highlightedHtml ? { ...document, highlightedHtml: '' } : document;
 }
