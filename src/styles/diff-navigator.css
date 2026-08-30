@@ -118,21 +118,6 @@ button.summary-chip {
   border-color: var(--control-border-hover);
   background: var(--muted-chip-bg-hover);
 }
-.summary-chip.export-report {
-  color: var(--accent);
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
-}
-.summary-chip.export-report:hover {
-  border-color: var(--accent-border-strong);
-  background: var(--accent-soft-strong);
-}
-.summary-chip.export-report svg {
-  width: 13px;
-  height: 13px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 
 .diff-progress {
   width: 112px;

@@ -3,9 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 const SETTINGS_KEY = 'doc-diff-settings';
 
 /**
- * Seeds user settings before the app boots. Difference ignore and report
- * export are off by default, and driving the settings panel for every test
- * would test the panel rather than the review workflow.
+ * Seeds user settings before the app boots. Difference ignore is off by
+ * default, and driving the settings panel for every test would test the panel
+ * rather than the review workflow.
  */
 async function seedSettings(page: Page, settings: Record<string, unknown>): Promise<void> {
   await page.addInitScript(
@@ -33,7 +33,6 @@ test.describe('difference review', () => {
       diffGranularity: 'char',
       enableDiffIgnore: true,
       enableSimilarDiffs: true,
-      showReportExport: true,
       showDiffMap: true,
       syncScroll: true
     });
@@ -157,16 +156,6 @@ test.describe('difference review', () => {
 
     await page.mouse.move(10, 10);
     await expect(tip).toBeHidden();
-  });
-
-  test('exports an HTML review report', async ({ page }) => {
-    await loadSampleComparison(page);
-
-    const download = page.waitForEvent('download');
-    await page.locator('.summary-chip.export-report').click();
-
-    const file = await download;
-    expect(file.suggestedFilename()).toMatch(/\.html$/);
   });
 });
 

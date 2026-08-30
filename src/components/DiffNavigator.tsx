@@ -10,13 +10,11 @@ type DiffNavigatorProps = {
   ignoredDiffs: IgnoredDiffItem[];
   canPrevious: boolean;
   canNext: boolean;
-  canExportReport: boolean;
   onPrevious: () => void;
   onNext: () => void;
   onLocateIgnored: (id: string) => void;
   onRestoreIgnored: (id: string) => void;
   onRestoreAllIgnored: () => void;
-  onExportReport: () => void;
 };
 
 export default function DiffNavigator({
@@ -26,13 +24,11 @@ export default function DiffNavigator({
   ignoredDiffs,
   canPrevious,
   canNext,
-  canExportReport,
   onPrevious,
   onNext,
   onLocateIgnored,
   onRestoreIgnored,
-  onRestoreAllIgnored,
-  onExportReport
+  onRestoreAllIgnored
 }: DiffNavigatorProps) {
   const { locale, messages: i18n } = useI18n();
   const [ignoredOpen, setIgnoredOpen] = useState(false);
@@ -125,22 +121,6 @@ export default function DiffNavigator({
                 onClick={() => setIgnoredOpen((value) => !value)}
               >
                 {i18n.diffNavigator.ignoredDiffs(ignoredCount)}
-              </button>
-            )}
-            {canExportReport && (
-              <button
-                type="button"
-                className="summary-chip export-report"
-                title={i18n.reviewReport.exportTitle}
-                aria-label={i18n.reviewReport.exportTitle}
-                onClick={onExportReport}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 3v11" />
-                  <path d="M8 10l4 4 4-4" />
-                  <path d="M5 18h14" />
-                </svg>
-                {i18n.reviewReport.exportLabel}
               </button>
             )}
           </div>

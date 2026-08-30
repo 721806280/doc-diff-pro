@@ -101,7 +101,6 @@ describe('AppHeader', () => {
       'filterLayoutNoise:true',
       'showDiffMap:false',
       'syncScroll:false',
-      'showReportExport:true',
       'showTableHints:true',
       'enableDiffIgnore:true',
       'themeColor:blue'

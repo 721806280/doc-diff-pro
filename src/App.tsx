@@ -26,7 +26,6 @@ import { useReviewSummary } from '@/hooks/useReviewSummary';
 import { useReviewActions } from '@/hooks/useReviewActions';
 import { useTableStructureHint } from '@/hooks/useTableStructureHint';
 import { useTimeoutRef } from '@/hooks/useTimeoutRef';
-import { exportComparisonReport } from '@/services/exportComparisonReport';
 import type { DiffSummary, IgnoredDiffItem } from '@/types/diff';
 import type { PaneSide } from '@/types/document';
 import { DIFF_ELEMENT_SELECTOR } from '@/utils/diffElementIndex';
@@ -100,7 +99,6 @@ export default function App() {
     ignoreFullHalfWidth: ignoreWidth,
     filterLayoutNoise: filterLayout,
     syncScroll,
-    showReportExport,
     showTableHints,
     showDiffMap,
     enableDiffIgnore,
@@ -415,19 +413,6 @@ export default function App() {
     settingsResetNotice.set(() => setNotice(i18n.app.notices.settingsReset), 0);
   }, [i18n, settingsResetNotice]);
 
-  const exportReport = useCallback((): void => {
-    exportComparisonReport({
-      locale,
-      i18n,
-      documents,
-      settings,
-      summary,
-      ignoredDiffs,
-      diffIndex: diffIndex.current
-    });
-    setNotice(i18n.reviewReport.exportedNotice);
-  }, [diffIndex, documents, i18n, ignoredDiffs, locale, settings, summary]);
-
   const previousAvailable = findActiveReviewIndex(currentDiff - 1, -1, summary.total, ignoredDiffIds) !== null;
   const nextAvailable = findActiveReviewIndex(currentDiff + 1, 1, summary.total, ignoredDiffIds) !== null;
   const themeStyle = getThemeStyle(themeColor, appearance) as React.CSSProperties;
@@ -497,13 +482,11 @@ export default function App() {
           ignoredDiffs={ignoredList}
           canPrevious={previousAvailable}
           canNext={nextAvailable}
-          canExportReport={showReportExport}
           onPrevious={() => moveDiff(-1)}
           onNext={() => moveDiff(1)}
           onLocateIgnored={(id) => locateDiff(diffReviewIndex(id))}
           onRestoreIgnored={restoreIgnored}
           onRestoreAllIgnored={restoreAllIgnored}
-          onExportReport={exportReport}
         />
       )}
 

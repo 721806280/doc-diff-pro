@@ -10,7 +10,6 @@ import App from './App';
 const mocks = vi.hoisted(() => ({
   parseDocx: vi.fn(),
   compareDocuments: vi.fn(),
-  downloadReviewReport: vi.fn<(html: string, fileName: string) => void>(),
   resolveTableStructureHint: vi.fn(),
   loadSampleDocuments: vi.fn()
 }));
@@ -21,10 +20,6 @@ vi.mock('@/services/diffEngine', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/diffEngine')>()),
   compareDocuments: mocks.compareDocuments
 }));
-vi.mock('@/services/reviewReport', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/services/reviewReport')>()),
-  downloadReviewReport: mocks.downloadReviewReport
-}));
 vi.mock('@/utils/tableStructureHint', () => ({ resolveTableStructureHint: mocks.resolveTableStructureHint }));
 vi.mock('@/config/userSettings', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/config/userSettings')>();
@@ -32,8 +27,7 @@ vi.mock('@/config/userSettings', async (importOriginal) => {
     ...original,
     readSavedUserSettings: () => ({
       ...original.DEFAULT_USER_SETTINGS,
-      enableDiffIgnore: true,
-      showReportExport: true
+      enableDiffIgnore: true
     }),
     writeSavedUserSettings: vi.fn()
   };
@@ -51,7 +45,6 @@ describe('React app workflow', () => {
     root = createRoot(host);
     mocks.parseDocx.mockReset();
     mocks.compareDocuments.mockReset().mockResolvedValue(emptyComparison());
-    mocks.downloadReviewReport.mockReset();
     mocks.resolveTableStructureHint.mockReset().mockReturnValue(null);
     mocks.loadSampleDocuments.mockReset();
     Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: vi.fn() });
@@ -362,19 +355,6 @@ describe('React app workflow', () => {
       '<p>revised</p>',
       expect.objectContaining({ granularity: 'word' })
     );
-  });
-
-  it('exports a local html review report', async () => {
-    await mountComparedApp();
-    const exportButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
-      button.textContent?.includes('Export')
-    );
-    await act(async () => exportButton?.click());
-    expect(mocks.downloadReviewReport).toHaveBeenCalledTimes(1);
-    const [html, fileName] = mocks.downloadReviewReport.mock.calls[0]!;
-    expect(html).toContain('old one');
-    expect(html).toContain('new two');
-    expect(fileName).toMatch(/^docdiff-report-\d{8}-\d{4}\.html$/);
   });
 
   it('navigates differences from the floating navigator buttons', async () => {

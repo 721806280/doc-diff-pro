@@ -14,7 +14,6 @@ export type UserSettings = {
   ignoreFullHalfWidth: boolean;
   filterLayoutNoise: boolean;
   syncScroll: boolean;
-  showReportExport: boolean;
   showTableHints: boolean;
   showDiffMap: boolean;
   enableDiffIgnore: boolean;
@@ -30,7 +29,6 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   ignoreFullHalfWidth: true,
   filterLayoutNoise: false,
   syncScroll: true,
-  showReportExport: false,
   showTableHints: false,
   showDiffMap: true,
   enableDiffIgnore: false,
@@ -66,8 +64,6 @@ function normalizeUserSettings(value: unknown): UserSettings {
     filterLayoutNoise:
       typeof value.filterLayoutNoise === 'boolean' ? value.filterLayoutNoise : DEFAULT_USER_SETTINGS.filterLayoutNoise,
     syncScroll: typeof value.syncScroll === 'boolean' ? value.syncScroll : DEFAULT_USER_SETTINGS.syncScroll,
-    showReportExport:
-      typeof value.showReportExport === 'boolean' ? value.showReportExport : DEFAULT_USER_SETTINGS.showReportExport,
     showTableHints:
       typeof value.showTableHints === 'boolean' ? value.showTableHints : DEFAULT_USER_SETTINGS.showTableHints,
     showDiffMap: typeof value.showDiffMap === 'boolean' ? value.showDiffMap : DEFAULT_USER_SETTINGS.showDiffMap,

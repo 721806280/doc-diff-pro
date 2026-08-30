@@ -39,8 +39,8 @@ await page.locator('.floating-navigator').waitFor({ timeout: 30000 });
 ## Seeding settings
 
 Most review features are off by default (`enableDiffIgnore`,
-`showReportExport`, `showTableHints`). Seed them before boot instead of
-driving the settings panel:
+`showTableHints`). Seed them before boot instead of driving the settings
+panel:
 
 ```js
 await page.addInitScript(() => {

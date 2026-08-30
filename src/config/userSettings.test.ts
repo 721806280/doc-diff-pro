@@ -50,7 +50,6 @@ describe('userSettings', () => {
         ignoreFullHalfWidth: false,
         filterLayoutNoise: true,
         syncScroll: false,
-        showReportExport: true,
         showTableHints: true,
         showDiffMap: false,
         enableDiffIgnore: false,
@@ -67,7 +66,6 @@ describe('userSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: true,
       syncScroll: false,
-      showReportExport: true,
       showTableHints: true,
       showDiffMap: false,
       enableDiffIgnore: false,
@@ -87,7 +85,6 @@ describe('userSettings', () => {
         ignoreFullHalfWidth: false,
         filterLayoutNoise: null,
         syncScroll: true,
-        showReportExport: 'yes',
         showTableHints: 'yes',
         showDiffMap: 'yes',
         enableDiffIgnore: 'sure',
@@ -104,7 +101,6 @@ describe('userSettings', () => {
       ignoreFullHalfWidth: false,
       filterLayoutNoise: false,
       syncScroll: true,
-      showReportExport: false,
       showTableHints: false,
       showDiffMap: true,
       enableDiffIgnore: false,
@@ -122,7 +118,6 @@ describe('userSettings', () => {
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,
       syncScroll: false,
-      showReportExport: true,
       showTableHints: true,
       showDiffMap: false,
       enableDiffIgnore: true,
@@ -138,13 +133,20 @@ describe('userSettings', () => {
       ignoreFullHalfWidth: true,
       filterLayoutNoise: false,
       syncScroll: false,
-      showReportExport: true,
       showTableHints: true,
       showDiffMap: false,
       enableDiffIgnore: true,
       enableSimilarDiffs: false,
       similarDiffLevel: 'loose'
     });
+  });
+
+  it('drops a setting that no longer exists', () => {
+    // Anyone who used the report export has it saved. The parser builds a fresh
+    // object from the keys it knows, so a retired one cannot ride along.
+    storage.setItem('doc-diff-settings', JSON.stringify({ ...DEFAULT_USER_SETTINGS, showReportExport: true }));
+
+    expect(readSavedUserSettings()).toEqual(DEFAULT_USER_SETTINGS);
   });
 
   it('returns defaults when storage is unavailable', () => {

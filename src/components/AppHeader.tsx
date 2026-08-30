@@ -354,12 +354,6 @@ export default function AppHeader({
                     onClick={() => updateSetting('syncScroll', !settings.syncScroll)}
                   />
                   <SettingsToggle
-                    label={i18n.header.showReportExport}
-                    title={i18n.header.showReportExportTitle}
-                    active={settings.showReportExport}
-                    onClick={() => updateSetting('showReportExport', !settings.showReportExport)}
-                  />
-                  <SettingsToggle
                     label={i18n.header.showTableHints}
                     title={i18n.header.showTableHintsTitle}
                     active={settings.showTableHints}

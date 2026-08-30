@@ -103,7 +103,7 @@ describe('review components', () => {
     vi.restoreAllMocks();
   });
 
-  it('exposes original navigation labels, shortcuts, ignored details, and report export', () => {
+  it('exposes original navigation labels, shortcuts, and ignored details', () => {
     const events: string[] = [];
     const { host } = renders.render(
       <DiffNavigator
@@ -113,13 +113,11 @@ describe('review components', () => {
         ignoredDiffs={[item('diff-2', 2)]}
         canPrevious
         canNext
-        canExportReport
         onPrevious={() => events.push('previous')}
         onNext={() => events.push('next')}
         onLocateIgnored={(id) => events.push(`locate:${id}`)}
         onRestoreIgnored={(id) => events.push(`restore:${id}`)}
         onRestoreAllIgnored={() => events.push('restoreAll')}
-        onExportReport={() => events.push('export')}
       />
     );
     expect(host.textContent).toContain('差异 2/3');
@@ -132,11 +130,7 @@ describe('review components', () => {
     act(() => ignored?.click());
     expect(document.body.textContent).toContain('已忽略差异');
     act(() => document.body.querySelector<HTMLButtonElement>('.ignored-diff-row-actions button')?.click());
-    const exportButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
-      button.textContent?.includes('导出')
-    );
-    act(() => exportButton?.click());
-    expect(events).toEqual(['locate:diff-2', 'export']);
+    expect(events).toEqual(['locate:diff-2']);
   });
 
   it('reports how much of the difference tally is figures, and how much is cosmetic', () => {
@@ -155,13 +149,11 @@ describe('review components', () => {
         ignoredDiffs={[]}
         canPrevious
         canNext
-        canExportReport={false}
         onPrevious={() => undefined}
         onNext={() => undefined}
         onLocateIgnored={() => undefined}
         onRestoreIgnored={() => undefined}
         onRestoreAllIgnored={() => undefined}
-        onExportReport={() => undefined}
       />
     );
 
@@ -181,13 +173,11 @@ describe('review components', () => {
         ignoredDiffs={[]}
         canPrevious
         canNext
-        canExportReport={false}
         onPrevious={() => undefined}
         onNext={() => undefined}
         onLocateIgnored={() => undefined}
         onRestoreIgnored={() => undefined}
         onRestoreAllIgnored={() => undefined}
-        onExportReport={() => undefined}
       />
     );
 
@@ -209,13 +199,11 @@ describe('review components', () => {
         ignoredDiffs={[item('diff-2', 2)]}
         canPrevious
         canNext
-        canExportReport={false}
         onPrevious={() => undefined}
         onNext={() => undefined}
         onLocateIgnored={() => undefined}
         onRestoreIgnored={() => undefined}
         onRestoreAllIgnored={() => events.push('restoreAll')}
-        onExportReport={() => undefined}
       />
     );
 
@@ -253,13 +241,11 @@ describe('review components', () => {
         ignoredDiffs={[item('diff-1', 1), item('diff-2', 2), item('diff-3', 3)]}
         canPrevious={false}
         canNext={false}
-        canExportReport={false}
         onPrevious={() => undefined}
         onNext={() => undefined}
         onLocateIgnored={() => undefined}
         onRestoreIgnored={() => undefined}
         onRestoreAllIgnored={() => events.push('restoreAll')}
-        onExportReport={() => undefined}
       />
     );
     expect(host.textContent).toContain('差异 0/3');
