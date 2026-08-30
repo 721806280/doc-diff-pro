@@ -64,10 +64,10 @@ export default defineConfig({
       // Floors sit just under the measured baseline: they guard against
       // regression rather than mandating an increase.
       thresholds: {
-        statements: 95,
-        branches: 86,
+        statements: 96,
+        branches: 87,
         functions: 97,
-        lines: 98
+        lines: 99
       }
     }
   }

@@ -101,6 +101,36 @@ describe('message catalogue', () => {
     }
   });
 
+  // The ProgIDs Word writes carry a version suffix and inconsistent case
+  // ("Excel.Sheet.12", "Equation.3"), so the label is chosen off the first
+  // segment alone. Every locale has to name every kind it claims to know, or a
+  // reader gets the generic fallback for a document the app could describe.
+  it('names every embedded object kind in every locale', () => {
+    const progIds = [
+      'Excel.Sheet.12',
+      'Word.Document.12',
+      'PowerPoint.Show.12',
+      'Visio.Drawing.11',
+      'Equation.3',
+      'Package',
+      'vml-image'
+    ];
+
+    for (const locale of SUPPORTED_LOCALES) {
+      const label = messages[locale].documentPane.embeddedObjectLabel;
+      const generic = label('Unknown.Thing.1', '');
+      const named = progIds.map((progId) => label(progId, ''));
+
+      expect(new Set(named).size).toBe(progIds.length);
+      expect(named).not.toContain(generic);
+      // Lower case reaches the same label as the case Word happens to write.
+      expect(label('excel.sheet.12', '')).toBe(label('Excel.Sheet.12', ''));
+      // A caption is appended to the kind; without one the kind stands alone.
+      expect(label('Excel.Sheet.12', 'Sheet1')).toBe(`${named[0]} — Sheet1`);
+      expect(generic.trim()).not.toBe('');
+    }
+  });
+
   it('uses singular English forms for a count of one', () => {
     const en = messages.en;
 

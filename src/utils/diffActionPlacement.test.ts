@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { type PlacementBox, resolveDiffActionPlacement } from './diffActionPlacement';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { collectLineBoxes, type PlacementBox, resolveDiffActionPlacement } from './diffActionPlacement';
 
 const BOUNDS: PlacementBox = { top: 0, bottom: 800, left: 0, right: 700 };
 const SIZE = { width: 200, height: 34 };
@@ -131,5 +131,109 @@ describe('resolveDiffActionPlacement', () => {
     });
 
     expect(placement).toBeNull();
+  });
+});
+
+/**
+ * Line boxes are what the placement scores against, and jsdom renders nothing:
+ * `Range.getClientRects` returns an empty list there. These tests stand in for
+ * the layout, one list of rects per element, so the walk around the difference
+ * can be pinned without a browser.
+ */
+describe('collectLineBoxes', () => {
+  const REGION = { top: 0, bottom: 600 };
+  const rects = new Map<Element, PlacementBox[]>();
+
+  afterEach(() => {
+    rects.clear();
+    delete (Range.prototype as Partial<Range>).getClientRects;
+    vi.restoreAllMocks();
+  });
+
+  // jsdom's Range has no `getClientRects` at all, which is the case the
+  // collector guards against; defining one is what puts a layout under it.
+  function stubLineRects(): void {
+    Object.defineProperty(Range.prototype, 'getClientRects', {
+      configurable: true,
+      value(this: Range) {
+        const boxes = rects.get(this.startContainer as Element) ?? [];
+        return boxes.map((box) => ({ ...box, width: box.right - box.left, height: box.bottom - box.top }));
+      }
+    });
+  }
+
+  function paragraphs(count: number): HTMLElement[] {
+    const body = document.createElement('div');
+    for (let index = 0; index < count; index++) {
+      const paragraph = document.createElement('p');
+      paragraph.append(document.createElement('ins'));
+      body.append(paragraph);
+    }
+    document.body.append(body);
+    return Array.from(body.children) as HTMLElement[];
+  }
+
+  it('measures the difference block and its nearest neighbours only', () => {
+    stubLineRects();
+    const blocks = paragraphs(9);
+    blocks.forEach((block, index) => rects.set(block, [line(index * 20, 0, 100 + index)]));
+    const target = blocks[4]!.querySelector('ins') as HTMLElement;
+
+    const boxes = collectLineBoxes(target, REGION);
+
+    // Its own block plus three either side; the ninth paragraph is out of reach.
+    expect(boxes).toHaveLength(7);
+    expect(boxes.map((box) => box.right).sort((left, right) => left - right)).toEqual([
+      101, 102, 103, 104, 105, 106, 107
+    ]);
+  });
+
+  it('leaves out blocks and lines that fall outside the region', () => {
+    stubLineRects();
+    const blocks = paragraphs(2);
+    const [first, second] = blocks as [HTMLElement, HTMLElement];
+    second.getBoundingClientRect = () => ({ ...line(900, 0, 100), width: 100, height: 22, x: 0, y: 900 }) as DOMRect;
+    rects.set(first, [line(100, 0, 100), line(700, 0, 100), { top: 200, bottom: 200, left: 0, right: 0 }]);
+    rects.set(second, [line(900, 0, 100)]);
+
+    const boxes = collectLineBoxes(first.querySelector('ins') as HTMLElement, REGION);
+
+    // Only the first line: the empty rect carries no text, the 700px one is
+    // past the region, and the second block never gets measured at all.
+    expect(boxes).toEqual([{ top: 100, bottom: 122, left: 0, right: 100 }]);
+  });
+
+  it('stops measuring a block that reports more lines than the scan allows', () => {
+    stubLineRects();
+    const [block] = paragraphs(1) as [HTMLElement];
+    rects.set(
+      block,
+      Array.from({ length: 700 }, (_value, index) => line(index % 500, 0, 100))
+    );
+
+    expect(collectLineBoxes(block.querySelector('ins') as HTMLElement, REGION).length).toBeLessThan(700);
+  });
+
+  it('measures the whole table around a difference inside a cell', () => {
+    stubLineRects();
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = '<table><tr><td><ins>changed</ins></td></tr></table><p>after</p>';
+    document.body.append(wrapper);
+    const table = wrapper.querySelector('table') as HTMLElement;
+    rects.set(table, [line(40, 0, 400)]);
+    rects.set(wrapper.querySelector('p') as HTMLElement, [line(80, 0, 200)]);
+
+    const boxes = collectLineBoxes(wrapper.querySelector('ins') as HTMLElement, REGION);
+
+    expect(boxes).toEqual([
+      { top: 40, bottom: 62, left: 0, right: 400 },
+      { top: 80, bottom: 102, left: 0, right: 200 }
+    ]);
+  });
+
+  it('reports nothing for a difference with no block around it', () => {
+    const orphan = document.createElement('ins');
+
+    expect(collectLineBoxes(orphan, REGION)).toEqual([]);
   });
 });

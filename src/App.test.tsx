@@ -276,6 +276,48 @@ describe('React app workflow', () => {
     expect(host.querySelector('.floating-navigator')).toBeTruthy();
   });
 
+  // Sync scroll follows whichever pane the reader is actually using, which is
+  // why the pane has to be activated first. Without that, both panes would
+  // answer each other's scroll events and fight over the position.
+  it('scrolls the other pane from the one the reader is driving', async () => {
+    stubElementRects();
+    await mountComparedApp();
+    const [paneA, paneB] = Array.from(host.querySelectorAll<HTMLElement>('.render-viewport'));
+    const positionA = stubScroll(paneA!);
+    const positionB = stubScroll(paneB!);
+
+    // A scroll from a pane nobody touched is the echo of the sync itself.
+    positionB.top = 240;
+    await act(async () => paneB!.dispatchEvent(new Event('scroll')));
+    expect(positionA.top).toBe(0);
+
+    await act(async () => paneA!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })));
+    positionA.top = 300;
+    await act(async () => paneA!.dispatchEvent(new Event('scroll')));
+
+    expect(positionB.top).toBe(300);
+  });
+
+  it('opens a difference from the keyboard and ignores clicks that miss one', async () => {
+    await mountComparedApp();
+    const [paneA] = Array.from(host.querySelectorAll<HTMLElement>('.render-viewport'));
+    const second = host.querySelector<HTMLElement>('.side-original [data-diff-id="diff-2"]')!;
+
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    await act(async () => second.dispatchEvent(event));
+    await flush();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(second.classList).toContain('focus-diff');
+
+    // The pane's own background carries no difference id, so a click there
+    // leaves the reader where they were rather than jumping to difference 1.
+    await act(async () => paneA!.click());
+    await flush();
+
+    expect(second.classList).toContain('focus-diff');
+  });
+
   it('keeps documents when reset is canceled and clears them when confirmed', async () => {
     await mountComparedApp();
     vi.stubGlobal(
@@ -516,6 +558,24 @@ function stubElementRects(): void {
     const rect = this.classList.contains('render-viewport') ? paneRect : elementRect;
     return { ...rect, toJSON: () => ({}) };
   });
+}
+
+/**
+ * A scrollable pane, since jsdom has no layout: `scrollTop` is a no-op there and
+ * both extents read as zero, so nothing about a sync could be observed.
+ */
+function stubScroll(element: HTMLElement, scrollHeight = 2000, clientHeight = 600): { top: number } {
+  const position = { top: 0 };
+  Object.defineProperty(element, 'scrollTop', {
+    configurable: true,
+    get: () => position.top,
+    set: (value: number) => {
+      position.top = value;
+    }
+  });
+  Object.defineProperty(element, 'scrollHeight', { configurable: true, value: scrollHeight });
+  Object.defineProperty(element, 'clientHeight', { configurable: true, value: clientHeight });
+  return position;
 }
 
 async function waitForResultIndex(): Promise<void> {

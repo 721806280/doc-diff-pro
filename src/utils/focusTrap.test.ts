@@ -82,6 +82,25 @@ describe('focusTrap', () => {
     trap.deactivate({ restoreFocus: false });
   });
 
+  // A dialog can be open before it has any controls — a list still loading, or
+  // one whose only button is disabled. Tab has to stay inside it anyway, or the
+  // reader lands behind the overlay with no way back.
+  it('parks focus on a container with nothing focusable in it', () => {
+    const empty = document.createElement('section');
+    empty.innerHTML = '<p>Loading…</p><button disabled>Restore</button>';
+    document.body.append(empty);
+
+    const trap = createFocusTrap();
+    trap.activate(empty);
+    expect(document.activeElement).toBe(empty);
+
+    const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+    trap.handleKeydown(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(empty);
+  });
+
   it('ignores activation and non-tab events when inactive', () => {
     const trap = createFocusTrap();
     expect(() => trap.activate(null)).not.toThrow();

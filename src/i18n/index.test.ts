@@ -29,6 +29,29 @@ describe('i18n locale selection', () => {
     expect(detectInitialLocale()).toBe('en');
   });
 
+  // Older browsers and some embeds expose only `navigator.language`, and a
+  // locale list can carry a blank entry. Either one used to be the difference
+  // between reading the reader's own language and defaulting to English.
+  it('reads a single browser language and skips blank entries', () => {
+    vi.stubGlobal('localStorage', storageWith(null));
+
+    vi.stubGlobal('navigator', { language: 'zh-CN' });
+    expect(detectInitialLocale()).toBe('zh-CN');
+
+    vi.stubGlobal('navigator', { languages: [], language: 'zh-TW' });
+    expect(detectInitialLocale()).toBe('zh-CN');
+
+    vi.stubGlobal('navigator', { languages: ['  ', 'en-GB'] });
+    expect(detectInitialLocale()).toBe('en');
+  });
+
+  it('defaults to English where there is no navigator at all', () => {
+    vi.stubGlobal('localStorage', storageWith(null));
+    vi.stubGlobal('navigator', undefined);
+
+    expect(detectInitialLocale()).toBe('en');
+  });
+
   it('updates reactive messages and persists the selected locale', () => {
     const storage = storageWith(null);
     vi.stubGlobal('localStorage', storage);
