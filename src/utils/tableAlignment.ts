@@ -23,6 +23,23 @@ const TABLE_GAP_PENALTY = 0.2;
 // anything, so position wins.
 const MAX_TABLE_ALIGNMENT_PAIRS = 1_000_000;
 
+/**
+ * How much better a candidate must score before it displaces the one already
+ * chosen.
+ *
+ * Every cell's score is a running sum of floats, so two alignments genuinely
+ * worth the same can end up a rounding error apart — and then the drift, rather
+ * than the preference order the loop below states, decides between them. A
+ * document whose only figure had been duplicated twice showed this at its
+ * plainest: pairing that figure with the first copy and pairing it with the last
+ * both score exactly 1, one ulp separated them, and the reader was shown the two
+ * figures *above* the untouched one marked as the additions.
+ *
+ * Orders of magnitude below any similarity difference that means anything, so a
+ * genuinely better alignment is never passed over for a worse one.
+ */
+const SCORE_EPSILON = 1e-9;
+
 type AlignmentPair<T> = { original?: T; revised?: T };
 export type TableAlignmentEntry = AlignmentPair<HTMLTableElement> & { id: string };
 
@@ -133,13 +150,18 @@ export function alignSequences<T>(
       let bestScore = scoreAt(originalIndex - 1, revisedIndex) - gapPenalty;
       let bestChoice: AlignmentChoice = 'original';
       const revisedScore = scoreAt(originalIndex, revisedIndex - 1) - gapPenalty;
-      if (revisedScore > bestScore) {
+      // Each candidate has to beat the standing one outright, so a tie leaves
+      // the earlier one in place: skipping beats pairing here, and because the
+      // traceback reads these backwards, that is what pulls the pairings toward
+      // the front of the two sequences. Three identical copies of one figure
+      // pair with the first, not the last.
+      if (revisedScore > bestScore + SCORE_EPSILON) {
         bestScore = revisedScore;
         bestChoice = 'revised';
       }
       if (matchScore >= matchThreshold) {
         const alignedScore = scoreAt(originalIndex - 1, revisedIndex - 1) + matchScore;
-        if (alignedScore > bestScore) {
+        if (alignedScore > bestScore + SCORE_EPSILON) {
           bestScore = alignedScore;
           bestChoice = 'match';
         }

@@ -137,6 +137,47 @@ describe('alignDocumentImages', () => {
     expect(entries[0]?.revised).toBeUndefined();
   });
 
+  // Every candidate pairing here scores exactly 1, so the answer rests entirely
+  // on how the alignment settles a tie. It has to keep the figure where the
+  // reader left it and call the later copies the additions: pairing with the
+  // last copy instead marks the figure the reader never touched as added, and
+  // leaves the one at the bottom of the page as the unchanged original.
+  it('pairs a duplicated figure with the first copy rather than the last', () => {
+    const entries = alignDocumentImages(
+      documentWith('blob:only'),
+      documentWith('blob:first', 'blob:second', 'blob:third'),
+      sides(
+        { 'blob:only': descriptor('same', 0.4) },
+        {
+          'blob:first': descriptor('same', 0.4),
+          'blob:second': descriptor('same', 0.4),
+          'blob:third': descriptor('same', 0.4)
+        }
+      )
+    );
+
+    expect(entries.map((entry) => entry.kind)).toEqual(['unchanged', 'inserted', 'inserted']);
+    expect(entries[0]?.revised?.getAttribute('src')).toBe('blob:first');
+  });
+
+  it('pairs a figure removed from a run of copies with the first one left', () => {
+    const entries = alignDocumentImages(
+      documentWith('blob:first', 'blob:second', 'blob:third'),
+      documentWith('blob:only'),
+      sides(
+        {
+          'blob:first': descriptor('same', 0.4),
+          'blob:second': descriptor('same', 0.4),
+          'blob:third': descriptor('same', 0.4)
+        },
+        { 'blob:only': descriptor('same', 0.4) }
+      )
+    );
+
+    expect(entries.map((entry) => entry.kind)).toEqual(['unchanged', 'deleted', 'deleted']);
+    expect(entries[0]?.original?.getAttribute('src')).toBe('blob:first');
+  });
+
   it('refuses to pair two figures with nothing in common', () => {
     const entries = alignDocumentImages(
       documentWith('blob:chart'),
