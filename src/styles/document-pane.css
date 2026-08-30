@@ -618,6 +618,8 @@
 .docx-render-content img {
   max-width: 100%;
   height: auto;
+  vertical-align: top;
+  margin: 0 2px;
 }
 
 /*
@@ -675,6 +677,8 @@
 .docx-render-content del[data-diff-image] {
   display: inline-block;
   padding: 3px;
+  margin: 0 6px;
+  vertical-align: top;
   border-bottom: none;
   outline-offset: 1px;
   outline-style: solid;
@@ -685,6 +689,11 @@
 }
 .docx-render-content del[data-diff-image] {
   outline-color: var(--del-border);
+}
+.docx-render-content ins[data-diff-image] img,
+.docx-render-content del[data-diff-image] img {
+  display: block;
+  margin: 0;
 }
 .docx-render-content del[data-diff-image] img {
   opacity: 0.6;
