@@ -2,19 +2,6 @@ export const SUPPORTED_LOCALES = ['en', 'zh-CN'] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
-/** What the image chip's tooltip spells out, so both locales phrase one shape. */
-type ImageDiffCounts = {
-  revised: number;
-  /** Byte-identical but no longer in the same place. */
-  moved: number;
-  inserted: number;
-  deleted: number;
-  /** Of the revised, how many only look re-encoded rather than redrawn. */
-  cosmetic: number;
-  /** Figures present on both sides with identical bytes. */
-  unchanged: number;
-};
-
 const en = {
   app: {
     documentTitle: 'DocDiff Pro - DOCX Document Comparison',
@@ -233,18 +220,6 @@ const en = {
     modified: 'Modified',
     inserted: 'Added',
     deleted: 'Deleted',
-    imageDiffs(count: number): string {
-      return `Images ${count}`;
-    },
-    imageDiffsTitle(counts: ImageDiffCounts): string {
-      const cosmetic = counts.cosmetic > 0 ? ` (${counts.cosmetic} only re-exported)` : '';
-      const moved = counts.moved > 0 ? `, ${counts.moved} moved` : '';
-      const unchanged = counts.unchanged > 0 ? `; ${counts.unchanged} unchanged` : '';
-      return (
-        `Figure differences: ${counts.revised} changed${cosmetic}${moved},` +
-        ` ${counts.inserted} added, ${counts.deleted} removed${unchanged}.`
-      );
-    },
     layoutNoiseFiltered(count: number): string {
       return `Layout ${count}`;
     },
@@ -556,18 +531,6 @@ const zhCN: I18nMessages = {
     modified: '修改',
     inserted: '新增',
     deleted: '删除',
-    imageDiffs(count: number): string {
-      return `图片 ${count}`;
-    },
-    imageDiffsTitle(counts: ImageDiffCounts): string {
-      const cosmetic = counts.cosmetic > 0 ? `（其中 ${counts.cosmetic} 处仅重新导出）` : '';
-      const moved = counts.moved > 0 ? `、移动 ${counts.moved}` : '';
-      const unchanged = counts.unchanged > 0 ? `；另有 ${counts.unchanged} 张未改动` : '';
-      return (
-        `图片差异：修改 ${counts.revised}${cosmetic}${moved}、` +
-        `新增 ${counts.inserted}、删除 ${counts.deleted}${unchanged}。`
-      );
-    },
     layoutNoiseFiltered(count: number): string {
       return `版面 ${count}`;
     },

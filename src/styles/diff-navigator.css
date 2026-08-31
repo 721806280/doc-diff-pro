@@ -87,16 +87,6 @@ button.summary-chip {
   border-color: rgba(var(--similarity-rgb), 0.22);
   background: rgba(var(--similarity-rgb), 0.08);
 }
-/*
- * Figures are already counted in the total, so this chip is informational rather
- * than another category: it borrows the neutral treatment of the similarity chip
- * instead of the warning colours the layout chip uses.
- */
-.summary-chip.images {
-  color: var(--similarity-text);
-  border-color: rgba(var(--similarity-rgb), 0.22);
-  background: rgba(var(--similarity-rgb), 0.08);
-}
 .summary-chip.layout-noise {
   color: var(--warning-strong);
   border-color: var(--warning-border);

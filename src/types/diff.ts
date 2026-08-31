@@ -8,7 +8,7 @@ export type DiffOperation = -1 | 0 | 1;
 
 export type DiffTuple = [DiffOperation, string] & { groupId?: string };
 
-/** What the image pass found, counted the way the reader is told about it. */
+/** What the image pass found, retained in the comparison summary for consumers. */
 export type ImageComparisonSummary = {
   /** Images paired across the two documents, whether or not they changed. */
   paired: number;
@@ -30,7 +30,8 @@ export type DiffSummary = {
    * How much of the text survived the revision. Text only, on purpose: folding
    * images in would mean charging each one some invented number of characters,
    * and a headline figure nobody can explain is worse than two they can. The
-   * image counts are reported beside it.
+   * image counts remain available in the summary for consumers that need
+   * figure-level detail.
    */
   similarity: number;
   images: ImageComparisonSummary;
