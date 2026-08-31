@@ -11,9 +11,6 @@ importers:
       '@fontsource/inter':
         specifier: ^5.2.8
         version: 5.3.0
-      buffer:
-        specifier: ^6.0.3
-        version: 6.0.3
       diff-match-patch:
         specifier: ^1.0.5
         version: 1.0.5
@@ -21,8 +18,8 @@ importers:
         specifier: ^3.4.10
         version: 3.4.10
       mammoth:
-        specifier: npm:@xm721806280/mammoth@1.12.2-rc1
-        version: '@xm721806280/mammoth@1.12.2-rc1'
+        specifier: npm:@xm721806280/mammoth@1.12.2-rc2
+        version: '@xm721806280/mammoth@1.12.2-rc2'
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -629,8 +626,8 @@ packages:
   '@vitest/utils@4.1.8':
     resolution: {integrity: sha512-uOJamYALNhfJ6iolExyQM40yIQwDqYnkKtQ5VCiSe17E33H0aQ/u+1GlRuz4LZBk6Mm3sg90G9hEbmEt37C1Zg==}
 
-  '@xm721806280/mammoth@1.12.2-rc1':
-    resolution: {integrity: sha512-5TdhwHQy2tZMDi7Lr14UlHL4dSoMmHolUzmBLD7mBZ/Mc2KS/K2MO/Mqgy2DFABkfv/u5VmnbNtYZRzvkOuQ4w==}
+  '@xm721806280/mammoth@1.12.2-rc2':
+    resolution: {integrity: sha512-OhoJRoCHohjpmD+a7F+oMtN6BKIzClPpuX0iqsC9sYKqZe6qNISQolmx513YjosVuRtxFJINoxslTWIx2MB4Ew==}
     engines: {node: '>=12.0.0'}
     hasBin: true
 
@@ -765,9 +762,6 @@ packages:
     resolution: {integrity: sha512-FQBYNK15VMslhLHpA7+n+n1GOlF1kId2xcCg7/j95f24AOF6VDYMNH4mFxF7KuaTdv627faazpOAjFzMrfJOUw==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
-
-  buffer@6.0.3:
-    resolution: {integrity: sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==}
 
   call-bind-apply-helpers@1.0.2:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
@@ -1168,9 +1162,6 @@ packages:
 
   html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
-
-  ieee754@1.2.1:
-    resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
 
   ignore@5.2.0:
     resolution: {integrity: sha512-CmxgYGiEPCLhfLnpPp1MoRmifwEIOgjcHXxOBjv7mY96c+eWScsOP9c112ZyLdWHi0FxHjI+4uVhKYp/gcdRmQ==}
@@ -2667,7 +2658,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
-  '@xm721806280/mammoth@1.12.2-rc1':
+  '@xm721806280/mammoth@1.12.2-rc2':
     dependencies:
       '@xmldom/xmldom': 0.8.13
       argparse: 1.0.10
@@ -2813,11 +2804,6 @@ snapshots:
       electron-to-chromium: 1.5.394
       node-releases: 2.0.51
       update-browserslist-db: 1.2.3(browserslist@4.28.6)
-
-  buffer@6.0.3:
-    dependencies:
-      base64-js: 1.5.1
-      ieee754: 1.2.1
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
@@ -3306,8 +3292,6 @@ snapshots:
       - '@noble/hashes'
 
   html-escaper@2.0.2: {}
-
-  ieee754@1.2.1: {}
 
   ignore@5.2.0: {}
 
