@@ -1,7 +1,12 @@
-import { memo, useMemo, useState, type RefObject, type MouseEvent, type KeyboardEvent } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type RefObject, type MouseEvent, type KeyboardEvent } from 'react';
 import { useI18n } from '@/i18n';
 import type { DocumentPaneState, PaneSide } from '@/types/document';
 export type { DocumentPaneState, PaneSide } from '@/types/document';
+
+export type ImagePreview = {
+  src: string;
+  alt: string;
+};
 
 type DocumentPaneProps = {
   side: PaneSide;
@@ -14,6 +19,7 @@ type DocumentPaneProps = {
   onFile: (side: PaneSide, file: File) => Promise<void>;
   onScroll: (side: PaneSide) => void;
   onDiffInteraction: (event: MouseEvent | KeyboardEvent) => void;
+  onImagePreview: (side: PaneSide, image: ImagePreview) => void;
   onActivate: (side: PaneSide) => void;
 };
 
@@ -28,6 +34,7 @@ export default function DocumentPane({
   onFile,
   onScroll,
   onDiffInteraction,
+  onImagePreview,
   onActivate
 }: DocumentPaneProps) {
   const { locale, messages: i18n } = useI18n();
@@ -108,14 +115,31 @@ export default function DocumentPane({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
-    if (
-      (event.key === 'Enter' || event.key === ' ') &&
-      event.target instanceof Element &&
-      event.target.closest('[data-diff-id]')
-    ) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+
+    const image = event.target instanceof HTMLImageElement ? event.target : null;
+    if (image?.src) {
+      event.preventDefault();
+      if (image.closest('[data-diff-id]')) onDiffInteraction(event);
+      onImagePreview(side, { src: image.currentSrc || image.src, alt: image.alt });
+      return;
+    }
+
+    if (event.target instanceof Element && event.target.closest('[data-diff-id]')) {
       event.preventDefault();
       onDiffInteraction(event);
     }
+  }
+
+  function handleClick(event: React.MouseEvent<HTMLDivElement>): void {
+    const image = event.target instanceof HTMLImageElement ? event.target : null;
+    if (image?.src) {
+      event.preventDefault();
+      if (image.closest('[data-diff-id]')) onDiffInteraction(event);
+      onImagePreview(side, { src: image.currentSrc || image.src, alt: image.alt });
+      return;
+    }
+    onDiffInteraction(event);
   }
 
   return (
@@ -223,7 +247,7 @@ export default function DocumentPane({
         ref={paneRef}
         className={`render-viewport ${!hasResult ? 'is-empty' : ''} ${allowFileInput && dragging ? 'is-dragging' : ''}`}
         onScroll={() => onScroll(side)}
-        onClick={onDiffInteraction}
+        onClick={handleClick}
         onKeyDown={handleKeyDown}
         onMouseEnter={() => onActivate(side)}
         onWheel={() => onActivate(side)}
@@ -307,13 +331,30 @@ export default function DocumentPane({
             )}
           </div>
         ) : (
-          <DocumentHtml html={document.highlightedHtml} />
+          <DocumentHtml html={document.highlightedHtml} imagePreviewLabel={i18n.documentPane.imagePreviewLabel} />
         )}
       </div>
     </section>
   );
 }
 
-const DocumentHtml = memo(function DocumentHtml({ html }: { html: string }) {
-  return <div className="docx-render-content" dangerouslySetInnerHTML={{ __html: html }} />;
+const DocumentHtml = memo(function DocumentHtml({
+  html,
+  imagePreviewLabel
+}: {
+  html: string;
+  imagePreviewLabel: string;
+}) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const images = contentRef.current?.querySelectorAll<HTMLImageElement>('img[src]');
+    images?.forEach((image) => {
+      image.tabIndex = 0;
+      image.setAttribute('role', 'button');
+      image.setAttribute('aria-label', image.alt ? `${imagePreviewLabel}: ${image.alt}` : imagePreviewLabel);
+    });
+  }, [html, imagePreviewLabel]);
+
+  return <div ref={contentRef} className="docx-render-content" dangerouslySetInnerHTML={{ __html: html }} />;
 });

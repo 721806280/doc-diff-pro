@@ -276,6 +276,26 @@ describe('React app workflow', () => {
     expect(host.querySelector('.floating-navigator')).toBeTruthy();
   });
 
+  // The revised half is the same story: replacing it alone has to kick off a
+  // fresh comparison rather than waiting for the original to be reselected.
+  it('compares again when only the revised document is replaced', async () => {
+    await mountComparedApp();
+    mocks.parseDocx.mockResolvedValueOnce(parsed('<p>second revised</p>'));
+    mocks.compareDocuments.mockResolvedValueOnce(comparisonWithDiffs());
+
+    await selectFile(1, new File(['b2'], 'revised-2.docx'));
+    await flush();
+
+    expect(mocks.compareDocuments).toHaveBeenCalledTimes(2);
+    expect(mocks.compareDocuments).toHaveBeenLastCalledWith(
+      '<p>baseline</p>',
+      '<p>second revised</p>',
+      expect.any(Object)
+    );
+    expect(host.querySelector('.side-revision')?.textContent).toContain('revised-2.docx');
+    expect(host.querySelector('.floating-navigator')).toBeTruthy();
+  });
+
   // Sync scroll follows whichever pane the reader is actually using, which is
   // why the pane has to be activated first. Without that, both panes would
   // answer each other's scroll events and fight over the position.

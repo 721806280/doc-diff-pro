@@ -42,6 +42,24 @@ test('shows every kind of figure difference in the sample comparison', async ({ 
   await expect(baseline.locator('del[data-diff-image]').first()).toHaveAttribute('data-diff-image', /\S+ \d+×\d+/);
 });
 
+test('opens a full-size preview without losing image-difference focus', async ({ page }) => {
+  await page.goto('./');
+  await page.locator('.local-processing-strip button').click();
+  await expect(page.locator('.floating-navigator')).toBeVisible({ timeout: 30_000 });
+
+  const image = page.locator('del[data-diff-image] img').first();
+  const source = await image.getAttribute('src');
+  await image.click();
+
+  const preview = page.locator('.image-preview-overlay');
+  await expect(preview).toBeVisible();
+  await expect(preview.locator('.image-preview-image')).toHaveAttribute('src', source ?? '');
+  await expect(page.locator('del[data-diff-image].focus-diff')).toHaveCount(1);
+
+  await page.keyboard.press('Escape');
+  await expect(preview).toBeHidden();
+});
+
 /**
  * The samples also carry a Word-drawn text box and a formula, which the converter
  * emits nothing at all for — not even a warning. Both sides say so, which is the

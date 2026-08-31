@@ -95,6 +95,34 @@ describe('DocumentPane', () => {
     expect(accepted.defaultPrevented).toBe(true);
   });
 
+  it('previews renderable images and still activates a difference around one', () => {
+    const previews: Array<{ src: string; alt: string }> = [];
+    const diffEvents: React.SyntheticEvent[] = [];
+    const document = {
+      ...emptyDocument(),
+      name: 'review.docx',
+      status: 'ready' as const,
+      highlightedHtml:
+        '<p><img src="blob:plain" alt="Plain figure"></p>' +
+        '<p><ins data-diff-id="diff-1"><img src="blob:changed" alt="Changed figure"></ins></p>'
+    };
+    const { host } = mountPane(true, document, undefined, (event) => diffEvents.push(event), {
+      onImagePreview: (_side, image) => previews.push(image)
+    });
+    const images = host.querySelectorAll<HTMLImageElement>('.docx-render-content img');
+
+    act(() => images[0]?.click());
+    act(() => images[1]?.click());
+
+    expect(previews).toEqual([
+      { src: 'blob:plain', alt: 'Plain figure' },
+      { src: 'blob:changed', alt: 'Changed figure' }
+    ]);
+    expect(diffEvents).toHaveLength(1);
+    expect(images[0]?.getAttribute('role')).toBe('button');
+    expect(images[0]?.tabIndex).toBe(0);
+  });
+
   it('reports scrolling and every pointer-style activation with its side', () => {
     const scrolled: string[] = [];
     const activated: string[] = [];
@@ -210,7 +238,11 @@ function mountPane(
   document = emptyDocument(),
   onFile?: (file: File) => void,
   onDiffInteraction: (event: React.SyntheticEvent) => void = () => undefined,
-  handlers: Partial<{ onScroll: (side: 'A' | 'B') => void; onActivate: (side: 'A' | 'B') => void }> = {}
+  handlers: Partial<{
+    onScroll: (side: 'A' | 'B') => void;
+    onActivate: (side: 'A' | 'B') => void;
+    onImagePreview: (side: 'A' | 'B', image: { src: string; alt: string }) => void;
+  }> = {}
 ) {
   return renders.render(
     <DocumentPane
@@ -224,6 +256,7 @@ function mountPane(
       onFile={async (_side, file) => onFile?.(file)}
       onScroll={handlers.onScroll ?? (() => undefined)}
       onDiffInteraction={onDiffInteraction}
+      onImagePreview={handlers.onImagePreview ?? (() => undefined)}
       onActivate={handlers.onActivate ?? (() => undefined)}
     />
   );

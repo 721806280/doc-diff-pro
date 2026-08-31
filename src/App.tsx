@@ -4,9 +4,9 @@ import CompareToast from '@/components/CompareToast';
 import DiffActionPopover from '@/components/DiffActionPopover';
 import DiffMap from '@/components/DiffMap';
 import DiffNavigator from '@/components/DiffNavigator';
-import DocumentPane from '@/components/DocumentPane';
+import DocumentPane, { type ImagePreview } from '@/components/DocumentPane';
 import MobilePaneSwitch from '@/components/MobilePaneSwitch';
-import { SimilarDiffModal } from '@/components/ReviewModals';
+import { ImagePreviewModal, SimilarDiffModal } from '@/components/ReviewModals';
 import TableHintTip from '@/components/TableHintTip';
 import { deploymentConfig } from '@/config/deploymentConfig';
 import { readSavedUserSettings, type UserSettings, writeSavedUserSettings } from '@/config/userSettings';
@@ -66,6 +66,7 @@ export default function App() {
   const [mobilePane, setMobilePane] = useState<Side>('A');
   const [ignoredDiffs, setIgnoredDiffs] = useState<Map<string, IgnoredDiffItem>>(new Map());
   const [similarOpen, setSimilarOpen] = useState(false);
+  const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
   const settingsResetNotice = useTimeoutRef();
   const syncReleaseFrame = useAnimationFrameRef();
   const mobilePaneFrame = useAnimationFrameRef();
@@ -112,6 +113,7 @@ export default function App() {
   const clearReviewState = useCallback(() => {
     setIgnoredDiffs(new Map());
     setSimilarOpen(false);
+    setImagePreview(null);
     preferredDiffActionElement.current = null;
     resetTableHintRef.current();
     clearDiffActionPositionRef.current();
@@ -138,6 +140,7 @@ export default function App() {
   }, [settings]);
 
   const onBeforeDocumentChange = useCallback(() => {
+    setImagePreview(null);
     comparisonClearRef.current();
   }, []);
 
@@ -369,6 +372,10 @@ export default function App() {
     [focusDiff, scheduleDiffActionUpdate, showTableHint]
   );
 
+  const onImagePreview = useCallback((_side: Side, image: ImagePreview): void => {
+    setImagePreview(image);
+  }, []);
+
   const onPaneScroll = useCallback(
     (side: Side): void => {
       scheduleDiffActionUpdate();
@@ -504,6 +511,7 @@ export default function App() {
           onFile={handleFile}
           onScroll={onPaneScroll}
           onDiffInteraction={onDiffInteraction}
+          onImagePreview={onImagePreview}
           onActivate={onPaneActivate}
         />
         <DiffMap
@@ -525,6 +533,7 @@ export default function App() {
           onFile={handleFile}
           onScroll={onPaneScroll}
           onDiffInteraction={onDiffInteraction}
+          onImagePreview={onImagePreview}
           onActivate={onPaneActivate}
         />
       </main>
@@ -551,6 +560,13 @@ export default function App() {
           locateDiff(diffReviewIndex(id));
         }}
         onIgnore={ignoreDiffsById}
+      />
+      <ImagePreviewModal
+        open={imagePreview !== null}
+        image={imagePreview}
+        title={i18n.documentPane.imagePreviewTitle}
+        closeLabel={i18n.diffNavigator.closeDetails}
+        onClose={() => setImagePreview(null)}
       />
       <TableHintTip
         hint={tableHint}

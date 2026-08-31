@@ -171,6 +171,16 @@
   padding: 24px 32px 140px;
 }
 
+.docx-render-content img[src] {
+  cursor: zoom-in;
+}
+
+.docx-render-content img[src]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
 /* Stretches over the whole empty pane so the click target matches the drop
    target. The pane itself stays clean: hovering anywhere in it lifts the card
    inside, which is the only thing the reviewer sees change. A pane-wide tint is
