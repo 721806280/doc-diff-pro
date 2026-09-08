@@ -23,8 +23,8 @@ test('opens the paired images from either side and returns to the clicked figure
   isMobile
 }, testInfo) => {
   await loadComparison(page);
-  const original = page.locator('del[data-diff-image] img').first();
-  const revision = page.locator('ins[data-diff-image] img').first();
+  const original = page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first();
+  const revision = page.locator('ins[data-diff-image] img[data-ddv-image-change="revised"]').first();
   const sources = [await original.getAttribute('src'), await revision.getAttribute('src')];
 
   for (const side of ['A', 'B'] as const) {
@@ -78,7 +78,7 @@ test('pairs unchanged figures and leaves additions and removals on their correct
   await page.screenshot({ path: testInfo.outputPath('image-identical.png'), animations: 'disabled' });
   await page.keyboard.press('Escape');
 
-  await page.locator('del[data-diff-image] img').last().click();
+  await page.locator('del[data-diff-image] img[data-ddv-image-change="deleted"]').click();
   await expect(page.locator('.image-preview-status')).toHaveText('删除');
   await expect(page.locator('.image-preview-context')).toHaveText('这张图片仅存在于基准文档');
   await expect(page.locator('.image-preview-pane[data-side="B"]')).toHaveCount(0);
@@ -89,7 +89,7 @@ test('pairs unchanged figures and leaves additions and removals on their correct
   await page.keyboard.press('Escape');
 
   await showDocument(page, 'B', isMobile);
-  await page.locator('ins[data-diff-image] img').last().click();
+  await page.locator('ins[data-diff-image] img[data-ddv-image-change="inserted"]').click();
   await expect(page.locator('.image-preview-status')).toHaveText('新增');
   await expect(page.locator('.image-preview-context')).toHaveText('这张图片仅存在于修订文档');
   await expect(page.locator('.image-preview-pane[data-side="A"]')).toHaveCount(0);
@@ -98,10 +98,11 @@ test('pairs unchanged figures and leaves additions and removals on their correct
 
 test('links zoom and pan and supports independent adjustment with keyboard and wheel controls', async ({ page }) => {
   await loadComparison(page);
-  await page.locator('del[data-diff-image] img').first().click();
+  await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
   const a = previewImage(page, 'A');
   const b = previewImage(page, 'B');
   const canvas = page.locator('.image-preview-canvas[data-side="A"]');
+  const naturalWidth = await a.evaluate((image: HTMLImageElement) => image.naturalWidth);
   const initial = (await a.boundingBox())!;
   for (let index = 0; index < 4; index++) await page.getByRole('button', { name: '放大', exact: true }).click();
   await expect.poll(async () => (await a.boundingBox())!.width).toBeGreaterThan(initial.width * 2);
@@ -130,9 +131,9 @@ test('links zoom and pan and supports independent adjustment with keyboard and w
   await canvas.focus();
 
   await page.getByRole('button', { name: '原始尺寸（100%）' }).click();
-  expect((await a.boundingBox())!.width).toBeCloseTo(480, 0);
+  expect((await a.boundingBox())!.width).toBeCloseTo(naturalWidth, 0);
   await page.getByRole('button', { name: '适应窗口', exact: true }).click();
-  expect((await a.boundingBox())!.width).toBeLessThanOrEqual(480);
+  expect((await a.boundingBox())!.width).toBeLessThanOrEqual(naturalWidth);
   await canvas.focus();
   const beforeKeyboard = (await a.boundingBox())!.width;
   await page.keyboard.press('+');
@@ -147,7 +148,7 @@ test('fits the English controls on a narrow screen', async ({ page }, testInfo) 
   await page.setViewportSize({ width: 320, height: 640 });
   await loadComparison(page);
   await page.locator('.language-trigger').click();
-  await page.locator('del[data-diff-image] img').first().click();
+  await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
   await expect(page.getByRole('dialog', { name: 'Image comparison' })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('image-comparison-narrow-en.png'), animations: 'disabled' });
   const overflow = await page.locator('.image-preview-panel').evaluate((panel) => {
@@ -175,7 +176,7 @@ test('previews a single document before comparison', async ({ page }, testInfo) 
 test('zooms with a touch pinch on mobile', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'Touch gestures');
   await loadComparison(page);
-  await page.locator('del[data-diff-image] img').first().click();
+  await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
   const image = previewImage(page, 'A');
   await expect(image).toBeVisible();
   const initial = (await image.boundingBox())!.width;

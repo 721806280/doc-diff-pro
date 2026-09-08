@@ -10,10 +10,9 @@ test('loads the sample documents and renders a comparison', async ({ page }) => 
 });
 
 /**
- * The samples carry four figures between them precisely so that a preview shows
- * every outcome the image pass can report. If this drifts, the samples have
- * stopped demonstrating the feature — which is the only reason they carry
- * figures at all.
+ * Contract figures illustrate their neighboring clauses while demonstrating
+ * modified payments, an unchanged service chain, a removed acceptance rule and
+ * a newly added data-incident response obligation.
  */
 test('shows every kind of figure difference in the sample comparison', async ({ page }) => {
   await page.goto('./');
@@ -23,19 +22,43 @@ test('shows every kind of figure difference in the sample comparison', async ({ 
   const baseline = page.locator('.view-dock-panel').first();
   const revised = page.locator('.view-dock-panel').last();
 
-  // The revised chart and the removed flow diagram, on the baseline side.
+  // The revised payment chart and the removed acceptance flow.
   await expect(baseline.locator('del[data-diff-image] img')).toHaveCount(2);
-  // The revised chart and the added donut, on the revision side.
+  // The revised payment chart and the added incident-response diagram.
   await expect(revised.locator('ins[data-diff-image] img')).toHaveCount(2);
 
   // The chart appears on both sides under one difference id: the same figure,
   // revised, rather than one removed beside one added.
-  const revisedChartId = await baseline.locator('del[data-diff-image]').first().getAttribute('data-diff-id');
+  const revisedChartId = await baseline
+    .locator('del[data-diff-image]:has(img[data-ddv-image-change="revised"])')
+    .getAttribute('data-diff-id');
   await expect(revised.locator(`ins[data-diff-image][data-diff-id="${revisedChartId}"]`)).toHaveCount(1);
 
-  // The logo is byte-identical in both samples and must be reported as nothing
-  // at all — six figures rendered, four of them marked.
+  // The service chain is byte-identical — six figures rendered, four marked.
   await expect(page.locator('.docx-render-content img')).toHaveCount(6);
+
+  // Each figure belongs beside its contract clause, with enough source pixels
+  // for a readable enlarged preview rather than a stretched thumbnail.
+  for (const [pane, sections] of [
+    [baseline, ['第一条服务范围', '第二条交付与验收', '第三条费用与支付']],
+    [revised, ['第一条服务范围', '第三条费用与支付', '第五条数据安全与保密']]
+  ] as const) {
+    const figures = await pane.locator('.docx-render-content img').evaluateAll((images) =>
+      images.map((image) => {
+        const root = image.closest('.docx-render-content');
+        let block: Element = image;
+        while (block.parentElement && block.parentElement !== root) block = block.parentElement;
+        let heading = block.previousElementSibling;
+        while (heading && !heading.matches('h2')) heading = heading.previousElementSibling;
+        return {
+          section: heading?.textContent?.replace(/\s/g, ''),
+          width: (image as HTMLImageElement).naturalWidth
+        };
+      })
+    );
+    expect(figures.map((figure) => figure.section)).toEqual(sections);
+    expect(figures.every((figure) => figure.width >= 1500)).toBe(true);
+  }
 
   // Every marked figure carries the label the review list previews it by. The
   // word in front of the dimensions is localized, so only the shape is asserted.
@@ -47,7 +70,7 @@ test('opens a full-size preview without losing image-difference focus', async ({
   await page.locator('.local-processing-strip button').click();
   await expect(page.locator('.floating-navigator')).toBeVisible({ timeout: 30_000 });
 
-  const image = page.locator('del[data-diff-image] img').first();
+  const image = page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first();
   const source = await image.getAttribute('src');
   await image.click();
 

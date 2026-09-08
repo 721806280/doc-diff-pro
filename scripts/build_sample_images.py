@@ -1,118 +1,96 @@
-"""Draws the figures the sample documents carry, and embeds them.
+"""Rebuild the sample contract figures beside the clauses they illustrate.
 
-The samples are what a reader sees before they have a document of their own, and
-until now they were text and tables only — so the whole of image comparison was
-invisible in a preview. These four figures cover every outcome the image pass can
-report: one figure revised, one left untouched, one added, one removed.
+Run: python3 scripts/build_sample_images.py
+Optional: --preview-dir /tmp/doc-diff-figures saves the rendered PNGs for review.
 
-Run from the repository root: python3 scripts/build_sample_images.py
-Raw pixels and raw OOXML on purpose; a sample fixture is not worth a toolchain.
+Uses Python's standard library for OOXML and the project's installed Playwright
+and Chrome for sharp, three-times-resolution Chinese diagrams. Re-running updates
+only this script's figures, captions, formula and text box; contract text, tables,
+headers and footers are preserved. Payment values come from the contract tables.
 """
 
-import shutil
-import struct
+import argparse
+import base64
+import io
+import json
+import posixpath
+import re
+import subprocess
 import zipfile
-import zlib
 from pathlib import Path
+from xml.dom import Node, minidom
+from xml.sax.saxutils import escape
 
-SAMPLES = Path('public/samples')
-# One CSS pixel at 96 DPI, in the English Metric Units OOXML measures in.
+ROOT = Path(__file__).resolve().parent.parent
+SAMPLES = ROOT / 'public/samples'
 EMU_PER_PIXEL = 9525
-
-INK = (31, 41, 55)
-AXIS = (148, 163, 184)
-WHITE = (255, 255, 255)
-
-
-class Canvas:
-    def __init__(self, width, height, background=WHITE):
-        self.width = width
-        self.height = height
-        self.pixels = bytearray(background * (width * height))
-
-    def fill(self, x, y, width, height, color):
-        for row in range(max(0, y), min(self.height, y + height)):
-            start = (row * self.width + max(0, x)) * 3
-            span = min(self.width, x + width) - max(0, x)
-            if span > 0:
-                self.pixels[start:start + span * 3] = bytes(color) * span
-
-    def ring(self, cx, cy, radius, thickness, color):
-        outer, inner = radius ** 2, max(0, radius - thickness) ** 2
-        for y in range(max(0, cy - radius), min(self.height, cy + radius + 1)):
-            for x in range(max(0, cx - radius), min(self.width, cx + radius + 1)):
-                distance = (x - cx) ** 2 + (y - cy) ** 2
-                if inner <= distance <= outer:
-                    offset = (y * self.width + x) * 3
-                    self.pixels[offset:offset + 3] = bytes(color)
-
-    def to_png(self):
-        raw = b''.join(
-            b'\x00' + bytes(self.pixels[row * self.width * 3:(row + 1) * self.width * 3])
-            for row in range(self.height)
-        )
-
-        def chunk(tag, payload):
-            body = tag + payload
-            return struct.pack('>I', len(payload)) + body + struct.pack('>I', zlib.crc32(body))
-
-        header = struct.pack('>IIBBBBB', self.width, self.height, 8, 2, 0, 0, 0)
-        return (
-            b'\x89PNG\r\n\x1a\n'
-            + chunk(b'IHDR', header)
-            + chunk(b'IDAT', zlib.compress(raw, 9))
-            + chunk(b'IEND', b'')
-        )
+WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+PACKAGE_REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships'
+DRAWING_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
 
 
-def bar_chart(values, palette):
-    """A column chart: the figure whose ink profile is its data."""
-    canvas = Canvas(480, 300)
-    canvas.fill(0, 0, 480, 6, (99, 102, 241))
-    canvas.fill(56, 262, 392, 3, AXIS)
-    canvas.fill(56, 40, 3, 225, AXIS)
-    for index, value in enumerate(values):
-        height = round(value * 200)
-        canvas.fill(84 + index * 72, 262 - height, 44, height, palette[index % len(palette)])
-    return canvas
+def related_part(rels_path, relation):
+    source_directory = posixpath.dirname(posixpath.dirname(rels_path))
+    return posixpath.normpath(
+        posixpath.join(source_directory, relation.getAttribute('Target'))
+    ).lstrip('/')
 
 
-def brand_mark():
-    """A logo, the figure a document repeats and never edits."""
-    canvas = Canvas(200, 200, (79, 70, 229))
-    canvas.ring(100, 100, 62, 14, WHITE)
-    canvas.fill(92, 58, 16, 60, WHITE)
-    canvas.fill(60, 132, 80, 16, WHITE)
-    return canvas
+def word_text(node):
+    return ''.join(
+        text.firstChild.nodeValue
+        for text in node.getElementsByTagName('w:t')
+        if text.firstChild
+    )
 
 
-def flow_diagram():
-    """Three linked boxes: only in the baseline, so reported as removed."""
-    canvas = Canvas(480, 200)
-    for index in range(3):
-        left = 24 + index * 152
-        canvas.fill(left, 60, 120, 80, (226, 232, 240))
-        canvas.fill(left, 60, 120, 5, INK)
-        if index < 2:
-            canvas.fill(left + 120, 98, 32, 5, AXIS)
-    return canvas
+def paragraph(body, prefix):
+    matches = [
+        node for node in body.childNodes
+        if node.nodeName == 'w:p' and word_text(node).startswith(prefix)
+    ]
+    if len(matches) != 1:
+        raise ValueError(f'Expected one paragraph starting with {prefix!r}, found {len(matches)}')
+    return matches[0]
 
 
-def donut_chart():
-    """A ring: only in the revision, so reported as added."""
-    canvas = Canvas(300, 300)
-    canvas.ring(150, 150, 120, 44, (16, 185, 129))
-    canvas.ring(150, 150, 74, 26, (245, 158, 11))
-    return canvas
+def payment_table(body):
+    return next(
+        node for node in body.childNodes
+        if node.nodeName == 'w:tbl' and word_text(node).startswith('付款阶段')
+    )
 
 
-def drawing_xml(relationship_id, name, width, height):
+def contract_terms(document, side):
+    body = document.getElementsByTagName('w:body')[0]
+    cells = [word_text(cell) for cell in document.getElementsByTagName('w:tc')]
+    amount = cells[cells.index('合同金额') + 1]
+    total = int(re.search(r'[\d,]+', amount).group().replace(',', ''))
+    payments = {}
+    for row in payment_table(body).getElementsByTagName('w:tr')[1:]:
+        row_cells = [word_text(cell) for cell in row.getElementsByTagName('w:tc')]
+        payments[row_cells[0]] = int(row_cells[1].removesuffix('%'))
+    assert total > 0 and sum(payments.values()) == 100, 'Invalid sample payment totals'
+    terms = {'total': total, 'payments': payments}
+    if side == 'baseline':
+        clause = word_text(paragraph(body, '甲方应在收到交付物后'))
+        terms['acceptanceDays'] = int(re.search(r'(\d+) 个工作日', clause).group(1))
+    else:
+        clause = word_text(paragraph(body, '5.3 '))
+        terms['notificationHours'] = int(re.search(r'(\d+) 小时', clause).group(1))
+    return terms
+
+
+def drawing_xml(relationship_id, name, width, height, description):
+    name = escape(name, {'"': '&quot;'})
+    description = escape(description, {'"': '&quot;'})
     return (
         '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="200"/></w:pPr><w:r><w:drawing>'
         '<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"'
         ' distT="0" distB="0" distL="0" distR="0">'
         f'<wp:extent cx="{width * EMU_PER_PIXEL}" cy="{height * EMU_PER_PIXEL}"/>'
-        f'<wp:docPr id="{900 + int(relationship_id[3:])}" name="{name}"/>'
+        f'<wp:docPr id="{900 + int(relationship_id[3:])}" name="{name}" descr="{description}"/>'
         '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
         '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
         '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
@@ -126,17 +104,11 @@ def drawing_xml(relationship_id, name, width, height):
 
 
 def caption_xml(text):
+    text = escape(text)
     return (
         '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="60"/>'
         '<w:rPr><w:color w:val="657187"/><w:sz w:val="18"/></w:rPr></w:pPr>'
         f'<w:r><w:rPr><w:color w:val="657187"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">{text}</w:t></w:r></w:p>'
-    )
-
-
-def heading_xml(text):
-    return (
-        '<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:spacing w:before="360" w:after="160"/></w:pPr>'
-        f'<w:r><w:t xml:space="preserve">{text}</w:t></w:r></w:p>'
     )
 
 
@@ -159,7 +131,7 @@ def text_box_xml():
         '<wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3657600" cy="571500"/></a:xfrm>'
         '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></wps:spPr>'
         '<wps:txbx><w:txbxContent><w:p><w:r><w:t xml:space="preserve">'
-        '提示：本文本框由 Word 自行绘制</w:t></w:r></w:p></w:txbxContent></wps:txbx>'
+        '履约资料：源代码、部署包、测试报告与验收记录应完整归档。</w:t></w:r></w:p></w:txbxContent></wps:txbx>'
         '<wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>'
     )
 
@@ -169,99 +141,221 @@ def formula_xml():
     return (
         '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
         '<m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:oMath>'
-        '<m:r><m:t xml:space="preserve">S = a × b ÷ 2</m:t></m:r>'
+        '<m:r><m:t xml:space="preserve">阶段付款金额 = 含税合同总额 × 付款比例</m:t></m:r>'
         '</m:oMath></m:oMathPara></w:p>'
     )
 
 
-def embed(source, target, figures):
-    """Adds media parts, relationships and a figure section to one document."""
-    if Path(source) != Path(target):
-        shutil.copyfile(source, target)
-    with zipfile.ZipFile(target) as archive:
-        parts = {item.filename: archive.read(item.filename) for item in archive.infolist()}
+def embed(parts, document, side, figures):
+    body = document.getElementsByTagName('w:body')[0]
+    removed_image_ids = set()
 
-    # Appending a second time would duplicate both the section and the
-    # relationship ids, leaving a package Word would refuse. The samples are
-    # committed already built, so a re-run is a mistake worth naming rather than
-    # something to silently absorb.
-    if any(name.startswith('word/media/figure-') for name in parts):
-        raise SystemExit(
-            f'{target} already carries figures. Restore it from git before rebuilding:\n'
-            f'  git checkout -- {target}'
+    # Remove the old generic appendix once, and our bookmarked paragraphs on
+    # subsequent runs. Bookmarks survive Word round-trips without visible labels.
+    legacy_appendix = False
+    for node in list(body.childNodes):
+        if node.nodeType != Node.ELEMENT_NODE or node.nodeName == 'w:sectPr':
+            continue
+        if word_text(node) == '附件一 图示':
+            legacy_appendix = True
+        owned = any(
+            mark.getAttribute('w:name').startswith('DDPSample_')
+            for mark in node.getElementsByTagName('w:bookmarkStart')
+        )
+        if legacy_appendix or owned:
+            removed_image_ids.update(
+                blip.getAttributeNS(REL_NS, 'embed')
+                for blip in node.getElementsByTagNameNS(DRAWING_NS, 'blip')
+            )
+            body.removeChild(node)
+
+    # Word/WPS may rename media when saving. Follow the removed drawings' IDs,
+    # but preserve images also referenced by retained content or other parts.
+    retained_ids = {
+        attribute.value
+        for element in document.getElementsByTagName('*')
+        for attribute in element.attributes.values()
+        if attribute.namespaceURI == REL_NS
+    }
+    unused_media = {name for name in parts if name.startswith('word/media/figure-')}
+    rels_path = 'word/_rels/document.xml.rels'
+    relationships = minidom.parseString(parts[rels_path])
+    for relation in list(relationships.getElementsByTagName('Relationship')):
+        if relation.getAttribute('TargetMode') == 'External':
+            continue
+        target = related_part(rels_path, relation)
+        relationship_id = relation.getAttribute('Id')
+        if relationship_id not in retained_ids and (
+            relationship_id in removed_image_ids or target in unused_media
+        ):
+            unused_media.add(target)
+            relation.parentNode.removeChild(relation)
+    for path, data in parts.items():
+        if not path.endswith('.rels'):
+            continue
+        relations = relationships if path == rels_path else minidom.parseString(data)
+        for relation in relations.getElementsByTagName('Relationship'):
+            if relation.getAttribute('TargetMode') != 'External':
+                unused_media.discard(related_part(path, relation))
+    for name in unused_media:
+        parts.pop(name, None)
+
+    bookmark_id = 6000
+
+    def insert_after(anchor, fragments):
+        nonlocal bookmark_id
+        wrapper = minidom.parseString(
+            f'<root xmlns:w="{WORD_NS}" xmlns:r="{REL_NS}">'
+            + ''.join(fragments) + '</root>'
+        )
+        for element in wrapper.documentElement.childNodes:
+            if element.nodeType != Node.ELEMENT_NODE:
+                continue
+            block = document.importNode(element, True)
+            assert block.nodeName == 'w:p'
+            start = document.createElementNS(WORD_NS, 'w:bookmarkStart')
+            start.setAttribute('w:id', str(bookmark_id))
+            start.setAttribute('w:name', f'DDPSample_{bookmark_id}')
+            end = document.createElementNS(WORD_NS, 'w:bookmarkEnd')
+            end.setAttribute('w:id', str(bookmark_id))
+            first = block.firstChild
+            if first and first.nodeName == 'w:pPr':
+                first = first.nextSibling
+            block.insertBefore(start, first)
+            block.appendChild(end)
+            body.insertBefore(block, anchor.nextSibling)
+            anchor = block
+            bookmark_id += 1
+        return anchor
+
+    image_index = 700
+    relationship_ids = {
+        relation.getAttribute('Id')
+        for relation in relationships.getElementsByTagName('Relationship')
+    }
+
+    def image_after(anchor, key, explanation):
+        nonlocal image_index
+        figure = figures[key]
+        while f'rId{image_index}' in relationship_ids:
+            image_index += 1
+        relationship_id = f'rId{image_index}'
+        file_name = f'figure-{key}.png'
+        suffix = 1
+        while f'word/media/{file_name}' in parts:
+            file_name = f'figure-{key}-{suffix}.png'
+            suffix += 1
+        parts[f'word/media/{file_name}'] = base64.b64decode(figure['png'])
+        relation = relationships.createElementNS(PACKAGE_REL_NS, 'Relationship')
+        relation.setAttribute('Id', relationship_id)
+        relation.setAttribute('Type', f'{REL_NS}/image')
+        relation.setAttribute('Target', f'media/{file_name}')
+        relationships.documentElement.appendChild(relation)
+        image_index += 1
+        return insert_after(anchor, [
+            caption_xml(explanation),
+            drawing_xml(
+                relationship_id, figure['title'], figure['width'],
+                figure['height'], figure['description']
+            ),
+        ])
+
+    image_after(
+        paragraph(body, '1.3 '), 'service-chain',
+        '核心服务链路如下，所有环节均受权限管理控制。'
+    )
+    if side == 'baseline':
+        image_after(
+            paragraph(body, '甲方逾期未提出书面异议的'), 'acceptance',
+            '阶段验收流程如下，时限自收到交付物起算。'
         )
 
-    content_types = parts['[Content_Types].xml'].decode()
-    if 'Extension="png"' not in content_types:
-        content_types = content_types.replace(
-            '<Default Extension="xml"',
-            '<Default Extension="png" ContentType="image/png"/><Default Extension="xml"',
-            1,
+    payment = image_after(
+        payment_table(body), f'payment-{side}',
+        '下图金额及比例与本条付款表一致，金额单位为人民币万元。'
+    )
+    insert_after(payment, [
+        caption_xml('阶段付款金额按含税合同总额与对应付款比例的乘积计算。'),
+        formula_xml(),
+    ])
+
+    if side == 'revised':
+        image_after(
+            paragraph(body, '5.3 '), 'incident-response',
+            '数据泄露的通知时限及责任方处置义务如下。'
         )
-    parts['[Content_Types].xml'] = content_types.encode()
 
-    relationships = parts['word/_rels/document.xml.rels'].decode()
-    body = [heading_xml('附件一 图示')]
-    added = []
+    last = next(
+        node for node in reversed(body.childNodes)
+        if node.nodeType == Node.ELEMENT_NODE and node.nodeName != 'w:sectPr'
+    )
+    insert_after(last, [caption_xml('履约资料归档说明'), text_box_xml()])
 
-    for index, (file_name, canvas, caption) in enumerate(figures):
-        relationship_id = f'rId{700 + index}'
-        parts[f'word/media/{file_name}'] = canvas.to_png()
-        added.append(
-            f'<Relationship Id="{relationship_id}"'
-            ' Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"'
-            f' Target="media/{file_name}"/>'
-        )
-        body.append(caption_xml(caption))
-        body.append(drawing_xml(relationship_id, file_name, canvas.width, canvas.height))
+    parts['word/document.xml'] = document.toxml(encoding='utf-8')
+    parts['word/_rels/document.xml.rels'] = relationships.toxml(encoding='utf-8')
+    content_types = minidom.parseString(parts['[Content_Types].xml'])
+    for item in list(content_types.getElementsByTagName('Override')):
+        if item.getAttribute('PartName').lstrip('/') in unused_media:
+            item.parentNode.removeChild(item)
+    if not any(
+        item.getAttribute('Extension') == 'png'
+        for item in content_types.getElementsByTagName('Default')
+    ):
+        image_type = content_types.createElement('Default')
+        image_type.setAttribute('Extension', 'png')
+        image_type.setAttribute('ContentType', 'image/png')
+        content_types.documentElement.appendChild(image_type)
+    parts['[Content_Types].xml'] = content_types.toxml(encoding='utf-8')
 
-    # Identical on both sides, so they add no difference of their own. They are
-    # here to exercise the notice that says part of a document was not compared:
-    # both are valid OOXML and both are dropped by the converter without a trace.
-    body.append(caption_xml('图 4 说明（Word 自绘文本框，不参与对比）'))
-    body.append(text_box_xml())
-    body.append(caption_xml('式 1 面积（公式，不参与对比）'))
-    body.append(formula_xml())
-
-    parts['word/_rels/document.xml.rels'] = relationships.replace(
-        '</Relationships>', ''.join(added) + '</Relationships>', 1
-    ).encode()
-
-    document = parts['word/document.xml'].decode()
-    marker = '<w:sectPr' if '<w:sectPr' in document else '</w:body>'
-    parts['word/document.xml'] = document.replace(marker, ''.join(body) + marker, 1).encode()
-
-    with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as archive:
-        # [Content_Types].xml first, as every reader expects of an OPC package.
-        for name in ['[Content_Types].xml'] + [key for key in parts if key != '[Content_Types].xml']:
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
+        for name in sorted(parts, key=lambda name: (name != '[Content_Types].xml', name)):
             if not name.endswith('/'):
-                archive.writestr(name, parts[name])
+                info = zipfile.ZipInfo(name, date_time=(2026, 8, 1, 0, 0, 0))
+                archive.writestr(info, parts[name], compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+    result = output.getvalue()
+    with zipfile.ZipFile(io.BytesIO(result)) as archive:
+        assert archive.testzip() is None
+        minidom.parseString(archive.read('word/document.xml'))
+    return result
 
 
-COOL = [(99, 102, 241), (59, 130, 246), (14, 165, 233), (56, 189, 248), (125, 211, 252)]
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--preview-dir', type=Path)
+    args = parser.parse_args()
+    packages = {}
+    documents = {}
+    terms = {}
+    for side in ('baseline', 'revised'):
+        with zipfile.ZipFile(SAMPLES / f'{side}.docx') as archive:
+            packages[side] = {name: archive.read(name) for name in archive.namelist()}
+        documents[side] = minidom.parseString(packages[side]['word/document.xml'])
+        terms[side] = contract_terms(documents[side], side)
 
-embed(
-    SAMPLES / 'baseline.docx',
-    SAMPLES / 'baseline.docx',
-    [
-        ('figure-quarterly.png', bar_chart([0.42, 0.68, 0.55, 0.86, 0.61], COOL), '图 1 分季度交付量'),
-        ('figure-mark.png', brand_mark(), '图 2 服务标识'),
-        ('figure-flow.png', flow_diagram(), '图 3 验收流程'),
-    ],
-)
+    renderer = subprocess.run(
+        ['node', str(ROOT / 'scripts/render_sample_images.js')],
+        input=json.dumps(terms), stdout=subprocess.PIPE, text=True, check=True, cwd=ROOT,
+    )
+    figures = json.loads(renderer.stdout)
+    # Prepare both packages before replacing either checked-in sample.
+    results = {
+        side: embed(packages[side], documents[side], side, figures)
+        for side in ('baseline', 'revised')
+    }
+    for side, data in results.items():
+        path = SAMPLES / f'{side}.docx'
+        temporary = path.with_suffix('.docx.tmp')
+        temporary.write_bytes(data)
+        temporary.replace(path)
+        print(f'{path.name}: {len(data):,} bytes')
 
-embed(
-    SAMPLES / 'revised.docx',
-    SAMPLES / 'revised.docx',
-    [
-        # One column dropped: the same figure with its data revised, which is the
-        # case a byte hash alone could only call "replaced".
-        ('figure-quarterly.png', bar_chart([0.42, 0.68, 0.55, 0.34, 0.61], COOL), '图 1 分季度交付量'),
-        # Byte for byte the baseline's, so the comparison must report nothing.
-        ('figure-mark.png', brand_mark(), '图 2 服务标识'),
-        ('figure-share.png', donut_chart(), '图 3 费用构成'),
-    ],
-)
+    if args.preview_dir:
+        args.preview_dir.mkdir(parents=True, exist_ok=True)
+        for key, figure in figures.items():
+            (args.preview_dir / f'{key}.png').write_bytes(base64.b64decode(figure['png']))
+        print(f'Figure previews: {args.preview_dir}')
 
-for name in ('baseline.docx', 'revised.docx'):
-    print(f'{name}: {(SAMPLES / name).stat().st_size} bytes')
+
+if __name__ == '__main__':
+    main()

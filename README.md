@@ -51,6 +51,8 @@ Document parsing, text normalization, diffing, and highlighting run in the brows
 4. Review changes through the result bar, difference map, or previous/next buttons. Use `Alt+↑` and `Alt+↓` for keyboard navigation.
 5. After enabling `Difference ignore`, click a difference to ignore or restore it, or press `I` to toggle the current difference. Ignore state belongs to the current comparison and is cleared when the comparison is recalculated.
 
+The bundled samples are two versions of a software-services procurement contract. Figures sit beside the clauses they explain: an unchanged service workflow, a payment plan revised from RMB 1 million to RMB 1.2 million, a removed acceptance rule, and a newly added data-incident response obligation. The diagrams include labels, units, and clause references, with high-resolution images for enlarged previews. Rebuild them from the contract data with `python3 scripts/build_sample_images.py` after installing the project dependencies and Chrome.
+
 ## 🔍 Review Levels and Difference Counting
 
 All three levels compare character sequences through `diff-match-patch`. They do not use an NLP semantic model or strict natural-language tokenization:
