@@ -31,7 +31,14 @@ import {
 } from './imageDescriptor';
 import { UNRENDERABLE_IMAGE_ATTRIBUTE } from './sanitizeDocumentHtml';
 import { alignSequences } from './tableAlignment';
-import { createEmptyImageComparisonSummary, IMAGE_DIFF_ATTRIBUTE, IMAGE_ID_ATTRIBUTE } from './textDiffCore';
+import {
+  createEmptyImageComparisonSummary,
+  IMAGE_CHANGE_ATTRIBUTE,
+  IMAGE_DIFF_ATTRIBUTE,
+  IMAGE_ID_ATTRIBUTE,
+  IMAGE_PAIR_ATTRIBUTE,
+  IMAGE_SIMILARITY_ATTRIBUTE
+} from './textDiffCore';
 
 /**
  * What leaving an image unpaired costs, charged once per side.
@@ -218,8 +225,24 @@ export function markImageDifferences(
   options: ImageMarkupOptions = {}
 ): number {
   let group = options.startIndex ?? 1;
+  let pair = 0;
 
   for (const entry of entries) {
+    const pairId = `image-pair-${++pair}`;
+    const visualSimilarity =
+      entry.originalDescriptor?.visual && entry.revisedDescriptor?.visual ? entry.similarity : undefined;
+    for (const image of [entry.original, entry.revised]) {
+      image?.setAttribute(IMAGE_PAIR_ATTRIBUTE, pairId);
+      // Missing fingerprints are not evidence that two images are unchanged.
+      image?.setAttribute(
+        IMAGE_CHANGE_ATTRIBUTE,
+        entry.original && entry.revised && (!entry.originalDescriptor || !entry.revisedDescriptor)
+          ? 'uncompared'
+          : entry.kind
+      );
+      if (visualSimilarity !== undefined) image?.setAttribute(IMAGE_SIMILARITY_ATTRIBUTE, String(visualSimilarity));
+      else image?.removeAttribute(IMAGE_SIMILARITY_ATTRIBUTE);
+    }
     if (entry.kind === 'unchanged') continue;
 
     const groupId = `image-${group++}`;

@@ -4,9 +4,10 @@ import CompareToast from '@/components/CompareToast';
 import DiffActionPopover from '@/components/DiffActionPopover';
 import DiffMap from '@/components/DiffMap';
 import DiffNavigator from '@/components/DiffNavigator';
-import DocumentPane, { type ImagePreview } from '@/components/DocumentPane';
+import DocumentPane from '@/components/DocumentPane';
+import ImagePreviewModal from '@/components/ImagePreviewModal';
 import MobilePaneSwitch from '@/components/MobilePaneSwitch';
-import { ImagePreviewModal, SimilarDiffModal } from '@/components/ReviewModals';
+import { SimilarDiffModal } from '@/components/ReviewModals';
 import TableHintTip from '@/components/TableHintTip';
 import { deploymentConfig } from '@/config/deploymentConfig';
 import { readSavedUserSettings, type UserSettings, writeSavedUserSettings } from '@/config/userSettings';
@@ -29,6 +30,7 @@ import { useTimeoutRef } from '@/hooks/useTimeoutRef';
 import type { DiffSummary, IgnoredDiffItem } from '@/types/diff';
 import type { PaneSide } from '@/types/document';
 import { DIFF_ELEMENT_SELECTOR } from '@/utils/diffElementIndex';
+import { resolveImagePreview, type ImagePreview } from '@/utils/imagePreview';
 import {
   clearReviewClass,
   diffReviewId,
@@ -76,6 +78,7 @@ export default function App() {
   const activeDriver = useRef<Side | null>(null);
   const preferredDiffActionElement = useRef<HTMLElement | null>(null);
   const latestCurrentDiff = useLatestRef(currentDiff);
+  const latestImagePreview = useLatestRef(imagePreview);
 
   // These three hold collaborators that are created further down: the hooks
   // below depend on each other's output, so one side takes a ref up front and
@@ -305,7 +308,13 @@ export default function App() {
   });
 
   const focusDiff = useCallback(
-    (index: number, behavior: ScrollBehavior = 'smooth', preferredElement: HTMLElement | null = null) => {
+    (
+      index: number,
+      behavior: ScrollBehavior = 'smooth',
+      preferredElement: HTMLElement | null = null,
+      scroll = true
+    ) => {
+      if (scroll && latestImagePreview.current) return;
       clearReviewClass(diffIndex.current, 'focus-diff');
       clearTableHintMarkers();
       const group = diffIndex.current.get(diffReviewId(index));
@@ -315,15 +324,24 @@ export default function App() {
       setReviewClass(group, 'focus-diff', true);
       const targetA = firstReviewElement(group, 'A');
       const targetB = firstReviewElement(group, 'B');
+      resolveTableHintFor(index, group);
+      if (!scroll) return;
       const alignedTopA = paneA.current && targetA ? alignElement(paneA.current, targetA, behavior) : null;
       const alignedTopB = paneB.current && targetB ? alignElement(paneB.current, targetB, behavior) : null;
       activeDriver.current = null;
-      resolveTableHintFor(index, group);
       if (targetA && targetB) return;
       if (syncScroll && alignedTopA !== null) syncPaneFrom('A', alignedTopA);
       else if (syncScroll && alignedTopB !== null) syncPaneFrom('B', alignedTopB);
     },
-    [clearDiffActionPosition, clearTableHintMarkers, diffIndex, resolveTableHintFor, syncPaneFrom, syncScroll]
+    [
+      clearDiffActionPosition,
+      clearTableHintMarkers,
+      diffIndex,
+      latestImagePreview,
+      resolveTableHintFor,
+      syncPaneFrom,
+      syncScroll
+    ]
   );
 
   useEffect(() => {
@@ -365,26 +383,42 @@ export default function App() {
       if ('key' in event) event.preventDefault();
       const index = diffReviewIndex(id);
       setCurrentDiff(index);
-      focusDiff(index, 'smooth', target);
+      focusDiff(index, 'smooth', target, !(event.target instanceof HTMLImageElement));
       scheduleDiffActionUpdate();
       showTableHint();
     },
     [focusDiff, scheduleDiffActionUpdate, showTableHint]
   );
 
-  const onImagePreview = useCallback((_side: Side, image: ImagePreview): void => {
-    setImagePreview(image);
-  }, []);
+  const onImagePreview = useCallback(
+    (side: Side, image: HTMLImageElement): void => {
+      activeDriver.current = null;
+      // Stop pending smooth scrolling before opening the viewer.
+      for (const pane of [paneA.current, paneB.current]) {
+        pane?.scrollTo({ top: pane.scrollTop, left: pane.scrollLeft, behavior: 'instant' });
+      }
+      setImagePreview(
+        resolveImagePreview(
+          side,
+          image,
+          side === 'A' ? paneB.current : paneA.current,
+          hasComparisonResult && !comparing
+        )
+      );
+    },
+    [comparing, hasComparisonResult]
+  );
 
   const onPaneScroll = useCallback(
     (side: Side): void => {
+      if (latestImagePreview.current) return;
       scheduleDiffActionUpdate();
       if (!syncScroll || syncInProgress.current || !hasComparisonResult || activeDriver.current !== side) return;
       syncInProgress.current = true;
       syncPaneFrom(side);
       scheduleSyncRelease();
     },
-    [hasComparisonResult, scheduleDiffActionUpdate, scheduleSyncRelease, syncPaneFrom, syncScroll]
+    [hasComparisonResult, latestImagePreview, scheduleDiffActionUpdate, scheduleSyncRelease, syncPaneFrom, syncScroll]
   );
 
   const onPaneActivate = useCallback((side: Side): void => {
@@ -561,13 +595,13 @@ export default function App() {
         }}
         onIgnore={ignoreDiffsById}
       />
-      <ImagePreviewModal
-        open={imagePreview !== null}
-        image={imagePreview}
-        title={i18n.documentPane.imagePreviewTitle}
-        closeLabel={i18n.diffNavigator.closeDetails}
-        onClose={() => setImagePreview(null)}
-      />
+      {imagePreview && (
+        <ImagePreviewModal
+          preview={imagePreview}
+          fileNames={{ A: documents.A.name, B: documents.B.name }}
+          onClose={() => setImagePreview(null)}
+        />
+      )}
       <TableHintTip
         hint={tableHint}
         open={tableHintOpen}

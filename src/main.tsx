@@ -10,6 +10,7 @@ import './styles/diff-map.css';
 import './styles/diff-navigator.css';
 import './styles/document-pane.css';
 import './styles/review-modals.css';
+import './styles/image-preview.css';
 import './styles/mobile-pane.css';
 import './styles/similar-diff.css';
 import './styles/react.css';

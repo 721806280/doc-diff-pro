@@ -335,6 +335,16 @@
   z-index: 1;
 }
 
+.pane-preview-notice {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-panel-muted);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
 .waiting-card,
 .state-card {
   background: linear-gradient(180deg, var(--surface-card) 0%, var(--surface-card-muted) 100%);

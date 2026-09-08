@@ -1,41 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useI18n } from '@/i18n';
-import { useLatestRef } from '@/hooks/useLatestRef';
+import { useDialog } from '@/hooks/useDialog';
 import type { IgnoredDiffItem, LayoutNoiseItem, SimilarDiffItem } from '@/types/diff';
-import type { ImagePreview } from '@/components/DocumentPane';
-import { createBodyScrollLock } from '@/utils/bodyScrollLock';
-import { createFocusTrap } from '@/utils/focusTrap';
-
-function useDialog(open: boolean, panelRef: RefObject<HTMLElement | null>, onClose: () => void): void {
-  const bodyLock = useMemo(createBodyScrollLock, []);
-  const focusTrap = useMemo(createFocusTrap, []);
-  // Read at keypress time so the Escape listener is not rebound per render.
-  const onCloseRef = useLatestRef(onClose);
-
-  useEffect(() => {
-    if (!open) return;
-    bodyLock.lock();
-    focusTrap.activate(panelRef.current);
-    return () => {
-      focusTrap.deactivate();
-      bodyLock.release();
-    };
-  }, [bodyLock, focusTrap, open, panelRef]);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        onCloseRef.current();
-        return;
-      }
-      focusTrap.handleKeydown(event);
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [focusTrap, onCloseRef, open]);
-}
 
 function CloseIcon() {
   return (
@@ -52,58 +19,6 @@ function CloseIcon() {
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
-  );
-}
-
-export function ImagePreviewModal({
-  open,
-  image,
-  title,
-  closeLabel,
-  onClose
-}: {
-  open: boolean;
-  image: ImagePreview | null;
-  title: string;
-  closeLabel: string;
-  onClose: () => void;
-}) {
-  const panelRef = useRef<HTMLElement>(null);
-  const visible = open && image !== null;
-  useDialog(visible, panelRef, onClose);
-
-  if (!visible || !image) return null;
-
-  return createPortal(
-    <div
-      className="image-preview-overlay"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        ref={panelRef}
-        className="image-preview-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="image-preview-dialog-title"
-      >
-        <h2 id="image-preview-dialog-title" className="image-preview-title">
-          {title}
-        </h2>
-        <button
-          type="button"
-          className="image-preview-close"
-          aria-label={closeLabel}
-          title={closeLabel}
-          onClick={onClose}
-        >
-          <CloseIcon />
-        </button>
-        <img className="image-preview-image" src={image.src} alt={image.alt} />
-      </section>
-    </div>,
-    document.body
   );
 }
 

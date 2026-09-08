@@ -136,6 +136,7 @@ const en = {
     imageDifferenceLabel: 'Image',
     imagePreviewTitle: 'Image preview',
     imagePreviewLabel: 'View image full size',
+    imageCompareLabel: 'Compare this image',
     unrenderableImageLabel: '(cannot be previewed)',
     emptyDocumentHtml: '<p>(Empty document)</p>',
     status: {
@@ -207,6 +208,54 @@ const en = {
         `${count} ${count === 1 ? 'formula' : 'formulas'}. These leave no placeholder behind, so an edited` +
         ' equation produces no difference.'
       );
+    }
+  },
+  imagePreview: {
+    title: 'Image comparison',
+    original: 'Original',
+    revised: 'Revised',
+    similarity: 'Visual similarity',
+    similarityHint: 'Estimated from visual features. This is not a measure of how much of the image was edited.',
+    canvas: 'Image canvas',
+    zoom: 'Zoom',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    actualSize: 'Actual size (100%)',
+    fit: 'Fit',
+    linked: 'Linked',
+    unlinked: 'Unlinked',
+    linkViews: 'Link zoom and pan',
+    linkHint: 'Match the other view to this one and adjust both together',
+    unlinkHint: 'Turn off to adjust each image separately',
+    panHint: 'Scroll to zoom · Drag to pan',
+    touchHint: 'Pinch to zoom · Drag to pan',
+    keyboardHint: 'Use arrow keys to pan, + and − to zoom, and 0 to fit the image.',
+    loading: 'Loading image…',
+    missing: { A: 'No image in the original', B: 'No image in the revision' },
+    unmatched: 'No matching image found',
+    unavailable: 'This image format cannot be previewed',
+    loadError: 'Image could not load. Close the preview and reload the document.',
+    counterpartUnavailable: {
+      A: 'The corresponding original image cannot be previewed',
+      B: 'The corresponding revised image cannot be previewed'
+    },
+    context: {
+      unchanged: 'Both documents use the same image',
+      moved: 'Same image, different position in the document',
+      inserted: 'This image appears only in the revision',
+      deleted: 'This image appears only in the original',
+      unmatched: 'No confirmed counterpart was found',
+      uncompared: 'The image contents could not be verified',
+      revised: 'Only one version is available to preview'
+    },
+    status: {
+      unchanged: 'Identical',
+      revised: 'Modified',
+      moved: 'Position changed',
+      inserted: 'Added',
+      deleted: 'Removed',
+      unmatched: 'No match',
+      uncompared: 'Not verified'
     }
   },
   diffNavigator: {
@@ -457,6 +506,7 @@ const zhCN: I18nMessages = {
     imageDifferenceLabel: '图片',
     imagePreviewTitle: '图片预览',
     imagePreviewLabel: '查看原图',
+    imageCompareLabel: '放大对比图片',
     unrenderableImageLabel: '（无法预览）',
     emptyDocumentHtml: '<p>（空文档）</p>',
     status: {
@@ -520,6 +570,54 @@ const zhCN: I18nMessages = {
     },
     formulaDetail(count: number): string {
       return `${count} 个公式。它们连占位元素都不会留下，所以公式被改动也不会产生差异。`;
+    }
+  },
+  imagePreview: {
+    title: '图片对比',
+    original: '基准',
+    revised: '修订',
+    similarity: '视觉相似度',
+    similarityHint: '根据图片的视觉特征估算，不代表改动面积。',
+    canvas: '图片画布',
+    zoom: '缩放',
+    zoomIn: '放大',
+    zoomOut: '缩小',
+    actualSize: '原始尺寸（100%）',
+    fit: '适应窗口',
+    linked: '联动',
+    unlinked: '独立',
+    linkViews: '联动缩放和移动',
+    linkHint: '将另一侧对齐当前视图，并同步调整两张图片',
+    unlinkHint: '关闭后可分别调整两张图片',
+    panHint: '滚轮缩放 · 拖动查看细节',
+    touchHint: '双指缩放 · 拖动查看细节',
+    keyboardHint: '方向键移动图片，+ 和 − 缩放，0 适应窗口。',
+    loading: '正在加载图片…',
+    missing: { A: '基准中无此图', B: '修订中无此图' },
+    unmatched: '未找到对应图片',
+    unavailable: '此图片格式暂不支持预览',
+    loadError: '图片未能加载，请关闭预览后重新加载文档。',
+    counterpartUnavailable: {
+      A: '基准侧的对应图片无法预览',
+      B: '修订侧的对应图片无法预览'
+    },
+    context: {
+      unchanged: '两份文档使用同一张图片',
+      moved: '图片内容相同，仅在文档中的位置发生变化',
+      inserted: '这张图片仅存在于修订文档',
+      deleted: '这张图片仅存在于基准文档',
+      unmatched: '未找到可确认的对应图片',
+      uncompared: '暂无法判断图片内容是否相同',
+      revised: '目前只能预览其中一个版本'
+    },
+    status: {
+      unchanged: '内容相同',
+      revised: '已修改',
+      moved: '仅位置变化',
+      inserted: '新增',
+      deleted: '删除',
+      unmatched: '未匹配',
+      uncompared: '未判定'
     }
   },
   diffNavigator: {

@@ -27,6 +27,11 @@ export const IMAGE_DIFF_ATTRIBUTE = 'data-diff-image';
  */
 export const IMAGE_ID_ATTRIBUTE = 'data-ddv-image-id';
 
+/** Pair identities also cover unchanged images and survive difference regrouping. */
+export const IMAGE_PAIR_ATTRIBUTE = 'data-ddv-image-pair';
+export const IMAGE_CHANGE_ATTRIBUTE = 'data-ddv-image-change';
+export const IMAGE_SIMILARITY_ATTRIBUTE = 'data-ddv-image-similarity';
+
 export function createEmptyImageComparisonSummary(): ImageComparisonSummary {
   return { paired: 0, revised: 0, moved: 0, inserted: 0, deleted: 0, cosmetic: 0 };
 }

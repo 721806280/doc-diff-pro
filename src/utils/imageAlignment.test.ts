@@ -209,6 +209,9 @@ describe('alignDocumentImages', () => {
     const entries = alignDocumentImages(documentWith('blob:left'), documentWith('blob:right'), sides({}, {}));
 
     expect(entries[0]?.kind).toBe('unchanged');
+    markImageDifferences(entries);
+    expect(entries[0]?.original?.getAttribute('data-ddv-image-change')).toBe('uncompared');
+    expect(entries[0]?.original?.hasAttribute('data-ddv-image-similarity')).toBe(false);
   });
 });
 
@@ -228,6 +231,9 @@ describe('markImageDifferences', () => {
     expect(revised.querySelector('ins[data-diff-id] img')).toBeTruthy();
     // One difference, so both sides carry the same group id.
     expect(original.querySelector('del')?.dataset.diffId).toBe(revised.querySelector('ins')?.dataset.diffId);
+    expect(Number(original.querySelector('img')?.getAttribute('data-ddv-image-similarity'))).toBe(
+      entries[0]?.similarity
+    );
   });
 
   it('labels the wrapper so a review list has something to show', () => {
@@ -246,16 +252,21 @@ describe('markImageDifferences', () => {
     expect(original.querySelector('del')?.getAttribute('data-diff-image')).toBe('图片 1024×768');
   });
 
-  it('leaves unchanged images untouched', () => {
+  it('keeps unchanged images paired without marking a difference', () => {
     const original = documentWith('blob:left');
+    const revised = documentWith('blob:right');
     const entries = alignDocumentImages(
       original,
-      documentWith('blob:right'),
+      revised,
       sides({ 'blob:left': descriptor('same', 0.4) }, { 'blob:right': descriptor('same', 0.4) })
     );
 
     expect(markImageDifferences(entries)).toBe(0);
     expect(original.querySelector('del, ins')).toBeNull();
+    expect(original.querySelector('img')?.getAttribute('data-ddv-image-pair')).toBe(
+      revised.querySelector('img')?.getAttribute('data-ddv-image-pair')
+    );
+    expect(original.querySelector('img')?.getAttribute('data-ddv-image-change')).toBe('unchanged');
   });
 
   it('numbers each difference separately from the group before it', () => {

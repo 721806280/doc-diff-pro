@@ -39,7 +39,7 @@ Document parsing, text normalization, diffing, and highlighting run in the brows
 - 🧹 Whitespace handling, full-/half-width normalization, and layout filtering for headers, footers, page numbers, and repeated layout text.
 - 📋 Table structure hints for inserted or missing rows, adjacent row splits, and mismatched cell counts.
 - 🔗 Synchronized scrolling and a narrow-screen switch between the baseline and revised panes.
-- 🖼️ Embedded image display and DOCX conversion warnings.
+- 🖼️ Embedded image comparison with adaptive single/paired previews, linked zoom, and DOCX conversion warnings.
 - 🎨 English and Chinese UI, theme presets, and light/dark appearance with locally saved preferences.
 - 🔌 Runtime deployment configuration and browser `File` input for embedding in third-party systems.
 
@@ -112,7 +112,7 @@ DocDiff Pro separates layout text from body content before diffing:
 
 - Only `.docx` files are supported. `.doc`, `.pdf`, scanned documents, and OCR workflows are not supported.
 - Each file is limited to 25 MB by default, configurable at runtime. This is an upload validation limit, not a guarantee that every complex document will complete in the same amount of time.
-- Embedded images can be displayed, but image contents are not compared or OCR-processed.
+- Embedded images are compared using content fingerprints and visual features. Visual similarity is an estimate, not the percentage of edited area; image text is not OCR-processed.
 - DOCX-to-HTML fidelity depends on mammoth. The app preserves convertible paragraphs, lists, tables, and images where possible, but complex Word layouts may not match Microsoft Word.
 - A modern browser with File API, Web Worker, and ES module support is required. Internet Explorer is not supported.
 - A worker timeout or insufficient browser resources can cause comparison to fail; the UI keeps the error and provides a retry action.

@@ -53,7 +53,11 @@ test('opens a full-size preview without losing image-difference focus', async ({
 
   const preview = page.locator('.image-preview-overlay');
   await expect(preview).toBeVisible();
-  await expect(preview.locator('.image-preview-image')).toHaveAttribute('src', source ?? '');
+  await expect(preview.locator('.image-preview-pane[data-side="A"] .image-preview-image')).toHaveAttribute(
+    'src',
+    source ?? ''
+  );
+  await expect(preview.locator('.image-preview-image')).toHaveCount(2);
   await expect(page.locator('del[data-diff-image].focus-diff')).toHaveCount(1);
 
   await page.keyboard.press('Escape');

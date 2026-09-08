@@ -96,7 +96,7 @@ describe('DocumentPane', () => {
   });
 
   it('previews renderable images and still activates a difference around one', () => {
-    const previews: Array<{ src: string; alt: string }> = [];
+    const previews: HTMLImageElement[] = [];
     const diffEvents: React.SyntheticEvent[] = [];
     const document = {
       ...emptyDocument(),
@@ -114,10 +114,7 @@ describe('DocumentPane', () => {
     act(() => images[0]?.click());
     act(() => images[1]?.click());
 
-    expect(previews).toEqual([
-      { src: 'blob:plain', alt: 'Plain figure' },
-      { src: 'blob:changed', alt: 'Changed figure' }
-    ]);
+    expect(previews).toEqual([images[0], images[1]]);
     expect(diffEvents).toHaveLength(1);
     expect(images[0]?.getAttribute('role')).toBe('button');
     expect(images[0]?.tabIndex).toBe(0);
@@ -241,7 +238,7 @@ function mountPane(
   handlers: Partial<{
     onScroll: (side: 'A' | 'B') => void;
     onActivate: (side: 'A' | 'B') => void;
-    onImagePreview: (side: 'A' | 'B', image: { src: string; alt: string }) => void;
+    onImagePreview: (side: 'A' | 'B', image: HTMLImageElement) => void;
   }> = {}
 ) {
   return renders.render(

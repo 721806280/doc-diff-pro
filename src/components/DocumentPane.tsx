@@ -3,11 +3,6 @@ import { useI18n } from '@/i18n';
 import type { DocumentPaneState, PaneSide } from '@/types/document';
 export type { DocumentPaneState, PaneSide } from '@/types/document';
 
-export type ImagePreview = {
-  src: string;
-  alt: string;
-};
-
 type DocumentPaneProps = {
   side: PaneSide;
   document: DocumentPaneState;
@@ -19,7 +14,7 @@ type DocumentPaneProps = {
   onFile: (side: PaneSide, file: File) => Promise<void>;
   onScroll: (side: PaneSide) => void;
   onDiffInteraction: (event: MouseEvent | KeyboardEvent) => void;
-  onImagePreview: (side: PaneSide, image: ImagePreview) => void;
+  onImagePreview: (side: PaneSide, image: HTMLImageElement) => void;
   onActivate: (side: PaneSide) => void;
 };
 
@@ -42,6 +37,11 @@ export default function DocumentPane({
   const copy = i18n.app.documents[side];
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const sideClass = side === 'A' ? 'side-original' : 'side-revision';
+  const displayHtml = hasResult
+    ? document.highlightedHtml
+    : document.status === 'ready' && !comparing
+      ? document.originalHtml
+      : '';
   const statusLabel = i18n.documentPane.status[document.status];
   const fileSize =
     document.size <= 0
@@ -121,7 +121,7 @@ export default function DocumentPane({
     if (image?.src) {
       event.preventDefault();
       if (image.closest('[data-diff-id]')) onDiffInteraction(event);
-      onImagePreview(side, { src: image.currentSrc || image.src, alt: image.alt });
+      onImagePreview(side, image);
       return;
     }
 
@@ -136,7 +136,8 @@ export default function DocumentPane({
     if (image?.src) {
       event.preventDefault();
       if (image.closest('[data-diff-id]')) onDiffInteraction(event);
-      onImagePreview(side, { src: image.currentSrc || image.src, alt: image.alt });
+      image.focus({ preventScroll: true });
+      onImagePreview(side, image);
       return;
     }
     onDiffInteraction(event);
@@ -245,7 +246,7 @@ export default function DocumentPane({
 
       <div
         ref={paneRef}
-        className={`render-viewport ${!hasResult ? 'is-empty' : ''} ${allowFileInput && dragging ? 'is-dragging' : ''}`}
+        className={`render-viewport ${!displayHtml ? 'is-empty' : ''} ${allowFileInput && dragging ? 'is-dragging' : ''}`}
         onScroll={() => onScroll(side)}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
@@ -305,7 +306,7 @@ export default function DocumentPane({
               <p>{copy.externalWaitingText}</p>
             </div>
           </div>
-        ) : !hasResult ? (
+        ) : !displayHtml ? (
           <div className="pane-waiting-zone">
             {document.status === 'parsing' || comparing ? (
               <div className="loading-spinner-wrapper">
@@ -331,7 +332,13 @@ export default function DocumentPane({
             )}
           </div>
         ) : (
-          <DocumentHtml html={document.highlightedHtml} imagePreviewLabel={i18n.documentPane.imagePreviewLabel} />
+          <>
+            {!hasResult && <p className="pane-preview-notice">{copy.waitingText}</p>}
+            <DocumentHtml
+              html={displayHtml}
+              imagePreviewLabel={hasResult ? i18n.documentPane.imageCompareLabel : i18n.documentPane.imagePreviewLabel}
+            />
+          </>
         )}
       </div>
     </section>
