@@ -113,26 +113,14 @@ def caption_xml(text):
 
 
 def text_box_xml():
-    """A DrawingML text box: valid, self-contained, and dropped by the converter.
-
-    `readDrawingElement` looks only for `pic:pic` descendants, so nothing inside a
-    shape is reached — not even its text. Carried by the samples so the notice that
-    says part of a document could not be compared has something real to report.
-    """
+    """A VML text box, whose text stays comparable after Word/WPS round-trips."""
     return (
-        '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing>'
-        '<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"'
-        ' distT="0" distB="0" distL="0" distR="0">'
-        '<wp:extent cx="3657600" cy="571500"/><wp:docPr id="960" name="TextBox 1"/>'
-        '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
-        '<a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
-        '<wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
-        '<wps:cNvSpPr txBox="1"/>'
-        '<wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3657600" cy="571500"/></a:xfrm>'
-        '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></wps:spPr>'
-        '<wps:txbx><w:txbxContent><w:p><w:r><w:t xml:space="preserve">'
-        '履约资料：源代码、部署包、测试报告与验收记录应完整归档。</w:t></w:r></w:p></w:txbxContent></wps:txbx>'
-        '<wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>'
+        '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:pict>'
+        '<v:shape xmlns:v="urn:schemas-microsoft-com:vml" id="DDPSample_TextBox"'
+        ' style="width:330pt;height:42pt" filled="f" stroked="f">'
+        '<v:textbox><w:txbxContent><w:p><w:r><w:t xml:space="preserve">'
+        '履约资料：源代码、部署包、测试报告与验收记录应完整归档。</w:t></w:r></w:p></w:txbxContent></v:textbox>'
+        '</v:shape></w:pict></w:r></w:p>'
     )
 
 

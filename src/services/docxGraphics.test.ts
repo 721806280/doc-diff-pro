@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { deflateRawSync } from 'node:zlib';
 import { createEmptyGraphicsReport, graphicsReportTotal, scanDocxParts } from './docxGraphics';
 
@@ -86,7 +87,18 @@ const PICTURE_DRAWING =
 function documentWith(body: string): Record<string, string> {
   return {
     '[Content_Types].xml': '<Types/>',
-    'word/document.xml': `<w:document><w:body>${body}</w:body></w:document>`
+    'word/document.xml': `<w:document
+      xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+      xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+      xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+      xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+      xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
+      xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"
+      xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:v="urn:schemas-microsoft-com:vml"
+      xmlns:o="urn:schemas-microsoft-com:office:office"
+    ><w:body>${body}</w:body></w:document>`
   };
 }
 
@@ -111,6 +123,70 @@ describe('scanDocxParts', () => {
     const report = (await scanDocxParts(zip(documentWith(PICTURE_DRAWING + CHART_DRAWING + PICTURE_DRAWING)))).graphics;
 
     expect(report.nativeGraphics).toBe(1);
+  });
+
+  it('scans the converted fallback without counting unused graphics or revisions', async () => {
+    const report = await scanDocxParts(
+      zip(
+        documentWith(
+          `<mc:AlternateContent><mc:Choice Requires="wps">${CHART_DRAWING}<w:del w:id="1"/>` +
+            '</mc:Choice><mc:Fallback><w:ins w:id="2">' +
+            PICTURE_DRAWING +
+            '</w:ins></mc:Fallback></mc:AlternateContent>'
+        )
+      )
+    );
+
+    expect(report.graphics).toEqual(createEmptyGraphicsReport());
+    expect(report.revisions).toEqual({ insertions: 1, deletions: 0 });
+  });
+
+  it('resolves nested alternatives and ignores additional choices', async () => {
+    const formula = '<m:oMath><m:r><m:t>x</m:t></m:r></m:oMath>';
+    const report = await scanDocxParts(
+      zip(
+        documentWith(
+          `<mc:AlternateContent><mc:Choice Requires="wps">${CHART_DRAWING}</mc:Choice>` +
+            `<mc:Choice Requires="m">${formula}</mc:Choice><mc:Fallback>` +
+            `<mc:AlternateContent><mc:Choice Requires="wps">${CHART_DRAWING}</mc:Choice>` +
+            `<mc:Fallback>${formula}</mc:Fallback></mc:AlternateContent>` +
+            '</mc:Fallback></mc:AlternateContent>' +
+            PICTURE_DRAWING
+        )
+      )
+    );
+
+    expect(report.graphics).toEqual({ ...createEmptyGraphicsReport(), formulas: 1 });
+  });
+
+  it.each(['', '<mc:Fallback/>', '<mc:Fallback> \n </mc:Fallback>'])(
+    'still reports one missing graphic when no usable fallback exists: %s',
+    async (fallback) => {
+      const report = await scanDocxParts(
+        zip(
+          documentWith(
+            `<mc:AlternateContent><mc:Choice Requires="wps">${CHART_DRAWING}</mc:Choice>` +
+              `<mc:Choice Requires="wpg">${CHART_DRAWING}</mc:Choice>` +
+              `${fallback}</mc:AlternateContent>`
+          )
+        )
+      );
+
+      expect(report.graphics).toEqual({ ...createEmptyGraphicsReport(), nativeGraphics: 1 });
+    }
+  );
+
+  it('fails softly if alternate-content XML cannot be parsed', async () => {
+    const report = await scanDocxParts(zip(documentWith(`<mc:AlternateContent>${CHART_DRAWING}`)));
+
+    expect(report.graphics).toEqual(createEmptyGraphicsReport());
+  });
+
+  it.each(['baseline', 'revised'])('reports only the missing formula in the saved %s sample', async (side) => {
+    const file = readFileSync(`public/samples/${side}.docx`);
+    const report = await scanDocxParts(new Uint8Array(file).buffer);
+
+    expect(report.graphics).toEqual({ ...createEmptyGraphicsReport(), formulas: 1 });
   });
 
   it('counts an embedded object once, not once per element', async () => {
@@ -179,6 +255,20 @@ describe('scanDocxParts', () => {
     ).graphics;
 
     expect(report.embeddedObjects).toBe(2);
+  });
+
+  it('does not invent images from empty VML markers in a readable text box', async () => {
+    const report = await scanDocxParts(
+      zip(
+        documentWith(
+          '<w:pict><v:shape><v:imagedata o:title=""/><v:imagedata r:id=""></v:imagedata>' +
+            '<v:textbox><w:txbxContent><w:p><w:r><w:t>履约资料归档说明</w:t></w:r></w:p>' +
+            '</w:txbxContent></v:textbox></v:shape></w:pict>'
+        )
+      )
+    );
+
+    expect(report.graphics).toEqual(createEmptyGraphicsReport());
   });
 
   it('counts formulas, which vanish without even an empty element', async () => {

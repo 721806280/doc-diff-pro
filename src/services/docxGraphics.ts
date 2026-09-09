@@ -70,18 +70,43 @@ export async function scanDocxParts(archive: ArrayBuffer): Promise<DocxScanRepor
       const xml = await readEntry(archive, entry);
       if (!xml) continue;
 
-      countRevisions(xml, report.revisions);
+      const content = selectAlternateContent(xml);
+      countRevisions(content, report.revisions);
       // Counted against the document as the converter renders it, which is the
       // accepted state. A figure sitting inside a tracked deletion is not in the
       // text that was compared, and reporting it as something the comparison
       // could not look at would be reporting a figure that is not there.
-      countGraphics(withoutRejectedContent(xml), report.graphics);
+      countGraphics(withoutRejectedContent(content), report.graphics);
     }
   } catch {
     return createEmptyScanReport();
   }
 
   return report;
+}
+
+/**
+ * Mammoth reads the fallback of an AlternateContent block. Word/WPS can store
+ * the same figure in several choices plus a fallback, so scanning every branch
+ * reports duplicates and even counts text boxes the fallback renders as text.
+ */
+function selectAlternateContent(xml: string): string {
+  if (!xml.includes(':AlternateContent')) return xml;
+
+  const namespace = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
+  const document = new DOMParser().parseFromString(xml, 'application/xml');
+  if (document.querySelector('parsererror')) throw new Error('Invalid document XML');
+
+  // Resolve inner alternatives first so a nested choice cannot leak into a
+  // retained fallback. With no usable fallback, keep one choice for the scan
+  // so a native graphic or formula dropped entirely is still reported.
+  for (const alternate of Array.from(document.getElementsByTagNameNS(namespace, 'AlternateContent')).reverse()) {
+    const branches = Array.from(alternate.children).filter((child) => child.namespaceURI === namespace);
+    const fallback = branches.find((child) => child.localName === 'Fallback');
+    const selected = fallback?.children.length ? fallback : branches.find((child) => child.localName === 'Choice');
+    alternate.replaceWith(...(selected?.childNodes ?? []));
+  }
+  return new XMLSerializer().serializeToString(document);
 }
 
 /**
@@ -134,7 +159,7 @@ function countGraphics(xml: string, report: DocxGraphicsReport): void {
 function countEmbeddedObjects(xml: string): number {
   const nestedImages = nestedImageCount(xml);
   const objects = countTag(xml, 'w:object');
-  return objects + Math.max(0, countTag(xml, 'v:imagedata') - nestedImages);
+  return objects + Math.max(0, countVmlImages(xml) - nestedImages);
 }
 
 /**
@@ -151,7 +176,7 @@ function collectEmbeddedObjectKinds(xml: string, kinds: EmbeddedObjectKind[]): v
     kinds.push({ progId, title });
   }
 
-  const standalone = Math.max(0, countTag(xml, 'v:imagedata') - nestedImageCount(xml));
+  const standalone = Math.max(0, countVmlImages(xml) - nestedImageCount(xml));
   for (let i = 0; i < standalone; i++) {
     kinds.push({ progId: VML_IMAGE, title: '' });
   }
@@ -161,9 +186,18 @@ function collectEmbeddedObjectKinds(xml: string, kinds: EmbeddedObjectKind[]): v
 function nestedImageCount(xml: string): number {
   let nested = 0;
   for (const object of xml.matchAll(/<w:object[\s>][\s\S]*?<\/w:object>/g)) {
-    nested += countTag(object[0], 'v:imagedata');
+    nested += countVmlImages(object[0]);
   }
   return nested;
+}
+
+/** WPS text boxes can carry empty image markers with no image relationship. */
+function countVmlImages(xml: string): number {
+  let count = 0;
+  for (const [image] of xml.matchAll(/<v:imagedata\b[^>]*>/g)) {
+    if (/\sr:id\s*=\s*(["'])[^"']+\1/.test(image)) count++;
+  }
+  return count;
 }
 
 /** Occurrences of one element, counting both `<tag>` and `<tag/>` forms. */

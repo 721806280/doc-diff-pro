@@ -88,9 +88,9 @@ test('opens a full-size preview without losing image-difference focus', async ({
 });
 
 /**
- * The samples also carry a Word-drawn text box and a formula, which the converter
- * emits nothing at all for — not even a warning. Both sides say so, which is the
- * only trace either leaves.
+ * The formula is not converted, but the VML text box is read as ordinary text.
+ * Word/WPS may also save a DrawingML alternative and an empty image marker for
+ * that same text box; neither is another piece of missing content.
  */
 test('admits which parts of the sample documents were not compared', async ({ page }) => {
   await page.goto('./');
@@ -99,9 +99,13 @@ test('admits which parts of the sample documents were not compared', async ({ pa
 
   const notices = page.locator('.warning-chip.uncomparable');
   await expect(notices).toHaveCount(2);
-  // One drawing Word rendered itself, plus one formula, on each side.
-  await expect(notices.first()).toContainText('2');
-  await expect(notices.first()).toHaveAttribute('tabindex', '0');
+  await expect(notices.locator('.status-chip')).toHaveText(['1', '1']);
+  for (const notice of await notices.all()) {
+    await expect(notice).toHaveAttribute('tabindex', '0');
+    await expect(notice.locator('li')).toHaveCount(1);
+  }
+  const archiveNote = '履约资料：源代码、部署包、测试报告与验收记录应完整归档。';
+  await expect(page.locator('.docx-render-content')).toContainText([archiveNote, archiveNote]);
 });
 
 test('keeps one active document pane on mobile', async ({ page, isMobile }) => {
