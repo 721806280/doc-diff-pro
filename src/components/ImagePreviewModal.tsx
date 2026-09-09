@@ -8,10 +8,11 @@ import type { ImagePreview, PreviewImage } from '@/utils/imagePreview';
 
 type Size = { width: number; height: number };
 type Point = { x: number; y: number };
-type ImageView = Point & { scale: number | null };
-type ResolvedView = Point & { scale: number };
+type ImageView = Point & { scale: number | null; rotation: number; flipX: boolean; flipY: boolean };
+type ResolvedView = ImageView & { scale: number };
+type OrientationAction = 'left' | 'right' | 'horizontal' | 'vertical';
 
-const FIT: ImageView = { scale: null, x: 0.5, y: 0.5 };
+const FIT: ImageView = { scale: null, x: 0.5, y: 0.5, rotation: 0, flipX: false, flipY: false };
 const EMPTY_SIZE: Size = { width: 0, height: 0 };
 const MAX_SCALE = 8;
 const CANVAS_PADDING = 24;
@@ -22,25 +23,30 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-function fitScale(image: Size | null, viewport: Size): number {
-  if (!image?.width || !image.height || !viewport.width || !viewport.height) return 1;
+function orientedSize(image: Size | null, rotation: number): Size {
+  if (!image) return EMPTY_SIZE;
+  return rotation % 180 === 0 ? image : { width: image.height, height: image.width };
+}
+
+function fitScale(image: Size | null, viewport: Size, rotation: number): number {
+  const { width, height } = orientedSize(image, rotation);
+  if (!width || !height || !viewport.width || !viewport.height) return 1;
   return Math.max(
     0.001,
-    Math.min(
-      1,
-      (viewport.width - CANVAS_PADDING * 2) / image.width,
-      (viewport.height - CANVAS_PADDING * 2) / image.height
-    )
+    Math.min(1, (viewport.width - CANVAS_PADDING * 2) / width, (viewport.height - CANVAS_PADDING * 2) / height)
   );
 }
 
 function resolveView(view: ImageView, image: Size | null, viewport: Size): ResolvedView {
-  const scale = view.scale ?? fitScale(image, viewport);
+  const fit = fitScale(image, viewport, view.rotation);
+  const scale = Math.max(fit, view.scale ?? fit);
+  const { width, height } = orientedSize(image, view.rotation);
   const limit = (length: number, available: number) =>
     length > 0 ? Math.max(0, (length - available + CANVAS_PADDING * 2) / (2 * length)) : 0;
-  const limitX = limit((image?.width ?? 0) * scale, viewport.width);
-  const limitY = limit((image?.height ?? 0) * scale, viewport.height);
+  const limitX = limit(width * scale, viewport.width);
+  const limitY = limit(height * scale, viewport.height);
   return {
+    ...view,
     scale,
     x: clamp(view.x, 0.5 - limitX, 0.5 + limitX),
     y: clamp(view.y, 0.5 - limitY, 0.5 + limitY)
@@ -88,6 +94,13 @@ export default function ImagePreviewModal({
   const canLink = canCompare && SIDES.every((side) => loadState[side] === 'ready');
   const canControl = Boolean(images[active]?.src) && loadState[active] === 'ready';
   const activeView = resolveView(views[active], images[active], sizes[active]);
+  const actualSize = canControl && views[active].scale !== null && Math.abs(activeView.scale - 1) < 0.001;
+  const canRestore =
+    canControl &&
+    (linked && canLink ? SIDES : [active]).some((side) => {
+      const view = views[side];
+      return view.scale !== null || view.x !== 0.5 || view.y !== 0.5 || view.rotation !== 0 || view.flipX || view.flipY;
+    });
 
   useDialog(true, panel, onClose);
 
@@ -136,26 +149,34 @@ export default function ImagePreviewModal({
     const bounds = canvases.current[side]?.getBoundingClientRect();
     setViews((previous) => {
       const current = resolveView(previous[side], image, sizes[side]);
-      const scale = clamp(current.scale * factor, Math.min(0.1, fitScale(image, sizes[side])), MAX_SCALE);
+      const frame = orientedSize(image, current.rotation);
+      const fit = fitScale(image, sizes[side], current.rotation);
+      const scale = clamp(current.scale * factor, fit, MAX_SCALE);
+      if (scale === current.scale) return previous;
       const ratio = scale / current.scale;
       const offsetX = anchor && bounds ? anchor.x - bounds.left - bounds.width / 2 : 0;
       const offsetY = anchor && bounds ? anchor.y - bounds.top - bounds.height / 2 : 0;
       const next = resolveView(
         {
+          ...current,
           scale,
-          x: current.x + (offsetX / image.width) * (1 / current.scale - 1 / scale),
-          y: current.y + (offsetY / image.height) * (1 / current.scale - 1 / scale)
+          x: current.x + (offsetX / frame.width) * (1 / current.scale - 1 / scale),
+          y: current.y + (offsetY / frame.height) * (1 / current.scale - 1 / scale)
         },
         image,
         sizes[side]
       );
-      const result = { ...previous, [side]: next };
+      const result = { ...previous, [side]: { ...next, scale: scale === fit ? null : scale } };
       const other = side === 'A' ? 'B' : 'A';
       if (linked && canLink) {
         const peer = resolveView(previous[other], images[other], sizes[other]);
+        const peerFit = fitScale(images[other], sizes[other], peer.rotation);
+        const peerScale = clamp(peer.scale * ratio, peerFit, MAX_SCALE);
         result[other] = {
-          ...next,
-          scale: clamp(peer.scale * ratio, Math.min(0.1, fitScale(images[other], sizes[other])), MAX_SCALE)
+          ...previous[other],
+          x: next.x,
+          y: next.y,
+          scale: peerScale === peerFit ? null : peerScale
         };
       }
       return result;
@@ -167,15 +188,17 @@ export default function ImagePreviewModal({
     if (!image?.width || !image.height || loadState[side] !== 'ready') return;
     setViews((previous) => {
       const current = resolveView(previous[side], image, sizes[side]);
+      const frame = orientedSize(image, current.rotation);
       const next = resolveView(
         {
           ...current,
-          x: current.x - dx / (image.width * current.scale),
-          y: current.y - dy / (image.height * current.scale)
+          x: current.x - dx / (frame.width * current.scale),
+          y: current.y - dy / (frame.height * current.scale)
         },
         image,
         sizes[side]
       );
+      if (next.x === current.x && next.y === current.y) return previous;
       const result = { ...previous, [side]: next };
       const other = side === 'A' ? 'B' : 'A';
       if (linked && canLink) result[other] = { ...previous[other], x: next.x, y: next.y };
@@ -183,10 +206,49 @@ export default function ImagePreviewModal({
     });
   }
 
-  function resetView(scale: number | null): void {
+  function resetView(scale: number | null, side = active): void {
+    setActive(side);
     setViews((previous) => {
-      const next = { ...FIT, scale };
-      return linked && canLink ? { A: next, B: next } : { ...previous, [active]: next };
+      const next = { ...previous };
+      for (const target of linked && canLink ? SIDES : [side]) {
+        next[target] = { ...previous[target], scale, x: 0.5, y: 0.5 };
+      }
+      return next;
+    });
+  }
+
+  function restoreView(side = active): void {
+    setActive(side);
+    setViews((previous) => (linked && canLink ? { A: FIT, B: FIT } : { ...previous, [side]: FIT }));
+  }
+
+  function orient(side: PaneSide, action: OrientationAction): void {
+    if (loadState[side] !== 'ready') return;
+    setActive(side);
+    setViews((previous) => {
+      const result = { ...previous };
+      for (const target of linked && canLink ? SIDES : [side]) {
+        const current = resolveView(previous[target], images[target], sizes[target]);
+        const next = { ...current, scale: previous[target].scale };
+        if (action === 'left' || action === 'right') {
+          const clockwise = action === 'right';
+          next.rotation = (current.rotation + (clockwise ? 90 : 270)) % 360;
+          // Flips use screen axes. Swap them while rotating so clockwise stays
+          // clockwise even for a mirrored image, and keep the viewed point centered.
+          next.flipX = current.flipY;
+          next.flipY = current.flipX;
+          next.x = clockwise ? 1 - current.y : current.y;
+          next.y = clockwise ? current.x : 1 - current.x;
+        } else if (action === 'horizontal') {
+          next.flipX = !current.flipX;
+          next.x = 1 - current.x;
+        } else {
+          next.flipY = !current.flipY;
+          next.y = 1 - current.y;
+        }
+        result[target] = next;
+      }
+      return result;
     });
   }
 
@@ -198,14 +260,16 @@ export default function ImagePreviewModal({
         return {
           ...previous,
           [other]: {
+            ...previous[other],
             x: current.x,
             y: current.y,
             scale:
               previous[active].scale === null
                 ? null
                 : clamp(
-                    (current.scale / fitScale(images[active], sizes[active])) * fitScale(images[other], sizes[other]),
-                    Math.min(0.1, fitScale(images[other], sizes[other])),
+                    (current.scale / fitScale(images[active], sizes[active], current.rotation)) *
+                      fitScale(images[other], sizes[other], previous[other].rotation),
+                    fitScale(images[other], sizes[other], previous[other].rotation),
                     MAX_SCALE
                   )
           }
@@ -325,18 +389,24 @@ export default function ImagePreviewModal({
       }}
       onDoubleClick={(event) => {
         const side = canvasSide(event.target);
-        if (!side) return;
-        const fit = fitScale(images[side], sizes[side]);
+        if (!side || loadState[side] !== 'ready') return;
+        const fit = fitScale(images[side], sizes[side], views[side].rotation);
         const view = resolveView(views[side], images[side], sizes[side]);
-        if (Math.abs(view.scale - fit) < 0.001) zoom(side, (fit < 1 ? 1 : 2) / view.scale);
-        else resetView(null);
+        if (Math.abs(view.scale - fit) < 0.001)
+          zoom(side, (fit < 1 ? 1 : 2) / view.scale, { x: event.clientX, y: event.clientY });
+        else resetView(null, side);
       }}
       onKeyDown={(event) => {
         const side = canvasSide(event.target);
         if (!side || event.altKey || event.ctrlKey || event.metaKey || loadState[side] !== 'ready') return;
         if (event.key === '+' || event.key === '=') zoom(side, 1.25);
         else if (event.key === '-') zoom(side, 0.8);
-        else if (event.key === '0') resetView(null);
+        else if (event.key === '0') resetView(null, side);
+        else if (event.key === '1') resetView(1, side);
+        else if (event.key.toLowerCase() === 'r') orient(side, event.shiftKey ? 'left' : 'right');
+        else if (event.key.toLowerCase() === 'h') orient(side, 'horizontal');
+        else if (event.key.toLowerCase() === 'v') orient(side, 'vertical');
+        else if (event.key === 'Home') restoreView(side);
         else if (event.key === 'ArrowLeft') pan(side, 40, 0);
         else if (event.key === 'ArrowRight') pan(side, -40, 0);
         else if (event.key === 'ArrowUp') pan(side, 0, 40);
@@ -351,7 +421,11 @@ export default function ImagePreviewModal({
     >
       <section
         ref={panel}
-        className={'image-preview-panel' + (canCompare ? ' is-comparison' : ' is-single')}
+        className={
+          'image-preview-panel' +
+          (canCompare ? ' is-comparison' : ' is-single') +
+          (canCompare && !linked ? ' is-independent' : '')
+        }
         style={panelStyle}
         role="dialog"
         aria-modal="true"
@@ -370,6 +444,11 @@ export default function ImagePreviewModal({
             )}
           </div>
           <div className="image-preview-header-actions">
+            {!narrow && context && (
+              <span className="image-preview-context" title={context}>
+                {context}
+              </span>
+            )}
             {!narrow && similarity}
             <button
               type="button"
@@ -460,63 +539,127 @@ export default function ImagePreviewModal({
               {context && <span className="image-preview-context">{context}</span>}
             </div>
           )}
-          {context ? (
-            !narrow && <span className="image-preview-context">{context}</span>
-          ) : (
-            <span className="image-preview-hint">{narrow ? copy.touchHint : copy.panHint}</span>
-          )}
-          <div className="image-preview-zoom" role="group" aria-label={copy.zoom}>
-            <button
-              type="button"
-              aria-label={copy.zoomOut}
-              title={copy.zoomOut}
-              disabled={!canControl || activeView.scale <= Math.min(0.1, fitScale(images[active], sizes[active]))}
-              onClick={() => zoom(active, 0.8)}
-            >
-              <PreviewIcon name="minus" />
-            </button>
-            <span className="image-preview-scale" aria-label={copy.zoom}>
-              {!linked && canCompare && <span className="image-preview-active-side">{active}</span>}
-              {canControl ? Math.round(activeView.scale * 100) + '%' : '—'}
-            </span>
-            <button
-              type="button"
-              aria-label={copy.zoomIn}
-              title={copy.zoomIn}
-              disabled={!canControl || activeView.scale >= MAX_SCALE}
-              onClick={() => zoom(active, 1.25)}
-            >
-              <PreviewIcon name="plus" />
-            </button>
-            <span className="image-preview-control-divider" />
-            <button type="button" className="image-preview-fit" disabled={!canControl} onClick={() => resetView(null)}>
-              <PreviewIcon name="fit" />
-              {copy.fit}
-            </button>
-            <button
-              type="button"
-              aria-label={copy.actualSize}
-              title={copy.actualSize}
-              disabled={!canControl}
-              onClick={() => resetView(1)}
-            >
-              1:1
-            </button>
+          <div className="image-preview-toolbar" role="group" aria-label={copy.tools}>
+            <div className="image-preview-zoom" role="group" aria-label={copy.zoom}>
+              <button
+                type="button"
+                aria-label={copy.zoomIn}
+                title={copy.zoomIn}
+                disabled={!canControl || activeView.scale >= MAX_SCALE}
+                onClick={() => zoom(active, 1.25)}
+              >
+                <PreviewIcon name="zoomIn" />
+              </button>
+              <button
+                type="button"
+                aria-label={copy.zoomOut}
+                title={copy.zoomOut}
+                disabled={
+                  !canControl || activeView.scale <= fitScale(images[active], sizes[active], activeView.rotation)
+                }
+                onClick={() => zoom(active, 0.8)}
+              >
+                <PreviewIcon name="zoomOut" />
+              </button>
+              <button
+                type="button"
+                aria-label={copy.actualSize}
+                title={copy.actualSizeHint}
+                aria-keyshortcuts="1"
+                aria-pressed={actualSize}
+                disabled={!canControl}
+                onClick={() => resetView(actualSize ? null : 1)}
+              >
+                <PreviewIcon name="actualSize" />
+              </button>
+            </div>
+            <div className="image-preview-orientation" role="group" aria-label={copy.orientation}>
+              <button
+                type="button"
+                aria-label={copy.rotateLeft}
+                title={copy.rotateLeft + ' (Shift+R)'}
+                aria-keyshortcuts="Shift+R"
+                disabled={!canControl}
+                onClick={() => orient(active, 'left')}
+              >
+                <PreviewIcon name="rotateLeft" />
+              </button>
+              <button
+                type="button"
+                aria-label={copy.rotateRight}
+                title={copy.rotateRight + ' (R)'}
+                aria-keyshortcuts="R"
+                disabled={!canControl}
+                onClick={() => orient(active, 'right')}
+              >
+                <PreviewIcon name="rotateRight" />
+              </button>
+              <button
+                type="button"
+                aria-label={copy.flipHorizontal}
+                title={copy.flipHorizontal + ' (H)'}
+                aria-keyshortcuts="H"
+                aria-pressed={activeView.flipX}
+                disabled={!canControl}
+                onClick={() => orient(active, 'horizontal')}
+              >
+                <PreviewIcon name="flipHorizontal" />
+              </button>
+              <button
+                type="button"
+                aria-label={copy.flipVertical}
+                title={copy.flipVertical + ' (V)'}
+                aria-keyshortcuts="V"
+                aria-pressed={activeView.flipY}
+                disabled={!canControl}
+                onClick={() => orient(active, 'vertical')}
+              >
+                <PreviewIcon name="flipVertical" />
+              </button>
+              <button
+                type="button"
+                className="image-preview-reset"
+                aria-label={copy.resetView}
+                title={copy.resetHint + ' (Home)'}
+                aria-keyshortcuts="Home"
+                disabled={!canRestore}
+                onClick={() => restoreView()}
+              >
+                <PreviewIcon name="reset" />
+              </button>
+            </div>
+            <div className="image-preview-actions">
+              <button
+                type="button"
+                className="image-preview-fit"
+                aria-label={copy.fit}
+                title={copy.fit + ' (0)'}
+                aria-keyshortcuts="0"
+                disabled={!canControl}
+                onClick={() => resetView(null)}
+              >
+                <PreviewIcon name="fit" />
+                <span className="image-preview-scale" aria-label={copy.zoom}>
+                  {!linked && canCompare && <span className="image-preview-active-side">{active}</span>}
+                  {canControl ? Math.round(activeView.scale * 100) + '%' : '—'}
+                </span>
+              </button>
+              {canCompare && (
+                <button
+                  type="button"
+                  className="image-preview-link"
+                  aria-label={copy.linkViews}
+                  aria-pressed={linked}
+                  title={linked ? copy.unlinkHint : copy.linkHint}
+                  disabled={!canLink}
+                  onClick={toggleLink}
+                >
+                  <PreviewIcon name={linked ? 'link' : 'unlink'} />
+                  <span className="image-preview-control-label">{linked ? copy.linked : copy.unlinked}</span>
+                </button>
+              )}
+            </div>
           </div>
-          {canCompare && (
-            <button
-              type="button"
-              className="image-preview-link"
-              aria-label={copy.linkViews}
-              aria-pressed={linked}
-              title={linked ? copy.unlinkHint : copy.linkHint}
-              disabled={!canLink}
-              onClick={toggleLink}
-            >
-              <PreviewIcon name={linked ? 'link' : 'unlink'} />
-              {linked ? copy.linked : copy.unlinked}
-            </button>
-          )}
           <span className="image-preview-sr-only" id="image-preview-keyboard-help">
             {copy.keyboardHint}
           </span>
@@ -533,27 +676,34 @@ function canvasSide(target: EventTarget): PaneSide | null {
 }
 
 function imageStyle(image: PreviewImage, view: ResolvedView, ready: boolean): CSSProperties {
+  const frame = orientedSize(image, view.rotation);
+  const x = (0.5 - view.x) * frame.width * view.scale;
+  const y = (0.5 - view.y) * frame.height * view.scale;
   return {
     width: image.width || undefined,
     height: image.height || undefined,
     visibility: ready ? 'visible' : 'hidden',
     transform:
-      'translate(calc(-50% + ' +
-      (0.5 - view.x) * image.width * view.scale +
-      'px), calc(-50% + ' +
-      (0.5 - view.y) * image.height * view.scale +
-      'px)) scale(' +
-      view.scale +
-      ')'
+      `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${view.scale})` +
+      ` scaleX(${view.flipX ? -1 : 1}) scaleY(${view.flipY ? -1 : 1}) rotate(${view.rotation}deg)`
   };
 }
 
+// Toolbar glyphs from the supplied Fancyapps UI Panzoom reference: fancyapps.com/license.
 const ICON_PATHS = {
   compare: 'M3 4h18v16H3z M12 4v16',
   close: 'M6 6l12 12M6 18L18 6',
-  minus: 'M5 12h14',
-  plus: 'M5 12h14M12 5v14',
+  zoomIn: 'm21 21-4.35-4.35M8 11h6M11 8v6',
+  zoomOut: 'm21 21-4.35-4.35M8 11h6',
+  actualSize:
+    'M3.51 3.07c5.74.02 11.48-.02 17.22.02 1.37.1 2.34 1.64 2.18 3.13 0 4.08.02 8.16 0 12.23-.1 1.54-1.47 2.64-2.79 2.46-5.61-.01-11.24.02-16.86-.01-1.36-.12-2.33-1.65-2.17-3.14 0-4.07-.02-8.16 0-12.23.1-1.36 1.22-2.48 2.42-2.46Z M5.65 8.54h1.49v6.92m8.94-6.92h1.49v6.92M11.5 9.4v.02m0 5.18v0',
   fit: 'M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5',
+  rotateLeft:
+    'M15 4.55a8 8 0 0 0-6 14.9M9 15v5H4M18.37 7.16v.01M13 19.94v.01M16.84 18.37v.01M19.37 15.1v.01M19.94 11v.01',
+  rotateRight: 'M9 4.55a8 8 0 0 1 6 14.9M15 15v5h5M5.63 7.16v.01M4.06 11v.01M4.63 15.1v.01M7.16 18.37v.01M11 19.94v.01',
+  flipHorizontal: 'M12 3v18M16 7v10h5L16 7M8 7v10H3L8 7',
+  flipVertical: 'M3 12h18M7 16h10L7 21v-5M7 8h10L7 3v5',
+  reset: 'M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4',
   link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
   unlink: 'M8 3v3M3 8h3M16 18v3M18 16h3M10 8l3-3a4 4 0 0 1 6 6l-3 3M14 16l-3 3a4 4 0 0 1-6-6l3-3',
   image: 'M3 4h18v16H3z M3 16l5-5 5 5 3-3 5 5 M15 8h.01'
@@ -572,6 +722,7 @@ function PreviewIcon({ name }: { name: keyof typeof ICON_PATHS }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
+      {(name === 'zoomIn' || name === 'zoomOut') && <circle cx="11" cy="11" r="7.5" />}
       <path d={ICON_PATHS[name]} />
     </svg>
   );

@@ -119,8 +119,8 @@ test('links zoom and pan and supports independent adjustment with keyboard and w
   const peerWidth = (await b.boundingBox())!.width;
   expect(peerWidth).toBeCloseTo(moved.width, 0);
 
-  await page.getByRole('button', { name: '联动缩放和移动' }).click();
-  await expect(page.getByRole('button', { name: '联动缩放和移动' })).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: '联动图片操作' }).click();
+  await expect(page.getByRole('button', { name: '联动图片操作' })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: '放大', exact: true }).click();
   const independentWidth = (await a.boundingBox())!.width;
   expect(independentWidth).toBeGreaterThan(moved.width);
@@ -144,6 +144,81 @@ test('links zoom and pan and supports independent adjustment with keyboard and w
   await expect.poll(async () => (await a.boundingBox())!.width).toBeGreaterThan(beforeWheel);
 });
 
+test('rotates and flips in screen directions, preserves independent corrections and resets the view', async ({
+  page
+}, testInfo) => {
+  await loadComparison(page);
+  const figure = page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first();
+  await figure.click();
+  const a = previewImage(page, 'A');
+  const b = previewImage(page, 'B');
+  const orientation = async (side: 'A' | 'B') =>
+    previewImage(page, side).evaluate((image) => {
+      const matrix = new DOMMatrix(getComputedStyle(image).transform);
+      const scale = Math.hypot(matrix.a, matrix.b);
+      return [matrix.a, matrix.b, matrix.c, matrix.d].map((value) => Math.round(value / scale) || 0);
+    });
+  await expect(a).toBeVisible();
+  await expect(b).toBeVisible();
+  const reset = page.getByRole('button', { name: '还原初始视图', exact: true });
+  await expect(reset).toBeDisabled();
+  await page.getByRole('button', { name: '向右旋转 90°', exact: true }).click();
+  expect(await orientation('A')).toEqual([0, 1, -1, 0]);
+  expect(await orientation('B')).toEqual([0, 1, -1, 0]);
+  for (const side of ['A', 'B'] as const) {
+    const image = (await previewImage(page, side).boundingBox())!;
+    const canvas = (await page.locator(`.image-preview-canvas[data-side="${side}"]`).boundingBox())!;
+    expect(image.x).toBeGreaterThanOrEqual(canvas.x + 23);
+    expect(image.y).toBeGreaterThanOrEqual(canvas.y + 23);
+    expect(image.x + image.width).toBeLessThanOrEqual(canvas.x + canvas.width - 23);
+    expect(image.y + image.height).toBeLessThanOrEqual(canvas.y + canvas.height - 23);
+  }
+  await page.getByRole('button', { name: '原始尺寸（100%）' }).click();
+  const natural = await a.evaluate((image: HTMLImageElement) => ({
+    width: image.naturalWidth,
+    height: image.naturalHeight
+  }));
+  expect((await a.boundingBox())!.width).toBeCloseTo(natural.height, 0);
+  expect((await a.boundingBox())!.height).toBeCloseTo(natural.width, 0);
+  await expect(page.getByRole('button', { name: '原始尺寸（100%）' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: '原始尺寸（100%）' }).click();
+  await expect(page.getByRole('button', { name: '原始尺寸（100%）' })).toHaveAttribute('aria-pressed', 'false');
+  expect(await orientation('A')).toEqual([0, 1, -1, 0]);
+  await page.getByRole('button', { name: '水平翻转', exact: true }).click();
+  await expect(page.getByRole('button', { name: '水平翻转', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect(await orientation('A')).toEqual([0, 1, 1, 0]);
+  // A clockwise rotation must still turn clockwise after a mirror operation.
+  await page.getByRole('button', { name: '向右旋转 90°', exact: true }).click();
+  expect(await orientation('A')).toEqual([-1, 0, 0, 1]);
+  await page.getByRole('button', { name: '联动图片操作' }).click();
+  await page.locator('.image-preview-canvas[data-side="B"]').focus();
+  const originalTransform = await a.getAttribute('style');
+  await page.getByRole('button', { name: '向左旋转 90°', exact: true }).click();
+  await page.getByRole('button', { name: '垂直翻转', exact: true }).click();
+  await expect(a).toHaveAttribute('style', originalTransform!);
+  await expect(page.locator('.image-preview-active-side')).toHaveText('B');
+  await expect(page.locator('.image-preview-pane.is-active')).toHaveAttribute('data-side', 'B');
+  await expect(b).toBeVisible();
+  await page.locator('.image-preview-canvas[data-side="B"]').click({ position: { x: 12, y: 12 } });
+  await page.screenshot({ path: testInfo.outputPath('image-controls-independent.png'), animations: 'disabled' });
+  const corrected = await orientation('B');
+  await page.getByRole('button', { name: '联动图片操作' }).click();
+  expect(await orientation('A')).toEqual([-1, 0, 0, 1]);
+  expect(await orientation('B')).toEqual(corrected);
+  await page.getByRole('button', { name: '放大', exact: true }).click();
+  expect(await orientation('A')).toEqual([-1, 0, 0, 1]);
+  expect(await orientation('B')).toEqual(corrected);
+  await page.locator('.image-preview-canvas[data-side="B"]').focus();
+  await page.keyboard.press('Home');
+  expect(await orientation('A')).toEqual([1, 0, 0, 1]);
+  expect(await orientation('B')).toEqual([1, 0, 0, 1]);
+  await expect(reset).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await figure.click();
+  expect(await orientation('A')).toEqual([1, 0, 0, 1]);
+  await expect(reset).toBeDisabled();
+});
+
 test('fits the English controls on a narrow screen', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await loadComparison(page);
@@ -159,6 +234,19 @@ test('fits the English controls on a narrow screen', async ({ page }, testInfo) 
     });
   });
   expect(overflow).toBe(false);
+  const overlapping = await page.locator('.image-preview-toolbar button').evaluateAll((buttons) => {
+    const bounds = buttons.map((button) => button.getBoundingClientRect());
+    return bounds.some((a, index) =>
+      bounds
+        .slice(index + 1)
+        .some(
+          (b) =>
+            Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
+            Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1
+        )
+    );
+  });
+  expect(overlapping).toBe(false);
 });
 
 test('previews a single document before comparison', async ({ page }, testInfo) => {

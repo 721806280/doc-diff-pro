@@ -65,7 +65,14 @@ function renderReadyPreview(value = preview) {
 function transform(side: 'A' | 'B') {
   const value = canvas(side).querySelector('img')!.style.transform;
   const offsets = Array.from(value.matchAll(/calc\(-50% \+ (.*?)px\)/g), (match) => Number(match[1]));
-  return { x: offsets[0]!, y: offsets[1]!, scale: Number(/scale\((.*?)\)/.exec(value)?.[1]) };
+  return {
+    x: offsets[0]!,
+    y: offsets[1]!,
+    scale: Number(/scale\((.*?)\)/.exec(value)?.[1]),
+    rotation: Number(/rotate\((.*?)deg\)/.exec(value)?.[1]),
+    flipX: /scaleX\(-1\)/.test(value),
+    flipY: /scaleY\(-1\)/.test(value)
+  };
 }
 
 function clickControl(name: string): void {
@@ -191,6 +198,7 @@ describe('ImagePreviewModal', () => {
     expect(transform('A').scale).toBe(0.5);
     expect(transform('B').scale).toBe(0.5);
     expect(document.querySelector('.image-preview-scale')?.textContent).toBe('50%');
+    expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Zoom out' }).disabled).toBe(true);
     clickControl('Zoom in');
     expect(transform('A').scale).toBe(0.625);
     expect(transform('B')).toEqual(transform('A'));
@@ -199,6 +207,15 @@ describe('ImagePreviewModal', () => {
     clickControl('Actual size (100%)');
     expect(transform('A').scale).toBe(1);
     expect(transform('B').scale).toBe(1);
+    expect(getByRole(document.body, 'button', { name: 'Actual size (100%)' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    clickControl('Actual size (100%)');
+    expect(transform('A').scale).toBe(0.5);
+    expect(getByRole(document.body, 'button', { name: 'Actual size (100%)' }).getAttribute('aria-pressed')).toBe(
+      'false'
+    );
+    clickControl('Zoom in');
     clickControl('Fit');
     expect(transform('B').scale).toBe(0.5);
     dispatch(canvas('B'), new MouseEvent('dblclick', { bubbles: true }));
@@ -212,26 +229,173 @@ describe('ImagePreviewModal', () => {
       ...preview,
       images: { ...preview.images, B: { ...preview.images.B!, width: 960, height: 600 } }
     });
-    clickControl('Link zoom and pan');
+    clickControl('Link image controls');
     clickControl('Zoom in');
     expect(transform('A').scale).toBe(0.5);
     expect(transform('B').scale).toBe(0.3125);
     act(() => canvas('A').focus());
     expect(document.querySelector('.image-preview-active-side')?.textContent).toBe('A');
     clickControl('Actual size (100%)');
-    clickControl('Link zoom and pan');
+    clickControl('Link image controls');
     expect(transform('A').scale).toBe(1);
     expect(transform('B').scale).toBe(0.5);
     clickControl('Zoom out');
     expect(transform('A').scale).toBe(0.8);
     expect(transform('B').scale).toBe(0.4);
-    clickControl('Link zoom and pan');
+    clickControl('Link image controls');
     act(() => canvas('B').focus());
     clickControl('Fit');
     expect(transform('A').scale).toBe(0.8);
     expect(transform('B').scale).toBe(0.25);
-    clickControl('Link zoom and pan');
+    clickControl('Link image controls');
     expect(transform('A').scale).toBe(0.5);
+  });
+
+  it('fits rotated bounds, preserves orientation when resizing, and restores the original view', () => {
+    renderReadyPreview();
+    const initial = transform('A');
+    expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Reset view' }).disabled).toBe(true);
+    clickControl('Rotate right 90°');
+    expect(transform('A').rotation).toBe(90);
+    expect(transform('A').scale).toBeCloseTo(200 / 480);
+    expect(transform('B')).toEqual(transform('A'));
+    clickControl('Flip horizontally');
+    expect(getByRole(document.body, 'button', { name: 'Flip horizontally' }).getAttribute('aria-pressed')).toBe('true');
+    clickControl('Actual size (100%)');
+    expect(transform('A')).toMatchObject({ scale: 1, rotation: 90, flipX: true });
+    clickControl('Fit');
+    expect(transform('A')).toMatchObject({ rotation: 90, flipX: true });
+    expect(transform('A').scale).toBeCloseTo(200 / 480);
+    clickControl('Rotate left 90°');
+    expect(transform('A')).toMatchObject({ rotation: 0, flipX: false, flipY: true });
+    clickControl('Reset view');
+    expect(transform('A')).toEqual(initial);
+    expect(transform('B')).toEqual(initial);
+    for (let turn = 0; turn < 4; turn++) clickControl('Rotate right 90°');
+    for (const name of ['Flip horizontally', 'Flip vertically']) {
+      clickControl(name);
+      clickControl(name);
+    }
+    expect(transform('A')).toEqual(initial);
+    expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Reset view' }).disabled).toBe(true);
+  });
+
+  it('keeps a linked peer in place when the other image is already at its zoom or pan limit', () => {
+    renderReadyPreview({
+      ...preview,
+      images: { ...preview.images, B: { ...preview.images.B!, width: 960, height: 600 } }
+    });
+    clickControl('Actual size (100%)');
+    for (let step = 0; step < 4; step++) pressKey(canvas('A'), '-');
+    expect(transform('A').scale).toBe(0.5);
+    expect(transform('B').scale).toBe(0.5);
+    pressKey(canvas('B'), 'ArrowRight');
+    const peer = transform('B');
+    expect(peer.x).toBeCloseTo(-40);
+    dispatch(canvas('A'), new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 }));
+    pressKey(canvas('A'), 'ArrowLeft');
+    expect(transform('B')).toEqual(peer);
+  });
+
+  it('keeps independent orientation corrections when relinking and shares subsequent operations', () => {
+    renderReadyPreview({
+      ...preview,
+      images: { ...preview.images, B: { ...preview.images.B!, width: 960, height: 600 } }
+    });
+    clickControl('Link image controls');
+    clickControl('Rotate right 90°');
+    clickControl('Flip horizontally');
+    expect(transform('A')).toMatchObject({ rotation: 0, flipX: false });
+    expect(transform('B')).toMatchObject({ rotation: 90, flipX: true });
+    act(() => canvas('A').focus());
+    clickControl('Actual size (100%)');
+    clickControl('Link image controls');
+    expect(transform('A')).toMatchObject({ rotation: 0, scale: 1 });
+    expect(transform('B')).toMatchObject({ rotation: 90, flipX: true });
+    expect(transform('B').scale).toBeCloseTo((200 / 960) * 2);
+    clickControl('Zoom in');
+    clickControl('Rotate right 90°');
+    expect(transform('A')).toMatchObject({ rotation: 90, flipX: false, flipY: false });
+    expect(transform('B')).toMatchObject({ rotation: 180, flipX: false, flipY: true });
+    const peer = transform('B');
+    clickControl('Link image controls');
+    clickControl('Reset view');
+    expect(transform('A')).toMatchObject({ rotation: 0, scale: 0.5, flipX: false, flipY: false });
+    expect(transform('B')).toEqual(peer);
+  });
+
+  it('pans in screen directions and keeps wheel zoom anchored after rotation and flipping', () => {
+    renderReadyPreview({
+      ...preview,
+      images: {
+        A: { ...preview.images.A!, width: 960, height: 600 },
+        B: { ...preview.images.B!, width: 960, height: 600 }
+      }
+    });
+    clickControl('Rotate right 90°');
+    clickControl('Flip horizontally');
+    clickControl('Actual size (100%)');
+    act(() => canvas('A').focus());
+    pressKey(canvas('A'), 'ArrowLeft');
+    pressKey(canvas('A'), 'ArrowUp');
+    expect(transform('A').x).toBeCloseTo(40);
+    expect(transform('A').y).toBeCloseTo(40);
+    const before = transform('A');
+    dispatch(
+      canvas('A'),
+      new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        deltaY: -120,
+        clientX: 204,
+        clientY: 154
+      })
+    );
+    const after = transform('A');
+    expect((60 - after.x) / after.scale).toBeCloseTo((60 - before.x) / before.scale);
+    expect((30 - after.y) / after.scale).toBeCloseTo((30 - before.y) / before.scale);
+    expect(after).toMatchObject({ rotation: 90, flipX: true });
+    expect(transform('B')).toEqual(after);
+  });
+
+  it('zooms into the double-clicked detail after a rotation and returns to fit without clearing orientation', () => {
+    renderReadyPreview();
+    clickControl('Rotate right 90°');
+    clickControl('Flip horizontally');
+    const before = transform('B');
+    const event = () => new MouseEvent('dblclick', { bubbles: true, clientX: 164, clientY: 148 });
+    dispatch(canvas('B'), event());
+    const after = transform('B');
+    expect(after).toMatchObject({ scale: 1, rotation: 90, flipX: true });
+    expect((20 - after.x) / after.scale).toBeCloseTo((20 - before.x) / before.scale);
+    expect((24 - after.y) / after.scale).toBeCloseTo((24 - before.y) / before.scale);
+    expect(transform('A')).toEqual(after);
+    dispatch(canvas('B'), event());
+    expect(transform('B')).toEqual(before);
+    clickControl('Actual size (100%)');
+    clickControl('Actual size (100%)');
+    expect(transform('B')).toEqual(before);
+  });
+
+  it('supports canvas shortcuts for rotation, flips, actual size and reset', () => {
+    renderReadyPreview();
+    act(() => canvas('A').focus());
+    expect(pressKey(canvas('A'), 'r').defaultPrevented).toBe(true);
+    expect(transform('A').rotation).toBe(90);
+    pressKey(canvas('A'), 'R', { shiftKey: true });
+    expect(transform('A').rotation).toBe(0);
+    pressKey(canvas('A'), 'h');
+    pressKey(canvas('A'), 'v');
+    pressKey(canvas('A'), '1');
+    expect(transform('A')).toMatchObject({ scale: 1, flipX: true, flipY: true });
+    expect(pressKey(canvas('A'), 'r', { ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(pressKey(getByRole(document.body, 'button', { name: 'Rotate right 90°' }), 'r').defaultPrevented).toBe(
+      false
+    );
+    expect(transform('A').rotation).toBe(0);
+    pressKey(canvas('A'), 'Home');
+    expect(transform('A')).toMatchObject({ scale: 0.5, rotation: 0, flipX: false, flipY: false });
+    expect(transform('B')).toEqual(transform('A'));
   });
 
   it('supports keyboard zoom and pan without taking over browser shortcuts or toolbar keys', () => {
@@ -261,7 +425,7 @@ describe('ImagePreviewModal', () => {
     expect(pressKey(canvas('A'), 'a').defaultPrevented).toBe(false);
     expect(pressKey(getByRole(document.body, 'button', { name: 'Fit' }), '+').defaultPrevented).toBe(false);
     expect(transform('A').scale).toBe(1);
-    clickControl('Link zoom and pan');
+    clickControl('Link image controls');
     pressKey(canvas('B'), 'ArrowRight');
     expect(transform('B').x).toBeCloseTo(-40);
     expect(transform('A').x).toBeCloseTo(0);
@@ -340,6 +504,9 @@ describe('ImagePreviewModal', () => {
   it('keeps loading images passive and preserves usable controls if the counterpart fails', () => {
     renders.render(<ImagePreviewModal preview={preview} fileNames={fileNames} onClose={vi.fn()} />);
     expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Zoom in' }).disabled).toBe(true);
+    for (const name of ['Rotate left 90°', 'Rotate right 90°', 'Flip horizontally', 'Flip vertically', 'Reset view']) {
+      expect(getByRole<HTMLButtonElement>(document.body, 'button', { name }).disabled).toBe(true);
+    }
     expect(pressKey(canvas('A'), '+').defaultPrevented).toBe(false);
     expect(pointer('A', 'pointerdown').defaultPrevented).toBe(false);
     dispatch(canvas('A'), new MouseEvent('dblclick', { bubbles: true }));
@@ -347,7 +514,7 @@ describe('ImagePreviewModal', () => {
     expect(transform('A').scale).toBe(1);
     loadImage('A');
     act(() => canvas('A').focus());
-    expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Link zoom and pan' }).disabled).toBe(true);
+    expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Link image controls' }).disabled).toBe(true);
     clickControl('Zoom in');
     expect(transform('A').scale).toBe(1.25);
     expect(transform('B').scale).toBe(1);
@@ -424,10 +591,14 @@ describe('ImagePreviewModal', () => {
     expect(transform('B').scale).toBe(8);
     expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Zoom in' }).disabled).toBe(true);
     for (let step = 0; step < 20; step++) clickControl('Zoom out');
-    expect(transform('B').scale).toBe(0.1);
+    expect(transform('B').scale).toBe(1);
     expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Zoom out' }).disabled).toBe(true);
     dispatch(getByRole(document.body, 'button', { name: 'Fit' }), new MouseEvent('dblclick', { bubbles: true }));
-    expect(transform('B').scale).toBe(0.1);
+    expect(transform('B').scale).toBe(1);
+    view.width.mockReturnValue(288);
+    view.height.mockReturnValue(248);
+    dispatch(window, new Event('resize'));
+    expect(transform('B').scale).toBe(0.5);
   });
 
   it('closes from the backdrop, close button or Escape and restores focus', () => {
