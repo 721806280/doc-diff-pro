@@ -91,6 +91,7 @@ export default function ImagePreviewModal({
         : selectedSide;
   const active = canCompare ? selectedSide : singleSide;
   const sides = canCompare ? SIDES : [singleSide];
+  const controlsSide = canCompare ? (narrow ? 'A' : 'B') : active;
   const canLink = canCompare && SIDES.every((side) => loadState[side] === 'ready');
   const canControl = Boolean(images[active]?.src) && loadState[active] === 'ready';
   const activeView = resolveView(views[active], images[active], sizes[active]);
@@ -352,12 +353,13 @@ export default function ImagePreviewModal({
   }
 
   const counterpartSide = active === 'A' ? 'B' : 'A';
-  const context =
-    !preview.compared || canCompare
-      ? null
-      : images[counterpartSide] && (!images[counterpartSide].src || loadState[counterpartSide] === 'error')
-        ? copy.counterpartUnavailable[counterpartSide]
-        : copy.context[preview.kind];
+  const unavailableNotice =
+    preview.compared &&
+    !canCompare &&
+    images[counterpartSide] &&
+    (!images[counterpartSide].src || loadState[counterpartSide] === 'error')
+      ? copy.counterpartUnavailable[counterpartSide]
+      : null;
 
   const visibleImages = sides.map((side) => images[side]);
   const imageWidth = Math.max(0, ...visibleImages.map((image) => image?.width ?? 0));
@@ -367,14 +369,23 @@ export default function ImagePreviewModal({
       (canCompare ? clamp((imageWidth + 96) * 2, 900, 1320) : clamp(imageWidth + 96, 560, 1120)) + 'px',
     '--image-preview-height': clamp(imageHeight + 220, 460, 820) + 'px'
   } as CSSProperties;
+  const similarityPercent =
+    preview.similarity === undefined
+      ? null
+      : new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(preview.similarity);
   const similarity =
-    canCompare && preview.similarity !== undefined ? (
-      <span className="image-preview-similarity" tabIndex={0} aria-describedby="image-preview-similarity-help">
-        <span>{copy.similarity}</span>
-        <strong>
-          {new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(preview.similarity)}
-        </strong>
+    canCompare && similarityPercent !== null ? (
+      <span
+        className="image-preview-similarity"
+        role="img"
+        tabIndex={0}
+        aria-label={copy.similarity + ' ' + similarityPercent}
+        aria-describedby="image-preview-similarity-help"
+      >
+        <PreviewIcon name="similarity" />
+        <strong>{similarityPercent}</strong>
         <span className="image-preview-tooltip" role="tooltip" id="image-preview-similarity-help">
+          <b>{copy.similarity + ' ' + similarityPercent}</b>
           {copy.similarityHint}
         </span>
       </span>
@@ -429,38 +440,9 @@ export default function ImagePreviewModal({
         style={panelStyle}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="image-preview-dialog-title"
+        aria-label={canCompare ? copy.title : i18n.documentPane.imagePreviewTitle}
+        aria-describedby={unavailableNotice ? 'image-preview-notice' : undefined}
       >
-        <header className="image-preview-header">
-          <div className="image-preview-heading">
-            <span className="image-preview-emblem">
-              <PreviewIcon name={canCompare ? 'compare' : 'image'} />
-            </span>
-            <h2 id="image-preview-dialog-title" className="image-preview-title">
-              {canCompare ? copy.title : i18n.documentPane.imagePreviewTitle}
-            </h2>
-            {preview.compared && !narrow && (
-              <span className={'image-preview-status is-' + preview.kind}>{copy.status[preview.kind]}</span>
-            )}
-          </div>
-          <div className="image-preview-header-actions">
-            {!narrow && context && (
-              <span className="image-preview-context" title={context}>
-                {context}
-              </span>
-            )}
-            {!narrow && similarity}
-            <button
-              type="button"
-              className="image-preview-close"
-              aria-label={i18n.diffNavigator.closeDetails}
-              title={i18n.diffNavigator.closeDetails}
-              onClick={onClose}
-            >
-              <PreviewIcon name="close" />
-            </button>
-          </div>
-        </header>
         <div className="image-preview-panes">
           {sides.map((side) => {
             const image = images[side];
@@ -473,20 +455,41 @@ export default function ImagePreviewModal({
                 key={side}
                 aria-label={i18n.app.documents[side].title}
               >
-                <div className="image-preview-source">
-                  <span className="image-preview-source-badge">
-                    <b>{side}</b>
-                    {side === 'A' ? copy.original : copy.revised}
-                  </span>
-                  <span className="image-preview-filename" title={fileNames[side]}>
-                    {fileNames[side]}
-                  </span>
-                  {ready && image && (
-                    <span className="image-preview-dimensions">
-                      {image.width} × {image.height}
+                <header className="image-preview-source">
+                  {(canCompare || preview.compared) && (
+                    <span
+                      className={
+                        'image-preview-source-label' + (canCompare ? '' : ' image-preview-status is-' + preview.kind)
+                      }
+                    >
+                      {canCompare ? (side === 'A' ? copy.original : copy.revised) : copy.status[preview.kind]}
                     </span>
                   )}
-                </div>
+                  <h2
+                    className="image-preview-filename"
+                    title={fileNames[side] + (ready && image ? `\n${image.width} × ${image.height}` : '')}
+                  >
+                    {fileNames[side]}
+                  </h2>
+                  {side === controlsSide && (
+                    <div className="image-preview-header-actions">
+                      <button
+                        type="button"
+                        className="image-preview-close"
+                        aria-label={i18n.diffNavigator.closeDetails}
+                        title={i18n.diffNavigator.closeDetails}
+                        onClick={onClose}
+                      >
+                        <PreviewIcon name="close" />
+                      </button>
+                    </div>
+                  )}
+                </header>
+                {unavailableNotice && (
+                  <p className="image-preview-notice" id="image-preview-notice" role="status">
+                    {unavailableNotice}
+                  </p>
+                )}
                 <div
                   ref={(node) => {
                     canvases.current[side] = node;
@@ -532,13 +535,6 @@ export default function ImagePreviewModal({
           })}
         </div>
         <footer className="image-preview-footer">
-          {narrow && preview.compared && (
-            <div className="image-preview-mobile-meta">
-              <span className={'image-preview-status is-' + preview.kind}>{copy.status[preview.kind]}</span>
-              {similarity}
-              {context && <span className="image-preview-context">{context}</span>}
-            </div>
-          )}
           <div className="image-preview-toolbar" role="group" aria-label={copy.tools}>
             <div className="image-preview-zoom" role="group" aria-label={copy.zoom}>
               <button
@@ -640,7 +636,9 @@ export default function ImagePreviewModal({
               >
                 <PreviewIcon name="fit" />
                 <span className="image-preview-scale" aria-label={copy.zoom}>
-                  {!linked && canCompare && <span className="image-preview-active-side">{active}</span>}
+                  {!linked && canCompare && (
+                    <span className="image-preview-active-side">{active === 'A' ? copy.original : copy.revised}</span>
+                  )}
                   {canControl ? Math.round(activeView.scale * 100) + '%' : '—'}
                 </span>
               </button>
@@ -659,6 +657,7 @@ export default function ImagePreviewModal({
                 </button>
               )}
             </div>
+            {similarity}
           </div>
           <span className="image-preview-sr-only" id="image-preview-keyboard-help">
             {copy.keyboardHint}
@@ -691,7 +690,6 @@ function imageStyle(image: PreviewImage, view: ResolvedView, ready: boolean): CS
 
 // Toolbar glyphs from the supplied Fancyapps UI Panzoom reference: fancyapps.com/license.
 const ICON_PATHS = {
-  compare: 'M3 4h18v16H3z M12 4v16',
   close: 'M6 6l12 12M6 18L18 6',
   zoomIn: 'm21 21-4.35-4.35M8 11h6M11 8v6',
   zoomOut: 'm21 21-4.35-4.35M8 11h6',
@@ -704,6 +702,7 @@ const ICON_PATHS = {
   flipHorizontal: 'M12 3v18M16 7v10h5L16 7M8 7v10H3L8 7',
   flipVertical: 'M3 12h18M7 16h10L7 21v-5M7 8h10L7 3v5',
   reset: 'M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4',
+  similarity: 'M14 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0Zm8 0a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z',
   link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
   unlink: 'M8 3v3M3 8h3M16 18v3M18 16h3M10 8l3-3a4 4 0 0 1 6 6l-3 3M14 16l-3 3a4 4 0 0 1-6-6l3-3',
   image: 'M3 4h18v16H3z M3 16l5-5 5 5 3-3 5 5 M15 8h.01'

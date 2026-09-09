@@ -214,7 +214,7 @@ const en = {
     title: 'Image comparison',
     original: 'Original',
     revised: 'Revised',
-    similarity: 'Visual similarity',
+    similarity: 'Similarity',
     similarityHint: 'Estimated from visual features. This is not a measure of how much of the image was edited.',
     canvas: 'Image canvas',
     tools: 'Image tools',
@@ -246,15 +246,6 @@ const en = {
     counterpartUnavailable: {
       A: 'The corresponding original image cannot be previewed',
       B: 'The corresponding revised image cannot be previewed'
-    },
-    context: {
-      unchanged: 'Both documents use the same image',
-      moved: 'Same image, different position in the document',
-      inserted: 'This image appears only in the revision',
-      deleted: 'This image appears only in the original',
-      unmatched: 'No confirmed counterpart was found',
-      uncompared: 'The image contents could not be verified',
-      revised: 'Only one version is available to preview'
     },
     status: {
       unchanged: 'Identical',
@@ -584,7 +575,7 @@ const zhCN: I18nMessages = {
     title: '图片对比',
     original: '基准',
     revised: '修订',
-    similarity: '视觉相似度',
+    similarity: '相似度',
     similarityHint: '根据图片的视觉特征估算，不代表改动面积。',
     canvas: '图片画布',
     tools: '图片操作',
@@ -615,15 +606,6 @@ const zhCN: I18nMessages = {
     counterpartUnavailable: {
       A: '基准侧的对应图片无法预览',
       B: '修订侧的对应图片无法预览'
-    },
-    context: {
-      unchanged: '两份文档使用同一张图片',
-      moved: '图片内容相同，仅在文档中的位置发生变化',
-      inserted: '这张图片仅存在于修订文档',
-      deleted: '这张图片仅存在于基准文档',
-      unmatched: '未找到可确认的对应图片',
-      uncompared: '暂无法判断图片内容是否相同',
-      revised: '目前只能预览其中一个版本'
     },
     status: {
       unchanged: '内容相同',

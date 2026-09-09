@@ -102,9 +102,8 @@ afterEach(() => {
 describe('ImagePreviewModal', () => {
   it('keeps both document sources in order when opened from the revision', () => {
     renders.render(<ImagePreviewModal preview={preview} fileNames={fileNames} onClose={vi.fn()} />);
-    const dialog = document.querySelector('[role="dialog"]')!;
+    const dialog = getByRole(document.body, 'dialog', { name: 'Image comparison' });
     expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(dialog.textContent).toContain('Image comparison');
     expect(dialog.textContent).toContain('original.docx');
     expect(dialog.textContent).toContain('revised.docx');
     expect(dialog.querySelector('.image-preview-similarity')?.textContent).toContain('92.7%');
@@ -123,7 +122,8 @@ describe('ImagePreviewModal', () => {
       />
     );
     expect(document.querySelectorAll('.image-preview-pane')).toHaveLength(1);
-    expect(document.querySelector('.image-preview-context')?.textContent).toContain('only in the original');
+    expect(document.querySelector('.image-preview-status')?.textContent).toBe('Removed');
+    expect(document.querySelector('.image-preview-notice')).toBeNull();
     expect(document.querySelector('.image-preview-modes')).toBeNull();
     expect(document.querySelector('.image-preview-similarity')).toBeNull();
     view.rerender(
@@ -134,7 +134,7 @@ describe('ImagePreviewModal', () => {
         onClose={vi.fn()}
       />
     );
-    expect(document.querySelector('.image-preview-context')?.textContent).toContain(
+    expect(document.querySelector('.image-preview-notice')?.textContent).toContain(
       'The corresponding revised image cannot be previewed'
     );
     expect(document.querySelectorAll('.image-preview-image')).toHaveLength(1);
@@ -146,7 +146,8 @@ describe('ImagePreviewModal', () => {
       renders.render(<ImagePreviewModal preview={{ ...preview, kind }} fileNames={fileNames} onClose={vi.fn()} />);
       expect(document.querySelectorAll('.image-preview-image')).toHaveLength(1);
       expect(document.querySelector('.image-preview-image')?.getAttribute('src')).toBe('blob:revised');
-      expect(document.querySelector('.image-preview-context')?.textContent).toBeTruthy();
+      expect(document.querySelector('.image-preview-status')?.textContent).toBeTruthy();
+      expect(document.querySelector('.image-preview-notice')).toBeNull();
       expect(document.querySelector('.image-preview-modes')).toBeNull();
       expect(document.querySelector('.image-preview-link')).toBeNull();
       expect(document.querySelector('.image-preview-similarity')).toBeNull();
@@ -188,7 +189,7 @@ describe('ImagePreviewModal', () => {
       image.dispatchEvent(new Event('load'));
     });
     expect(document.querySelector('.image-preview-scale')?.textContent).toBe('50%');
-    expect(document.querySelector('.image-preview-context')?.textContent).toContain(
+    expect(document.querySelector('.image-preview-notice')?.textContent).toContain(
       'The corresponding revised image cannot be previewed'
     );
   });
@@ -234,7 +235,7 @@ describe('ImagePreviewModal', () => {
     expect(transform('A').scale).toBe(0.5);
     expect(transform('B').scale).toBe(0.3125);
     act(() => canvas('A').focus());
-    expect(document.querySelector('.image-preview-active-side')?.textContent).toBe('A');
+    expect(document.querySelector('.image-preview-active-side')?.textContent).toBe('Original');
     clickControl('Actual size (100%)');
     clickControl('Link image controls');
     expect(transform('A').scale).toBe(1);
@@ -448,7 +449,7 @@ describe('ImagePreviewModal', () => {
     expect(transform('B')).toEqual(transform('A'));
     const before = transform('A');
     const outside = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -120 });
-    dispatch(document.querySelector('.image-preview-header')!, outside);
+    dispatch(document.querySelector('.image-preview-source')!, outside);
     expect(outside.defaultPrevented).toBe(false);
     expect(transform('A')).toEqual(before);
   });
@@ -521,14 +522,12 @@ describe('ImagePreviewModal', () => {
     dispatch(canvas('B').querySelector('img')!, new Event('error'));
     expect(document.querySelectorAll('.image-preview-pane')).toHaveLength(1);
     expect(document.querySelector('.image-preview-similarity')).toBeNull();
-    expect(document.querySelector('.image-preview-context')?.textContent).toContain(
-      'revised image cannot be previewed'
-    );
+    expect(document.querySelector('.image-preview-notice')?.textContent).toContain('revised image cannot be previewed');
     clickControl('Fit');
     expect(transform('A').scale).toBe(1);
   });
 
-  it('fits resized canvases, moves comparison metadata on narrow screens and cleans up listeners', () => {
+  it('fits resized canvases, moves shared header controls on narrow screens and cleans up listeners', () => {
     const media = Object.assign(new EventTarget(), { matches: false });
     const removeMediaListener = vi.spyOn(media, 'removeEventListener');
     vi.stubGlobal(
@@ -550,6 +549,9 @@ describe('ImagePreviewModal', () => {
     );
     const view = renderReadyPreview();
     expect(observe).toHaveBeenCalledTimes(2);
+    expect(
+      document.querySelector('.image-preview-close')?.closest('.image-preview-pane')?.getAttribute('data-side')
+    ).toBe('B');
     view.width.mockReturnValue(528);
     act(() => resized());
     expect(transform('A').scale).toBeCloseTo(2 / 3);
@@ -560,8 +562,10 @@ describe('ImagePreviewModal', () => {
     expect(transform('A').scale).toBe(1);
     media.matches = true;
     dispatch(media, new Event('change'));
-    expect(document.querySelector('.image-preview-header .image-preview-status')).toBeNull();
-    expect(document.querySelector('.image-preview-mobile-meta')?.textContent).toContain('92.7%');
+    expect(
+      document.querySelector('.image-preview-close')?.closest('.image-preview-pane')?.getAttribute('data-side')
+    ).toBe('A');
+    expect(document.querySelectorAll('.image-preview-close')).toHaveLength(1);
     view.rerender(
       <ImagePreviewModal
         key="same"
@@ -570,9 +574,8 @@ describe('ImagePreviewModal', () => {
         onClose={vi.fn()}
       />
     );
-    expect(document.querySelector('.image-preview-mobile-meta')?.textContent).toContain(
-      'Both documents use the same image'
-    );
+    expect(document.querySelector('.image-preview-status')?.textContent).toBe('Identical');
+    expect(document.querySelector('.image-preview-notice')).toBeNull();
     renders.cleanup();
     expect(removeMediaListener).toHaveBeenCalledWith('change', expect.any(Function));
     expect(disconnect).toHaveBeenCalled();

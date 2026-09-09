@@ -37,12 +37,12 @@ test('opens the paired images from either side and returns to the clicked figure
     await expect(previewImage(page, 'A')).toHaveAttribute('src', sources[0] ?? '');
     await expect(previewImage(page, 'B')).toHaveAttribute('src', sources[1] ?? '');
     await expect(previewImage(page, side)).toBeVisible();
-    await expect(page.locator('.image-preview-status')).toHaveText('已修改');
+    await expect(page.locator('.image-preview-source-label')).toHaveText(['基准', '修订']);
     const left = await previewImage(page, 'A').boundingBox();
     const right = await previewImage(page, 'B').boundingBox();
     if (isMobile) expect(left!.y).toBeLessThan(right!.y);
     else expect(left!.x).toBeLessThan(right!.x);
-    await expect(page.locator('.image-preview-header button')).toHaveCount(1);
+    await expect(page.locator('.image-preview-source button')).toHaveCount(1);
     await expect(page.locator('.image-preview-similarity')).toContainText(/\d+(\.\d+)?%/);
     if (side === 'A')
       await page.screenshot({ path: testInfo.outputPath('image-comparison.png'), animations: 'disabled' });
@@ -72,7 +72,8 @@ test('pairs unchanged figures and leaves additions and removals on their correct
   await page.locator('.docx-render-content img[data-ddv-image-change="unchanged"]').first().click();
   await expect(page.locator('.image-preview-status')).toHaveText('内容相同');
   await expect(page.locator('.image-preview-image')).toHaveCount(1);
-  await expect(page.locator('.image-preview-context')).toHaveText('两份文档使用同一张图片');
+  await expect(page.locator('.image-preview-filename')).toHaveCount(1);
+  await expect(page.locator('.image-preview-context')).toHaveCount(0);
   await expect(page.locator('.image-preview-modes')).toHaveCount(0);
   await expect(page.locator('.image-preview-similarity')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('image-identical.png'), animations: 'disabled' });
@@ -80,7 +81,7 @@ test('pairs unchanged figures and leaves additions and removals on their correct
 
   await page.locator('del[data-diff-image] img[data-ddv-image-change="deleted"]').click();
   await expect(page.locator('.image-preview-status')).toHaveText('删除');
-  await expect(page.locator('.image-preview-context')).toHaveText('这张图片仅存在于基准文档');
+  await expect(page.locator('.image-preview-filename')).toHaveText('示例-基准文档.docx');
   await expect(page.locator('.image-preview-pane[data-side="B"]')).toHaveCount(0);
   await expect(page.locator('.image-preview-modes')).toHaveCount(0);
   await expect(page.locator('.image-preview-similarity')).toHaveCount(0);
@@ -91,9 +92,10 @@ test('pairs unchanged figures and leaves additions and removals on their correct
   await showDocument(page, 'B', isMobile);
   await page.locator('ins[data-diff-image] img[data-ddv-image-change="inserted"]').click();
   await expect(page.locator('.image-preview-status')).toHaveText('新增');
-  await expect(page.locator('.image-preview-context')).toHaveText('这张图片仅存在于修订文档');
+  await expect(page.locator('.image-preview-filename')).toHaveText('示例-修订文档.docx');
   await expect(page.locator('.image-preview-pane[data-side="A"]')).toHaveCount(0);
   await expect(page.locator('.image-preview-image')).toHaveCount(1);
+  await page.screenshot({ path: testInfo.outputPath('image-added.png'), animations: 'disabled' });
 });
 
 test('links zoom and pan and supports independent adjustment with keyboard and wheel controls', async ({ page }) => {
@@ -196,7 +198,7 @@ test('rotates and flips in screen directions, preserves independent corrections 
   await page.getByRole('button', { name: '向左旋转 90°', exact: true }).click();
   await page.getByRole('button', { name: '垂直翻转', exact: true }).click();
   await expect(a).toHaveAttribute('style', originalTransform!);
-  await expect(page.locator('.image-preview-active-side')).toHaveText('B');
+  await expect(page.locator('.image-preview-active-side')).toHaveText('修订');
   await expect(page.locator('.image-preview-pane.is-active')).toHaveAttribute('data-side', 'B');
   await expect(b).toBeVisible();
   await page.locator('.image-preview-canvas[data-side="B"]').click({ position: { x: 12, y: 12 } });
@@ -219,34 +221,46 @@ test('rotates and flips in screen directions, preserves independent corrections 
   await expect(reset).toBeDisabled();
 });
 
-test('fits the English controls on a narrow screen', async ({ page }, testInfo) => {
+test('fits the English controls on a narrow screen', async ({ page, isMobile }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await loadComparison(page);
   await page.locator('.language-trigger').click();
   await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
   await expect(page.getByRole('dialog', { name: 'Image comparison' })).toBeVisible();
+  await page.getByRole('button', { name: 'Link image controls' }).click();
   await page.screenshot({ path: testInfo.outputPath('image-comparison-narrow-en.png'), animations: 'disabled' });
   const overflow = await page.locator('.image-preview-panel').evaluate((panel) => {
     const bounds = panel.getBoundingClientRect();
-    return Array.from(panel.querySelectorAll('button')).some((button) => {
-      const rect = button.getBoundingClientRect();
+    return Array.from(panel.querySelectorAll('button, .image-preview-similarity')).some((control) => {
+      const rect = control.getBoundingClientRect();
       return rect.left < bounds.left || rect.right > bounds.right || rect.bottom > bounds.bottom;
     });
   });
   expect(overflow).toBe(false);
-  const overlapping = await page.locator('.image-preview-toolbar button').evaluateAll((buttons) => {
-    const bounds = buttons.map((button) => button.getBoundingClientRect());
-    return bounds.some((a, index) =>
-      bounds
-        .slice(index + 1)
-        .some(
-          (b) =>
-            Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
-            Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1
+  const layout = await page
+    .locator('.image-preview-toolbar button, .image-preview-similarity')
+    .evaluateAll((controls) => {
+      const bounds = controls.map((control) => control.getBoundingClientRect());
+      return {
+        rows: new Set(bounds.map((rect) => Math.round(rect.top))).size,
+        overlapping: bounds.some((a, index) =>
+          bounds
+            .slice(index + 1)
+            .some(
+              (b) =>
+                Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
+                Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1
+            )
         )
-    );
-  });
-  expect(overlapping).toBe(false);
+      };
+    });
+  expect(layout).toEqual({ rows: 1, overlapping: false });
+  const similarity = page.getByRole('img', { name: /^Similarity / });
+  if (isMobile) await similarity.tap();
+  else await similarity.click();
+  await expect(page.getByRole('tooltip')).toBeVisible();
+  await expect(page.getByRole('tooltip')).toContainText(/Similarity \d+(\.\d+)?%/);
+  await page.screenshot({ path: testInfo.outputPath('image-similarity-narrow-en.png'), animations: 'disabled' });
 });
 
 test('previews a single document before comparison', async ({ page }, testInfo) => {
