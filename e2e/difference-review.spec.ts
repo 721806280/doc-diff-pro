@@ -33,6 +33,7 @@ test.describe('difference review', () => {
       diffGranularity: 'char',
       enableDiffIgnore: true,
       enableSimilarDiffs: true,
+      showTableHints: true,
       showDiffMap: true,
       syncScroll: true
     });
@@ -138,7 +139,8 @@ test.describe('difference review', () => {
     // The inserted row lives in the revised pane, and narrow screens render
     // only one pane at a time, so it is genuinely not clickable there.
     test.skip(isMobile, 'Only one pane is visible below the mobile breakpoint');
-    await seedSettings(page, { showTableHints: true, enableDiffIgnore: true, diffGranularity: 'char' });
+    // Seed once in beforeEach: Playwright does not guarantee the order of
+    // multiple init scripts, so a second one could silently lose this setting.
     await loadSampleComparison(page);
 
     const inserted = page.locator('table ins[data-diff-id]').last();

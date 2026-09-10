@@ -85,9 +85,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        # playwright.config.ts defaults to the `chrome` channel; install that
-        # same channel so CI and local runs exercise the identical browser.
-        run: pnpm exec playwright install --with-deps chrome
+        run: pnpm exec playwright install --with-deps chrome firefox webkit
 
       - name: Run Playwright tests
         run: pnpm test:e2e

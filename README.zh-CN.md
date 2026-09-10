@@ -197,6 +197,8 @@ pnpm test:e2e
 pnpm build
 ```
 
+通过 `pnpm exec playwright install chrome firefox webkit` 安装测试浏览器（Linux 加 `--with-deps`）。E2E 覆盖 Chrome、Firefox、WebKit，以及 Chrome/WebKit 的手机布局；加 `--project=desktop` 可只运行 Chrome。回归样本的来源与预期见[样本说明](./e2e/fixtures/README.md)，目前为生成的 OOXML 包，真实编辑器导出和实体手机仍需分别验收。
+
 `pnpm format` 使用 Prettier 格式化文件。CI 在每个 PR 上执行这些检查，并校验单测覆盖率。推送到 `main` 或在 `main` 上手动执行 CI 时，只有验证和浏览器测试均通过后才部署；Pages 直接发布同一次运行的构建产物，`build-info.json` 记录对应版本和提交。
 
 完成构建后可本地预览：

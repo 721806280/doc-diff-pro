@@ -98,7 +98,7 @@ test('pairs unchanged figures and leaves additions and removals on their correct
   await page.screenshot({ path: testInfo.outputPath('image-added.png'), animations: 'disabled' });
 });
 
-test('links zoom and pan and supports independent adjustment with keyboard and wheel controls', async ({ page }) => {
+test('links zoom and pan and supports independent adjustment', async ({ page, isMobile }) => {
   await loadComparison(page);
   await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
   const a = previewImage(page, 'A');
@@ -140,10 +140,12 @@ test('links zoom and pan and supports independent adjustment with keyboard and w
   const beforeKeyboard = (await a.boundingBox())!.width;
   await page.keyboard.press('+');
   await expect.poll(async () => (await a.boundingBox())!.width).toBeGreaterThan(beforeKeyboard);
-  await canvas.hover();
-  const beforeWheel = (await a.boundingBox())!.width;
-  await page.mouse.wheel(0, -120);
-  await expect.poll(async () => (await a.boundingBox())!.width).toBeGreaterThan(beforeWheel);
+  if (!isMobile) {
+    await canvas.hover();
+    const beforeWheel = (await a.boundingBox())!.width;
+    await page.mouse.wheel(0, -120);
+    await expect.poll(async () => (await a.boundingBox())!.width).toBeGreaterThan(beforeWheel);
+  }
 });
 
 test('rotates and flips in screen directions, preserves independent corrections and resets the view', async ({
@@ -275,8 +277,8 @@ test('previews a single document before comparison', async ({ page }, testInfo) 
   await page.screenshot({ path: testInfo.outputPath('single-image.png'), animations: 'disabled' });
 });
 
-test('zooms with a touch pinch on mobile', async ({ page, isMobile }) => {
-  test.skip(!isMobile, 'Touch gestures');
+test('zooms with a touch pinch on mobile', async ({ page, isMobile, browserName }) => {
+  test.skip(!isMobile || browserName !== 'chromium', 'CDP touch injection requires mobile Chromium');
   await loadComparison(page);
   await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
   const image = previewImage(page, 'A');

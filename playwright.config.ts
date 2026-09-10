@@ -11,7 +11,6 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://127.0.0.1:5173/doc-diff-pro/',
-    channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome',
     trace: 'retain-on-failure'
   },
   webServer: {
@@ -20,16 +19,20 @@ export default defineConfig({
     reuseExistingServer: true
   },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'], channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome' } },
     {
       name: 'mobile',
       use: {
         ...devices['Desktop Chrome'],
+        channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome',
         viewport: { width: 390, height: 844 },
         deviceScaleFactor: 2,
         hasTouch: true,
         isMobile: true
       }
-    }
+    },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'mobile-webkit', use: { ...devices['iPhone 13'] } }
   ]
 });

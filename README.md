@@ -197,6 +197,8 @@ pnpm test:e2e
 pnpm build
 ```
 
+Install the browser test engines with `pnpm exec playwright install chrome firefox webkit` (add `--with-deps` on Linux). E2E runs cover Chrome, Firefox, WebKit and mobile layouts in Chrome/WebKit; use `--project=desktop` for a quick Chrome run. The [regression fixtures](./e2e/fixtures/README.md) document their source and expected changes. They are generated OOXML packages; real editor exports and physical phones still require separate validation.
+
 `pnpm format` rewrites files with Prettier. CI runs these checks on every pull request, with coverage thresholds for unit tests. Pushes to `main` and manual CI runs on `main` deploy only after both verification and browser tests pass. Pages publishes the build artifact from that same run; `build-info.json` records its version and commit.
 
 Formatting was applied to the whole repository in a single commit. Run this once so `git blame` skips it:
