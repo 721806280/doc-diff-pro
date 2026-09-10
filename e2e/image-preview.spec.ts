@@ -18,6 +18,14 @@ function previewImage(page: Page, side: 'A' | 'B') {
   return page.locator('.image-preview-pane[data-side="' + side + '"] img');
 }
 
+function previewOrientation(page: Page, side: 'A' | 'B') {
+  return previewImage(page, side).evaluate((image) => {
+    const matrix = new DOMMatrix(getComputedStyle(image).transform);
+    const scale = Math.hypot(matrix.a, matrix.b);
+    return [matrix.a, matrix.b, matrix.c, matrix.d].map((value) => Math.round(value / scale) || 0);
+  });
+}
+
 test('opens the paired images from either side and returns to the clicked figure', async ({
   page,
   isMobile
@@ -52,9 +60,11 @@ test('opens the paired images from either side and returns to the clicked figure
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(figure).toBeFocused();
-    expect(await page.locator('.render-viewport').evaluateAll((panes) => panes.map((pane) => pane.scrollTop))).toEqual(
-      positions
-    );
+    const restored = await page.locator('.render-viewport').evaluateAll((panes) => panes.map((pane) => pane.scrollTop));
+    // Firefox can restore a scroll offset one CSS pixel away after focusing.
+    for (const [index, position] of positions.entries()) {
+      expect(Math.abs(restored[index]! - position)).toBeLessThanOrEqual(1);
+    }
     await expect(figure.locator('..')).toHaveClass(/focus-diff/);
   }
   await page.getByRole('button', { name: '切换到夜间模式', exact: true }).click();
@@ -148,27 +158,19 @@ test('links zoom and pan and supports independent adjustment', async ({ page, is
   }
 });
 
-test('rotates and flips in screen directions, preserves independent corrections and resets the view', async ({
-  page
-}, testInfo) => {
+test('rotates and flips in screen directions and fits rotated images', async ({ page }) => {
   await loadComparison(page);
   const figure = page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first();
   await figure.click();
   const a = previewImage(page, 'A');
   const b = previewImage(page, 'B');
-  const orientation = async (side: 'A' | 'B') =>
-    previewImage(page, side).evaluate((image) => {
-      const matrix = new DOMMatrix(getComputedStyle(image).transform);
-      const scale = Math.hypot(matrix.a, matrix.b);
-      return [matrix.a, matrix.b, matrix.c, matrix.d].map((value) => Math.round(value / scale) || 0);
-    });
   await expect(a).toBeVisible();
   await expect(b).toBeVisible();
   const reset = page.getByRole('button', { name: '还原初始视图', exact: true });
   await expect(reset).toBeDisabled();
   await page.getByRole('button', { name: '向右旋转 90°', exact: true }).click();
-  expect(await orientation('A')).toEqual([0, 1, -1, 0]);
-  expect(await orientation('B')).toEqual([0, 1, -1, 0]);
+  expect(await previewOrientation(page, 'A')).toEqual([0, 1, -1, 0]);
+  expect(await previewOrientation(page, 'B')).toEqual([0, 1, -1, 0]);
   for (const side of ['A', 'B'] as const) {
     const image = (await previewImage(page, side).boundingBox())!;
     const canvas = (await page.locator(`.image-preview-canvas[data-side="${side}"]`).boundingBox())!;
@@ -187,13 +189,27 @@ test('rotates and flips in screen directions, preserves independent corrections 
   await expect(page.getByRole('button', { name: '原始尺寸（100%）' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: '原始尺寸（100%）' }).click();
   await expect(page.getByRole('button', { name: '原始尺寸（100%）' })).toHaveAttribute('aria-pressed', 'false');
-  expect(await orientation('A')).toEqual([0, 1, -1, 0]);
+  expect(await previewOrientation(page, 'A')).toEqual([0, 1, -1, 0]);
   await page.getByRole('button', { name: '水平翻转', exact: true }).click();
   await expect(page.getByRole('button', { name: '水平翻转', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  expect(await orientation('A')).toEqual([0, 1, 1, 0]);
+  expect(await previewOrientation(page, 'A')).toEqual([0, 1, 1, 0]);
   // A clockwise rotation must still turn clockwise after a mirror operation.
   await page.getByRole('button', { name: '向右旋转 90°', exact: true }).click();
-  expect(await orientation('A')).toEqual([-1, 0, 0, 1]);
+  expect(await previewOrientation(page, 'A')).toEqual([-1, 0, 0, 1]);
+  expect(await previewOrientation(page, 'B')).toEqual([-1, 0, 0, 1]);
+});
+
+test('preserves independent orientations when relinking and resets the view', async ({ page }, testInfo) => {
+  await loadComparison(page);
+  const figure = page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first();
+  await figure.click();
+  const a = previewImage(page, 'A');
+  const b = previewImage(page, 'B');
+  await expect(a).toBeVisible();
+  await expect(b).toBeVisible();
+  const reset = page.getByRole('button', { name: '还原初始视图', exact: true });
+  await page.getByRole('button', { name: '水平翻转', exact: true }).click();
+  expect(await previewOrientation(page, 'A')).toEqual([-1, 0, 0, 1]);
   await page.getByRole('button', { name: '联动图片操作' }).click();
   await page.locator('.image-preview-canvas[data-side="B"]').focus();
   const originalTransform = await a.getAttribute('style');
@@ -205,21 +221,21 @@ test('rotates and flips in screen directions, preserves independent corrections 
   await expect(b).toBeVisible();
   await page.locator('.image-preview-canvas[data-side="B"]').click({ position: { x: 12, y: 12 } });
   await page.screenshot({ path: testInfo.outputPath('image-controls-independent.png'), animations: 'disabled' });
-  const corrected = await orientation('B');
+  const corrected = await previewOrientation(page, 'B');
   await page.getByRole('button', { name: '联动图片操作' }).click();
-  expect(await orientation('A')).toEqual([-1, 0, 0, 1]);
-  expect(await orientation('B')).toEqual(corrected);
+  expect(await previewOrientation(page, 'A')).toEqual([-1, 0, 0, 1]);
+  expect(await previewOrientation(page, 'B')).toEqual(corrected);
   await page.getByRole('button', { name: '放大', exact: true }).click();
-  expect(await orientation('A')).toEqual([-1, 0, 0, 1]);
-  expect(await orientation('B')).toEqual(corrected);
+  expect(await previewOrientation(page, 'A')).toEqual([-1, 0, 0, 1]);
+  expect(await previewOrientation(page, 'B')).toEqual(corrected);
   await page.locator('.image-preview-canvas[data-side="B"]').focus();
   await page.keyboard.press('Home');
-  expect(await orientation('A')).toEqual([1, 0, 0, 1]);
-  expect(await orientation('B')).toEqual([1, 0, 0, 1]);
+  expect(await previewOrientation(page, 'A')).toEqual([1, 0, 0, 1]);
+  expect(await previewOrientation(page, 'B')).toEqual([1, 0, 0, 1]);
   await expect(reset).toBeDisabled();
   await page.keyboard.press('Escape');
   await figure.click();
-  expect(await orientation('A')).toEqual([1, 0, 0, 1]);
+  expect(await previewOrientation(page, 'A')).toEqual([1, 0, 0, 1]);
   await expect(reset).toBeDisabled();
 });
 
