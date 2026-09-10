@@ -175,7 +175,7 @@ VITE_BASE_PATH=/document-tools/ pnpm build
 
 ## 🛠️ 本地开发
 
-Vite 8 需要 Node.js `^20.19.0 || >=22.12.0`，建议使用 Node.js 22.12 或更高的 LTS 版本，并使用 pnpm 安装依赖。
+使用最新的 Node.js 和 pnpm，CI 同样使用两者的 `latest` 版本。
 
 ```bash
 pnpm install
@@ -185,10 +185,15 @@ pnpm dev
 常用检查：
 
 ```bash
-pnpm test
+pnpm format:check
+pnpm lint
 pnpm typecheck
+pnpm test
+pnpm test:e2e
 pnpm build
 ```
+
+`pnpm format` 使用 Prettier 格式化文件。CI 在每个 PR 上执行这些检查，并校验单测覆盖率。推送到 `main` 或在 `main` 上手动执行 CI 时，只有验证和浏览器测试均通过后才部署；Pages 直接发布同一次运行的构建产物，`build-info.json` 记录对应版本和提交。
 
 完成构建后可本地预览：
 

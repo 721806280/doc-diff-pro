@@ -175,7 +175,7 @@ VITE_BASE_PATH=/document-tools/ pnpm build
 
 ## 🛠️ Local Development
 
-Vite 8 requires Node.js `^20.19.0 || >=22.12.0`. Node.js 22.12 or a newer LTS release is recommended, with pnpm for dependency installation.
+Use the latest Node.js and pnpm. CI also uses `latest` for both tools.
 
 ```bash
 pnpm install
@@ -193,7 +193,7 @@ pnpm test:e2e
 pnpm build
 ```
 
-`pnpm format` rewrites files with Prettier. CI runs all of the above on every pull request.
+`pnpm format` rewrites files with Prettier. CI runs these checks on every pull request, with coverage thresholds for unit tests. Pushes to `main` and manual CI runs on `main` deploy only after both verification and browser tests pass. Pages publishes the build artifact from that same run; `build-info.json` records its version and commit.
 
 Formatting was applied to the whole repository in a single commit. Run this once so `git blame` skips it:
 

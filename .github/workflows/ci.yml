@@ -25,10 +25,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 'lts/*'
+          node-version: 'latest'
 
       - name: Setup pnpm
-        run: npm install --global pnpm@latest
+        uses: pnpm/action-setup@v4
+        with:
+          version: 'latest'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -48,6 +50,20 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Record build revision
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
+          writeFileSync('dist/build-info.json', JSON.stringify({ version, revision: process.env.GITHUB_SHA }, null, 2) + '\n');
+          NODE
+
+      - name: Upload verified site
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
   e2e:
     name: End-to-end
     runs-on: ubuntu-latest
@@ -58,10 +74,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 'lts/*'
+          node-version: 'latest'
 
       - name: Setup pnpm
-        run: npm install --global pnpm@latest
+        uses: pnpm/action-setup@v4
+        with:
+          version: 'latest'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -81,3 +99,13 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  deploy:
+    name: Deploy verified site
+    needs: [verify, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml
