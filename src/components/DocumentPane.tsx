@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState, type RefObject, type MouseEvent, type KeyboardEvent } from 'react';
 import { useI18n } from '@/i18n';
 import type { DocumentPaneState, PaneSide } from '@/types/document';
+import { documentCoverage } from '@/utils/documentCoverage';
 export type { DocumentPaneState, PaneSide } from '@/types/document';
 
 type DocumentPaneProps = {
@@ -9,6 +10,8 @@ type DocumentPaneProps = {
   active: boolean;
   hasResult: boolean;
   comparing: boolean;
+  pendingComparison?: boolean;
+  pairReady?: boolean;
   allowFileInput: boolean;
   paneRef: RefObject<HTMLDivElement | null>;
   onFile: (side: PaneSide, file: File) => Promise<void>;
@@ -24,6 +27,8 @@ export default function DocumentPane({
   active,
   hasResult,
   comparing,
+  pendingComparison = false,
+  pairReady = false,
   allowFileInput,
   paneRef,
   onFile,
@@ -39,7 +44,7 @@ export default function DocumentPane({
   const sideClass = side === 'A' ? 'side-original' : 'side-revision';
   const displayHtml = hasResult
     ? document.highlightedHtml
-    : document.status === 'ready' && !comparing
+    : document.status === 'ready' && !comparing && !pendingComparison
       ? document.originalHtml
       : '';
   const statusLabel = i18n.documentPane.status[document.status];
@@ -61,40 +66,11 @@ export default function DocumentPane({
     .filter(Boolean)
     .join(' · ');
 
-  // One chip for everything the comparison could not look at, whatever the
-  // reason: a reader needs to know the coverage was incomplete far more than they
-  // need the categories separated. The breakdown lives in the popover.
-  //
-  // The sanitizer's refusals and the package scan see the same figures from two
-  // sides — an OLE-embedded EMF arrives both as an <img> whose source is stripped
-  // and as a `w:object` the scan counts — so only the stripped images the scan
-  // cannot already account for are added. Three embedded equations were otherwise
-  // reported as five.
-  const unaccountedImages = Math.max(0, document.droppedImageCount - document.graphics.embeddedObjects);
-  function embeddedObjectReasons(): string[] {
-    const { embeddedObjects, embeddedObjectKinds } = document.graphics;
-    if (embeddedObjects === 0) return [];
-    const intro = i18n.documentPane.embeddedObjectDetail(embeddedObjects);
-    const labels = embeddedObjectKinds.map((kind) => i18n.documentPane.embeddedObjectLabel(kind.progId, kind.title));
-    return labels.length > 0 ? [intro, ...labels] : [intro];
-  }
-  const uncomparableReasons = [
-    unaccountedImages > 0 ? i18n.documentPane.droppedImageTitle : '',
-    document.graphics.nativeGraphics > 0
-      ? i18n.documentPane.nativeGraphicsDetail(document.graphics.nativeGraphics)
-      : '',
-    ...embeddedObjectReasons(),
-    document.graphics.formulas > 0 ? i18n.documentPane.formulaDetail(document.graphics.formulas) : ''
-  ].filter(Boolean);
-  // The conversion renders every revision as accepted, so two documents that still
-  // carry tracked changes are compared in their accepted states. That is the right
-  // state to compare; not saying so is what makes it a trap.
-  const revisionCount = document.revisions.insertions + document.revisions.deletions;
-  const uncomparableCount =
-    unaccountedImages +
-    document.graphics.nativeGraphics +
-    document.graphics.embeddedObjects +
-    document.graphics.formulas;
+  const {
+    unavailable: uncomparableCount,
+    reasons: uncomparableReasons,
+    revisions: revisionCount
+  } = documentCoverage(document, i18n);
 
   function selectFile(input: HTMLInputElement): void {
     const file = input.files?.[0];
@@ -308,10 +284,12 @@ export default function DocumentPane({
           </div>
         ) : !displayHtml ? (
           <div className="pane-waiting-zone">
-            {document.status === 'parsing' || comparing ? (
+            {document.status === 'parsing' || (document.status === 'ready' && (comparing || pendingComparison)) ? (
               <div className="loading-spinner-wrapper">
                 <div className="spinner-large" />
-                <p>{document.status === 'parsing' ? i18n.documentPane.parsing : i18n.documentPane.comparing}</p>
+                {document.status === 'parsing' && (
+                  <p>{i18n.documentPane.parsePhases[document.parsePhase ?? 'reading']}</p>
+                )}
               </div>
             ) : document.status === 'error' ? (
               <div className="state-card error" role="alert">
@@ -333,7 +311,7 @@ export default function DocumentPane({
           </div>
         ) : (
           <>
-            {!hasResult && <p className="pane-preview-notice">{copy.waitingText}</p>}
+            {!hasResult && !pairReady && <p className="pane-preview-notice">{copy.waitingText}</p>}
             <DocumentHtml
               html={displayHtml}
               imagePreviewLabel={hasResult ? i18n.documentPane.imageCompareLabel : i18n.documentPane.imagePreviewLabel}

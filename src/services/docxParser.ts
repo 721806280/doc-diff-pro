@@ -4,8 +4,9 @@ import type { ImageSourceEntry } from '@/services/imageFingerprint';
 import { extractLayoutNoise, type LayoutNoiseData } from '@/utils/layoutNoise';
 import type { ImageDescriptorTable } from '@/utils/imageDescriptor';
 import { IMAGE_ID_ATTRIBUTE } from '@/utils/textDiffCore';
-import type { DocxGraphicsReport, DocxRevisionReport, DocxScanReport } from '@/types/document';
+import type { DocxGraphicsReport, DocxRevisionReport, DocxScanReport, DocumentParsePhase } from '@/types/document';
 import { sanitizeDocumentBody, UNRENDERABLE_IMAGE_ATTRIBUTE } from '@/utils/sanitizeDocumentHtml';
+import { throwIfAborted, yieldToBrowser } from '@/utils/comparisonScheduling';
 
 type MammothImage = {
   read(format: 'base64'): Promise<string>;
@@ -60,32 +61,54 @@ export type ParsedDocx = {
 export type ParseDocxOptions = {
   embeddedImageAlt?: string;
   emptyDocumentHtml?: string;
+  signal?: AbortSignal;
+  onProgress?: (phase: DocumentParsePhase) => void;
 };
 
 export async function parseDocx(file: File, options: ParseDocxOptions = {}): Promise<ParsedDocx> {
   let imageUrls: string[] = [];
 
   try {
+    throwIfAborted(options.signal);
+    options.onProgress?.('reading');
+    await yieldToBrowser(options.signal);
     const [mammoth, arrayBuffer] = await Promise.all([import('mammoth') as Promise<MammothApi>, file.arrayBuffer()]);
-    const convertImage = mammoth.images.imgElement(async (image) => ({
-      src: `data:${image.contentType};base64,${await image.read('base64')}`,
-      alt: options.embeddedImageAlt ?? 'Embedded document image'
-    }));
+    throwIfAborted(options.signal);
+    options.onProgress?.('converting');
+    await yieldToBrowser(options.signal);
+    const convertImage = mammoth.images.imgElement(async (image) => {
+      throwIfAborted(options.signal);
+      const data = await image.read('base64');
+      throwIfAborted(options.signal);
+      return {
+        src: `data:${image.contentType};base64,${data}`,
+        alt: options.embeddedImageAlt ?? 'Embedded document image'
+      };
+    });
     const result = await mammoth.convertToHtml(
       { arrayBuffer },
       { convertImage, includeHeadersAndFooters: true, preserveAlignment: true }
     );
+    throwIfAborted(options.signal);
     const html = result.value ? result.value.trim() : (options.emptyDocumentHtml ?? '<p>(Empty document)</p>');
     // One parse, mutated in place through every stage, serialized once at the
     // end: the markup is large enough that each extra round trip shows up.
     const body = await sanitizeDocumentBody(html);
+    throwIfAborted(options.signal);
     const renderedFormulas = body.querySelectorAll('math').length;
     const layoutNoise = extractLayoutNoise(body);
     const adopted = adoptInlineImages(body);
     imageUrls = adopted.urls;
     const scan = await scanParts(arrayBuffer);
+    throwIfAborted(options.signal);
     // Source equations retained by the sanitizer are no longer missing figures.
     scan.graphics.formulas = Math.max(0, scan.graphics.formulas - renderedFormulas);
+    if (adopted.entries.length > 0) {
+      options.onProgress?.('images');
+      await yieldToBrowser(options.signal);
+    }
+    const imageDescriptors = await fingerprintImages(adopted.entries, options.signal);
+    throwIfAborted(options.signal);
 
     return {
       html: body.innerHTML,
@@ -94,7 +117,7 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
       // Awaited here rather than handed on as a promise: parsing is already the
       // slow phase the reader is waiting through, and every image is hashed
       // without being decoded, which is the part that would have cost.
-      imageDescriptors: await fingerprintImages(adopted.entries),
+      imageDescriptors,
       // The same buffer mammoth was handed, read again for what it discarded.
       ...scan,
       ...collectDocxMetadata(body),
@@ -103,7 +126,7 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
   } catch (error) {
     // Nobody downstream ever saw these, so this function owns releasing them.
     revokeDocumentImageUrls(imageUrls);
-    console.error('[DOCX parse error]', error);
+    if (!options.signal?.aborted) console.error('[DOCX parse error]', error);
     throw error;
   }
 }
@@ -125,11 +148,11 @@ async function scanParts(archive: ArrayBuffer): Promise<DocxScanReport> {
  * this module is reachable from the landing screen, so anything static here is
  * paid for before the reader has chosen a file.
  */
-async function fingerprintImages(entries: ImageSourceEntry[]): Promise<ImageDescriptorTable> {
+async function fingerprintImages(entries: ImageSourceEntry[], signal?: AbortSignal): Promise<ImageDescriptorTable> {
   if (entries.length === 0) return new Map();
 
   const { fingerprintDocumentImages } = await import('@/services/imageFingerprint');
-  return fingerprintDocumentImages(entries);
+  return fingerprintDocumentImages(entries, signal);
 }
 
 /**

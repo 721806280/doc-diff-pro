@@ -21,6 +21,7 @@ import {
 } from '@/utils/imageAlignment';
 
 export type LayoutNoiseBySide = Record<LayoutNoiseSide, LayoutNoiseData>;
+export type ComparisonPhase = 'preparing' | 'text' | 'images' | 'finalizing';
 
 export type CompareOptions = {
   granularity: DiffGranularity;
@@ -40,6 +41,7 @@ export type CompareOptions = {
   unrenderableImageLabel?: string;
   /** Stops the comparison at the next phase boundary when a newer one starts. */
   signal?: AbortSignal;
+  onProgress?: (phase: ComparisonPhase) => void;
 };
 
 export type CompareResult = {
@@ -69,6 +71,9 @@ export async function compareDocuments(
   options: CompareOptions
 ): Promise<CompareResult> {
   const signal = options.signal;
+  throwIfAborted(signal);
+  options.onProgress?.('preparing');
+  await yieldToBrowser(signal);
   const parser = new DOMParser();
   const originalDom = parser.parseFromString(originalHtml, 'text/html').body;
   const revisedDom = parser.parseFromString(revisedHtml, 'text/html').body;
@@ -87,6 +92,8 @@ export async function compareDocuments(
   await yieldToBrowser(signal);
   const revisedTrack = prepareDocumentText(revisedDom, options);
 
+  options.onProgress?.('text');
+  await yieldToBrowser(signal);
   const diffs = await createTextDiffsAsync(
     { text: originalTrack.text, boundaries: originalTrack.boundaries },
     { text: revisedTrack.text, boundaries: revisedTrack.boundaries },
@@ -116,6 +123,7 @@ export async function compareDocuments(
   // produces the same `<del>`/`<ins>` elements, so refinement scopes, pairs and
   // renumbers image differences alongside the text ones without knowing that is
   // what it is doing.
+  options.onProgress?.('images');
   await yieldToBrowser(signal);
   const imageAlignment = options.images ? alignDocumentImages(originalDom, revisedDom, options.images) : [];
   markImageDifferences(imageAlignment, {
@@ -125,6 +133,7 @@ export async function compareDocuments(
   summary.images = summarizeImageAlignment(imageAlignment);
   markMathDifferences(originalDom, revisedDom);
 
+  options.onProgress?.('finalizing');
   await yieldToBrowser(signal);
   const refinedSummary = refineDiffGroups(originalDom, revisedDom, {
     granularity: options.granularity,

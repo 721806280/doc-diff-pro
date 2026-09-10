@@ -79,6 +79,45 @@ afterEach(() => {
 });
 
 describe('fingerprintDocumentImages', () => {
+  it('stops reading queued images after cancellation without starting a decode', async () => {
+    const controller = new AbortController();
+    const decoder = stubDecoder();
+    const releases: Array<() => void> = [];
+    const entries = Array.from({ length: 12 }, (_, index) => {
+      const image = entry(String(index), pngOf(32, 32, index));
+      vi.spyOn(image.blob, 'arrayBuffer').mockImplementation(
+        () =>
+          new Promise<ArrayBuffer>((resolve) => {
+            releases.push(() => resolve(pngOf(32, 32, index).buffer));
+          })
+      );
+      return image;
+    });
+    const pending = fingerprintDocumentImages(entries, controller.signal);
+    expect(releases.length).toBeGreaterThan(0);
+    expect(releases.length).toBeLessThan(entries.length);
+    controller.abort();
+    releases.forEach((release) => release());
+    await expect(pending).rejects.toThrow('Comparison superseded');
+    expect(decoder.decoded()).toBe(0);
+    expect(releases.length).toBeLessThan(entries.length);
+  });
+
+  it('closes an in-flight bitmap when cancellation stops further decodes', async () => {
+    stubDecoder();
+    const controller = new AbortController();
+    const close = vi.fn();
+    const decode = vi.fn(() => {
+      controller.abort();
+      return Promise.resolve({ width: 8, height: 8, close });
+    });
+    vi.stubGlobal('createImageBitmap', decode);
+    const entries = Array.from({ length: 8 }, (_, index) => entry(String(index), pngOf(32, 32, index)));
+    await expect(fingerprintDocumentImages(entries, controller.signal)).rejects.toThrow('Comparison superseded');
+    expect(decode).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it('hashes every image and reads its dimensions from the container header', async () => {
     const table = await fingerprintDocumentImages([entry('blob:a', pngOf(1024, 768))]);
     const descriptor = table.get('blob:a');

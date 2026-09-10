@@ -5,6 +5,7 @@ import { messages } from '@/i18n/messages';
 import type { DiffSummary } from '@/types/diff';
 import type { DocumentPair } from '@/types/document';
 import { createEmptyDocument } from '@/services/documentFile';
+import type { ComparisonRules } from '@/config/userSettings';
 import { useComparisonSession } from './useComparisonSession';
 
 const mocks = vi.hoisted(() => ({
@@ -54,13 +55,16 @@ function mountSession(initialDocuments: DocumentPair = readyDocuments()) {
     state.documents = typeof value === 'function' ? value(state.documents) : value;
   });
 
-  const view = renderHook(
-    (props: { documents: DocumentPair; ready: boolean }) =>
+  const view = renderHook<
+    ReturnType<typeof useComparisonSession>,
+    { documents: DocumentPair; ready: boolean; rules?: ComparisonRules }
+  >(
+    (props: { documents: DocumentPair; ready: boolean; rules?: ComparisonRules }) =>
       useComparisonSession({
         documents: props.documents,
         i18n,
         ready: props.ready,
-        rules: {
+        rules: props.rules ?? {
           diffGranularity: 'semantic',
           filterLayoutNoise: false,
           ignoreFullHalfWidth: true,
@@ -136,6 +140,38 @@ describe('useComparisonSession', () => {
     expect(view.onNotice).toHaveBeenCalledWith(i18n.app.notices.compareRefreshed);
   });
 
+  it('keeps the displayed result when a settings refresh fails and replaces it on a successful retry', async () => {
+    const view = mountSession();
+    await waitFor(() => expect(view.result.current.summary.total).toBe(2));
+    const previousDocuments = view.state.documents;
+    const rules: ComparisonRules = {
+      diffGranularity: 'char',
+      ignoreSpaces: false,
+      ignoreFullHalfWidth: false,
+      filterLayoutNoise: true
+    };
+    view.rerender({ documents: view.state.documents, ready: true, rules });
+    mocks.compareDocuments.mockRejectedValueOnce(new Error('retry failed'));
+    await act(async () => {
+      await view.result.current.runCompare(view.state.documents);
+    });
+    expect(view.state.documents).toBe(previousDocuments);
+    expect(view.result.current.summary.total).toBe(2);
+    mocks.compareDocuments.mockResolvedValueOnce(comparisonResult(4));
+    await act(async () => {
+      await view.result.current.runCompare(view.state.documents);
+    });
+    expect(view.result.current.summary.total).toBe(4);
+    expect(mocks.compareDocuments.mock.calls.at(-1)?.[2]).toMatchObject({
+      granularity: 'char',
+      ignoreSpaces: false,
+      ignoreFullHalfWidth: false,
+      filterLayoutNoise: true
+    });
+    act(() => view.result.current.clearComparison());
+    expect(view.result.current.summary.total).toBe(0);
+  });
+
   // compareSequence guards against a slow comparison overwriting a newer one.
   it('discards a superseded comparison result', async () => {
     const resolvers: Array<(value: ReturnType<typeof comparisonResult>) => void> = [];
@@ -166,9 +202,19 @@ describe('useComparisonSession', () => {
     const view = mountSession();
 
     await waitFor(() => expect(view.result.current.comparing).toBe(true));
+    await waitFor(() => expect(mocks.compareDocuments).toHaveBeenCalled());
+    const progress = mocks.compareDocuments.mock.calls[0]![2].onProgress as (phase: string) => void;
+    act(() => progress('text'));
+    expect(view.result.current.phase).toBe('text');
     act(() => view.result.current.cancelCompare());
 
     expect(view.result.current.comparing).toBe(false);
+    expect(view.result.current.cancelled).toBe(true);
+    expect(view.result.current.phase).toBeNull();
+    act(() => progress('finalizing'));
+    expect(view.result.current.phase).toBeNull();
+    view.rerender({ documents: { ...view.state.documents }, ready: true });
+    expect(mocks.compareDocuments).toHaveBeenCalledTimes(1);
     expect(mocks.cancelPendingTextDiffs).toHaveBeenCalled();
   });
 

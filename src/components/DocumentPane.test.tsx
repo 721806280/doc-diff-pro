@@ -16,6 +16,18 @@ afterEach(() => {
 });
 
 describe('DocumentPane', () => {
+  it('keeps a file error visible while the other document is preparing', () => {
+    const { host } = mountPane(
+      true,
+      { ...emptyDocument(), name: 'broken.docx', status: 'error', error: '无法读取文档' },
+      undefined,
+      undefined,
+      { pendingComparison: true }
+    );
+    expect(host.querySelector('.state-card.error')?.textContent).toContain('无法读取文档');
+    expect(host.querySelector('.spinner-large')).toBeNull();
+  });
+
   it('separates external waiting and local upload controls', () => {
     const external = mountPane(false);
     expect(external.host.textContent).toContain('等待接入系统提供基准文档');
@@ -236,6 +248,7 @@ function mountPane(
   onFile?: (file: File) => void,
   onDiffInteraction: (event: React.SyntheticEvent) => void = () => undefined,
   handlers: Partial<{
+    pendingComparison: boolean;
     onScroll: (side: 'A' | 'B') => void;
     onActivate: (side: 'A' | 'B') => void;
     onImagePreview: (side: 'A' | 'B', image: HTMLImageElement) => void;
@@ -248,6 +261,7 @@ function mountPane(
       active
       hasResult={Boolean(document.highlightedHtml)}
       comparing={false}
+      pendingComparison={handlers.pendingComparison}
       allowFileInput={allowFileInput}
       paneRef={createRef<HTMLDivElement>()}
       onFile={async (_side, file) => onFile?.(file)}

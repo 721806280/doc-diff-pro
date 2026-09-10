@@ -105,7 +105,12 @@ describe('compareDocuments', () => {
   });
 
   it('summarizes a replacement and reports normalized similarity', async () => {
-    const result = await compareDocuments('<p>abc</p>', '<p>axc</p>', DEFAULT_OPTIONS);
+    const phases: string[] = [];
+    const result = await compareDocuments('<p>abc</p>', '<p>axc</p>', {
+      ...DEFAULT_OPTIONS,
+      onProgress: (phase) => phases.push(phase)
+    });
+    expect(phases).toEqual(['preparing', 'text', 'images', 'finalizing']);
 
     expect(result.summary).toMatchObject({
       total: 1,

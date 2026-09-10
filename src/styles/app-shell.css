@@ -106,7 +106,8 @@
   stroke-linejoin: round;
 }
 
-.app-error-banner {
+.app-error-banner,
+.app-task-banner {
   background: rgba(var(--del-rgb), 0.1);
   border: 1px solid var(--del-border);
   color: var(--text-primary);
@@ -121,7 +122,8 @@
   flex-shrink: 0;
 }
 
-.app-error-banner button {
+.app-error-banner button,
+.app-task-banner button {
   border: 1px solid var(--del-border);
   background: var(--surface-card-solid);
   color: var(--del-text);
@@ -145,6 +147,23 @@
 .app-error-banner button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(var(--del-rgb), 0.16);
+}
+
+.app-task-banner {
+  background: var(--surface-card-solid);
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+.app-task-banner button {
+  color: var(--accent-strong);
+  border-color: var(--accent-border);
+}
+.app-task-banner button:hover {
+  background: var(--accent-soft);
+}
+.app-task-banner button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .table-hint-tip {

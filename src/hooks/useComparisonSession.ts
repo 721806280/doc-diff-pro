@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import type { UserSettings } from '@/config/userSettings';
+import type { ComparisonRules } from '@/config/userSettings';
 import type { I18nMessages } from '@/i18n/messages';
 import { cancelPendingTextDiffs } from '@/services/diffWorkerClient';
+import type { ComparisonPhase } from '@/services/diffEngine';
+import { throwIfAborted } from '@/utils/comparisonScheduling';
 import type { DiffSummary } from '@/types/diff';
 import type { DocumentPair } from '@/types/document';
 import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
@@ -21,7 +23,7 @@ type ComparisonSessionOptions = {
   documents: DocumentPair;
   i18n: I18nMessages;
   ready: boolean;
-  rules: Pick<UserSettings, 'diffGranularity' | 'filterLayoutNoise' | 'ignoreFullHalfWidth' | 'ignoreSpaces'>;
+  rules: ComparisonRules;
   setDocuments: Dispatch<SetStateAction<DocumentPair>>;
   onClearReviewState: () => void;
   onResult: (summary: DiffSummary) => void;
@@ -39,17 +41,21 @@ export function useComparisonSession({
   onNotice
 }: ComparisonSessionOptions) {
   const [comparing, setComparing] = useState(false);
+  const [phase, setPhase] = useState<ComparisonPhase | null>(null);
+  const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState('');
   const [summary, setSummary] = useState<DiffSummary>(EMPTY_SUMMARY);
   const compareSequence = useRef(0);
   const activeCompare = useRef<AbortController | null>(null);
 
   const cancelCompare = useCallback(() => {
+    setCancelled(activeCompare.current !== null);
     compareSequence.current++;
     activeCompare.current?.abort();
     activeCompare.current = null;
     cancelPendingTextDiffs();
     setComparing(false);
+    setPhase(null);
     setError('');
   }, []);
 
@@ -64,6 +70,8 @@ export function useComparisonSession({
       activeCompare.current = compare;
       cancelPendingTextDiffs();
       setComparing(true);
+      setPhase('preparing');
+      setCancelled(false);
       setError('');
       onClearReviewState();
       try {
@@ -72,6 +80,7 @@ export function useComparisonSession({
         // this runs the reader has already picked and parsed two documents, so
         // the fetch overlaps work they were waiting on anyway.
         const { compareDocuments } = await import('@/services/diffEngine');
+        throwIfAborted(compare.signal);
         const result = await compareDocuments(nextDocuments.A.originalHtml, nextDocuments.B.originalHtml, {
           granularity: rules.diffGranularity,
           ignoreSpaces: rules.ignoreSpaces,
@@ -81,7 +90,10 @@ export function useComparisonSession({
           images: { original: nextDocuments.A.imageDescriptors, revised: nextDocuments.B.imageDescriptors },
           imageLabel: i18n.documentPane.imageDifferenceLabel,
           unrenderableImageLabel: i18n.documentPane.unrenderableImageLabel,
-          signal: compare.signal
+          signal: compare.signal,
+          onProgress: (nextPhase) => {
+            if (sequence === compareSequence.current) setPhase(nextPhase);
+          }
         });
         if (sequence !== compareSequence.current) return;
         setDocuments({
@@ -98,7 +110,11 @@ export function useComparisonSession({
         setError(i18n.app.errors.compareFailed(detail));
         onNotice(i18n.app.notices.compareFailed);
       } finally {
-        if (sequence === compareSequence.current) setComparing(false);
+        if (sequence === compareSequence.current) {
+          activeCompare.current = null;
+          setComparing(false);
+          setPhase(null);
+        }
       }
     },
     [
@@ -118,6 +134,7 @@ export function useComparisonSession({
     cancelCompare();
     onClearReviewState();
     setSummary(EMPTY_SUMMARY);
+    setCancelled(false);
   }, [cancelCompare, onClearReviewState]);
 
   useEffect(
@@ -131,9 +148,17 @@ export function useComparisonSession({
   );
 
   useEffect(() => {
-    if (!ready || documents.A.highlightedHtml || documents.B.highlightedHtml) return;
+    if (
+      !ready ||
+      activeCompare.current ||
+      cancelled ||
+      error ||
+      documents.A.highlightedHtml ||
+      documents.B.highlightedHtml
+    )
+      return;
     void runCompare(documents);
-  }, [documents, ready, runCompare]);
+  }, [documents, ready, runCompare, cancelled, error]);
 
-  return { comparing, error, summary, runCompare, cancelCompare, clearComparison };
+  return { comparing, phase, cancelled, error, summary, runCompare, cancelCompare, clearComparison };
 }

@@ -10,13 +10,18 @@ describe('sampleDocuments', () => {
     const fetchMock = vi.fn().mockImplementation(async () => new Response(new Blob(['docx'])));
     vi.stubGlobal('fetch', fetchMock);
 
-    const files = await loadSampleDocuments('/doc-diff-pro/', {
-      A: '示例-基准.docx',
-      B: '示例-修订.docx'
-    });
+    const controller = new AbortController();
+    const files = await loadSampleDocuments(
+      '/doc-diff-pro/',
+      {
+        A: '示例-基准.docx',
+        B: '示例-修订.docx'
+      },
+      controller.signal
+    );
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, '/doc-diff-pro/samples/baseline.docx');
-    expect(fetchMock).toHaveBeenNthCalledWith(2, '/doc-diff-pro/samples/revised.docx');
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/doc-diff-pro/samples/baseline.docx', { signal: controller.signal });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/doc-diff-pro/samples/revised.docx', { signal: controller.signal });
     expect(files.A.name).toBe('示例-基准.docx');
     expect(files.B.name).toBe('示例-修订.docx');
   });

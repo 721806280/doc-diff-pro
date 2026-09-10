@@ -879,8 +879,16 @@
 
 @media (max-width: 440px) {
   .file-badge-empty,
-  .indicator-group span:not(.warning) {
+  .indicator-group > .status-chip,
+  .reupload-trigger > span {
     display: none;
+  }
+  .warning-chip {
+    position: static;
+  }
+  .warning-popover {
+    right: 8px;
+    max-width: calc(100% - 16px);
   }
   .docx-render-content ins.table-structure-diff,
   .docx-render-content del.table-structure-diff {

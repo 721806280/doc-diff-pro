@@ -66,6 +66,11 @@ button.summary-chip {
   border-color: var(--muted-chip-border);
   background: var(--muted-chip-bg);
 }
+.summary-chip.limited {
+  color: var(--warning-strong);
+  border-color: var(--warning-border);
+  background: var(--warning-soft);
+}
 .summary-chip.total.clean,
 .summary-chip.inserted {
   color: var(--ins-text);

@@ -150,6 +150,12 @@ describe('useDocumentSession', () => {
     });
 
     await waitFor(() => expect(resolvers).toHaveLength(2));
+    expect(mocks.parseDocx.mock.calls[0]![1].signal.aborted).toBe(true);
+    expect(mocks.parseDocx.mock.calls[1]![1].signal.aborted).toBe(false);
+    act(() => {
+      mocks.parseDocx.mock.calls[0]![1].onProgress('images');
+    });
+    expect(result.current.documents.A.parsePhase).toBe('reading');
 
     // Resolve the superseded request last, so it would win without the guard.
     await act(async () => {
@@ -160,6 +166,69 @@ describe('useDocumentSession', () => {
 
     expect(result.current.documents.A.name).toBe('new.docx');
     expect(result.current.documents.A.originalHtml).toBe('<p>new</p>');
+  });
+
+  it('cancels only pending imports and releases a late result without replacing a ready pane', async () => {
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const { result } = mountSession();
+    await act(async () => {
+      await result.current.handleFile('A', docxFile('keep.docx'));
+    });
+    let finish!: (value: ParsedDocx) => void;
+    mocks.parseDocx.mockImplementationOnce(
+      () =>
+        new Promise<ParsedDocx>((resolve) => {
+          finish = resolve;
+        })
+    );
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.handleFile('B', docxFile('cancel.docx'));
+    });
+    const options = mocks.parseDocx.mock.calls[1]![1];
+    act(() => {
+      options.onProgress('reading');
+      options.onProgress('images');
+    });
+    expect(result.current.documents.B.parsePhase).toBe('images');
+    act(() => result.current.cancelLoading());
+    expect(options.signal.aborted).toBe(true);
+    expect(result.current.documents.A.name).toBe('keep.docx');
+    expect(result.current.documents.B.status).toBe('idle');
+    await act(async () => {
+      finish(parsed({ imageUrls: ['blob:late'] }));
+      await pending;
+    });
+    expect(revoke).toHaveBeenCalledWith('blob:late');
+    expect(result.current.ready).toBe(false);
+  });
+
+  it('lets a manual import cancel a sample download that has not arrived', async () => {
+    let finish!: (value: { A: File; B: File }) => void;
+    mocks.loadSampleDocuments.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const { result } = mountSession();
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.loadSamples();
+    });
+    const signal = mocks.loadSampleDocuments.mock.calls[0]![2] as AbortSignal;
+    await act(async () => {
+      await result.current.handleFile('A', docxFile('manual.docx'));
+    });
+    expect(signal.aborted).toBe(true);
+    await act(async () => {
+      finish({ A: docxFile('sample-a.docx'), B: docxFile('sample-b.docx') });
+      await pending;
+    });
+    expect(mocks.parseDocx).toHaveBeenCalledTimes(1);
+    expect(result.current.documents.A.name).toBe('manual.docx');
+    expect(result.current.documents.B.status).toBe('idle');
+    expect(result.current.loadingSample).toBe(false);
   });
 
   // Object URLs outlive the markup that referenced them unless something

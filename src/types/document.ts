@@ -47,6 +47,7 @@ export type DocxScanReport = {
 
 export type PaneSide = 'A' | 'B';
 export type DocumentStatus = 'idle' | 'parsing' | 'ready' | 'error';
+export type DocumentParsePhase = 'reading' | 'converting' | 'images';
 
 export type DocumentPaneState = {
   name: string;
@@ -76,6 +77,7 @@ export type DocumentPaneState = {
    */
   imageDescriptors: ImageDescriptorTable;
   status: DocumentStatus;
+  parsePhase?: DocumentParsePhase;
   error: string;
 };
 

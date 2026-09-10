@@ -44,6 +44,8 @@ export function useDocumentSession({
   const [loadingSample, setLoadingSample] = useState(false);
   const fileSequences = useRef<Record<PaneSide, number>>({ A: 0, B: 0 });
   const sampleSequence = useRef(0);
+  const activeParses = useRef<Record<PaneSide, AbortController | null>>({ A: null, B: null });
+  const sampleFetch = useRef<AbortController | null>(null);
   const documentErrors = useRef<Partial<Record<PaneSide, DocumentErrorState>>>({});
   // Mirrors the object URLs each pane's markup points at. Kept beside the
   // state rather than inside it because releasing a URL is a side effect, and
@@ -74,6 +76,22 @@ export function useDocumentSession({
 
   const hasDocuments = Boolean(documents.A.name || documents.B.name);
   const ready = documents.A.status === 'ready' && documents.B.status === 'ready';
+
+  const cancelLoading = useCallback(() => {
+    fileSequences.current.A++;
+    fileSequences.current.B++;
+    sampleSequence.current++;
+    activeParses.current.A?.abort();
+    activeParses.current.B?.abort();
+    activeParses.current = { A: null, B: null };
+    sampleFetch.current?.abort();
+    sampleFetch.current = null;
+    setLoadingSample(false);
+    setDocuments((current) => ({
+      A: current.A.status === 'parsing' ? createEmptyDocument() : current.A,
+      B: current.B.status === 'parsing' ? createEmptyDocument() : current.B
+    }));
+  }, []);
 
   useEffect(() => {
     setDocuments((current) => {
@@ -109,6 +127,9 @@ export function useDocumentSession({
       fileSequences.current.A++;
       fileSequences.current.B++;
       sampleSequence.current++;
+      activeParses.current.A?.abort();
+      activeParses.current.B?.abort();
+      sampleFetch.current?.abort();
       revokeDocumentImageUrls(liveImageUrls.current.A);
       revokeDocumentImageUrls(liveImageUrls.current.B);
       liveImageUrls.current = { A: [], B: [] };
@@ -119,6 +140,15 @@ export function useDocumentSession({
   const handleFile = useCallback(
     async (side: PaneSide, file: File) => {
       const fileSequence = ++fileSequences.current[side];
+      activeParses.current[side]?.abort();
+      activeParses.current[side] = null;
+      // A manual import wins over a sample download that has not arrived yet.
+      if (sampleFetch.current) {
+        sampleFetch.current.abort();
+        sampleFetch.current = null;
+        sampleSequence.current++;
+        setLoadingSample(false);
+      }
       onBeforeDocumentChange();
       // Whatever this pane was showing is on its way out either way.
       adoptImageUrls(side, []);
@@ -138,11 +168,31 @@ export function useDocumentSession({
       }
 
       delete documentErrors.current[side];
-      replaceDocument(side, { ...createEmptyDocument(), name: file.name, size: file.size, status: 'parsing' });
+      const parse = new AbortController();
+      activeParses.current[side] = parse;
+      replaceDocument(side, {
+        ...createEmptyDocument(),
+        name: file.name,
+        size: file.size,
+        status: 'parsing',
+        parsePhase: 'reading'
+      });
       try {
         const parsed = await parseDocx(file, {
           embeddedImageAlt: i18n.documentPane.embeddedImageAlt,
-          emptyDocumentHtml: i18n.documentPane.emptyDocumentHtml
+          emptyDocumentHtml: i18n.documentPane.emptyDocumentHtml,
+          signal: parse.signal,
+          onProgress: (parsePhase) => {
+            if (fileSequence !== fileSequences.current[side]) return;
+            setDocuments((current) =>
+              current[side].status !== 'parsing' || current[side].parsePhase === parsePhase
+                ? current
+                : {
+                    ...current,
+                    [side]: { ...current[side], parsePhase }
+                  }
+            );
+          }
         });
         if (fileSequence !== fileSequences.current[side]) {
           // A newer file won the pane; nothing will ever render these.
@@ -181,6 +231,8 @@ export function useDocumentSession({
           error: resolveDocumentError(i18n, maxSizeMb, 'parseFailed', detail)
         });
         onNotice(i18n.app.notices.parseFailed);
+      } finally {
+        if (fileSequence === fileSequences.current[side]) activeParses.current[side] = null;
       }
     },
     [adoptImageUrls, i18n, maxSizeMb, onBeforeDocumentChange, onNotice, replaceDocument]
@@ -216,33 +268,41 @@ export function useDocumentSession({
   const loadSamples = useCallback(async () => {
     if (loadingSample || hasDocuments) return;
     const sequence = ++sampleSequence.current;
+    const download = new AbortController();
+    sampleFetch.current = download;
     setLoadingSample(true);
     try {
-      const samples = await loadSampleDocuments(import.meta.env.BASE_URL, {
-        A: i18n.app.sampleOriginalFileName,
-        B: i18n.app.sampleRevisedFileName
-      });
+      const samples = await loadSampleDocuments(
+        import.meta.env.BASE_URL,
+        {
+          A: i18n.app.sampleOriginalFileName,
+          B: i18n.app.sampleRevisedFileName
+        },
+        download.signal
+      );
       if (sequence !== sampleSequence.current) return;
+      sampleFetch.current = null;
       await Promise.all([handleFile('A', samples.A), handleFile('B', samples.B)]);
     } catch {
       if (sequence === sampleSequence.current) onNotice(i18n.app.notices.sampleLoadFailed);
     } finally {
-      if (sequence === sampleSequence.current) setLoadingSample(false);
+      if (sequence === sampleSequence.current) {
+        sampleFetch.current = null;
+        setLoadingSample(false);
+      }
     }
   }, [handleFile, hasDocuments, i18n, loadingSample, onNotice]);
 
   const resetDocuments = useCallback(() => {
     if (hasDocuments && !window.confirm(i18n.app.newComparisonConfirm)) return;
     onBeforeDocumentChange();
-    fileSequences.current.A++;
-    fileSequences.current.B++;
-    sampleSequence.current++;
+    cancelLoading();
     documentErrors.current = {};
     adoptImageUrls('A', []);
     adoptImageUrls('B', []);
     setDocuments({ A: createEmptyDocument(), B: createEmptyDocument() });
     onNotice(i18n.app.notices.newComparisonStarted);
-  }, [adoptImageUrls, hasDocuments, i18n, onBeforeDocumentChange, onNotice]);
+  }, [adoptImageUrls, cancelLoading, hasDocuments, i18n, onBeforeDocumentChange, onNotice]);
 
   const swapDocuments = useCallback(() => {
     if (!ready) return;
@@ -262,6 +322,7 @@ export function useDocumentSession({
     hasDocuments,
     ready,
     loadingSample,
+    cancelLoading,
     handleFile,
     externalEmit,
     loadSamples,

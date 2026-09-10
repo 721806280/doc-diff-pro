@@ -157,6 +157,7 @@ export default function App() {
     hasDocuments,
     ready,
     loadingSample,
+    cancelLoading,
     handleFile,
     externalEmit,
     loadSamples,
@@ -181,22 +182,37 @@ export default function App() {
     [externalEmit]
   );
 
-  const { comparing, error, summary, runCompare, clearComparison } = useComparisonSession({
-    documents,
-    i18n,
-    ready,
-    rules: {
-      diffGranularity: granularity,
-      filterLayoutNoise: filterLayout,
-      ignoreFullHalfWidth: ignoreWidth,
-      ignoreSpaces
-    },
-    setDocuments,
-    onClearReviewState: clearReviewState,
-    onResult: handleComparisonResult,
-    onNotice: setNotice
-  });
+  const { comparing, phase, cancelled, error, summary, runCompare, cancelCompare, clearComparison } =
+    useComparisonSession({
+      documents,
+      i18n,
+      ready,
+      rules: {
+        diffGranularity: granularity,
+        filterLayoutNoise: filterLayout,
+        ignoreFullHalfWidth: ignoreWidth,
+        ignoreSpaces
+      },
+      setDocuments,
+      onClearReviewState: clearReviewState,
+      onResult: handleComparisonResult,
+      onNotice: setNotice
+    });
   const hasComparisonResult = documents.A.highlightedHtml.length > 0 && documents.B.highlightedHtml.length > 0;
+  const parsing = documents.A.status === 'parsing' || documents.B.status === 'parsing';
+  const processing = parsing || comparing || loadingSample;
+  // Avoid committing large provisional panes immediately before the engine
+  // replaces them. A document opened on its own still gets a normal preview.
+  const pendingComparison = !hasComparisonResult && (parsing || (ready && !cancelled && !error));
+  const cancelProcessing = useCallback(() => {
+    if (comparing) {
+      cancelCompare();
+      setNotice('');
+    } else {
+      cancelLoading();
+      setNotice(i18n.app.notices.importCancelled);
+    }
+  }, [cancelCompare, cancelLoading, comparing, i18n]);
   externalGetStateRef.current = () => ({
     ready,
     comparing,
@@ -264,7 +280,7 @@ export default function App() {
   useBindLatest(resetTableHintRef, resetTableHint);
 
   const clearNotice = useCallback(() => setNotice(''), []);
-  useAutoClearNotice(notice, comparing, clearNotice);
+  useAutoClearNotice(notice, processing, clearNotice);
 
   const { ignoredDiffIds, ignoredList, ignoredIndices, activeCount, activePosition, currentReviewItem, similarItems } =
     useReviewSummary({
@@ -507,7 +523,17 @@ export default function App() {
           </button>
         </div>
       )}
-      <CompareToast message={notice} comparing={comparing} />
+      <CompareToast
+        message={phase ? i18n.app.comparePhases[phase] : processing ? i18n.app.importing : notice}
+        comparing={processing}
+        onCancel={processing ? cancelProcessing : undefined}
+      />
+      {cancelled && ready && (
+        <div className="app-task-banner" role="status">
+          <span>{hasComparisonResult ? i18n.app.cancelledWithResult : i18n.app.comparisonCancelled}</span>
+          <button onClick={() => void runCompare(documents, true)}>{i18n.app.retryCompare}</button>
+        </div>
+      )}
       {error && (
         <div className="app-error-banner" role="alert">
           <span>{error}</span>
@@ -518,6 +544,7 @@ export default function App() {
       {hasComparisonResult && (
         <DiffNavigator
           summary={summary}
+          documents={documents}
           activeDiffCount={activeCount}
           activeDiffIndex={activePosition}
           ignoredDiffs={ignoredList}
@@ -540,6 +567,8 @@ export default function App() {
           active={!hasComparisonResult || mobilePane === 'A'}
           hasResult={hasComparisonResult}
           comparing={comparing}
+          pendingComparison={pendingComparison}
+          pairReady={ready}
           allowFileInput={allowsLocalInput}
           paneRef={paneA}
           onFile={handleFile}
@@ -562,6 +591,8 @@ export default function App() {
           active={!hasComparisonResult || mobilePane === 'B'}
           hasResult={hasComparisonResult}
           comparing={comparing}
+          pendingComparison={pendingComparison}
+          pairReady={ready}
           allowFileInput={allowsLocalInput}
           paneRef={paneB}
           onFile={handleFile}

@@ -1,4 +1,5 @@
 import { readImageHeader } from '@/utils/imageHeader';
+import { throwIfAborted } from '@/utils/comparisonScheduling';
 import {
   createImageVisualDescriptor,
   IMAGE_COLOR_SIZE,
@@ -75,11 +76,25 @@ const DECODE_SIZE = IMAGE_SAMPLE_SIZE * 4;
  */
 const MAX_CONCURRENT_DECODES = 4;
 
-export async function fingerprintDocumentImages(entries: readonly ImageSourceEntry[]): Promise<ImageDescriptorTable> {
+export async function fingerprintDocumentImages(
+  entries: readonly ImageSourceEntry[],
+  signal?: AbortSignal
+): Promise<ImageDescriptorTable> {
+  throwIfAborted(signal);
   const table: ImageDescriptorTable = new Map();
   if (entries.length === 0) return table;
 
-  const identified = await Promise.all(entries.map(identifyImage));
+  const identified: IdentifiedImage[] = [];
+  // Bound in-flight byte copies as well as decodes, and stop starting batches
+  // when the document has been replaced or the reader cancels its import.
+  for (let offset = 0; offset < entries.length; offset += MAX_CONCURRENT_DECODES) {
+    throwIfAborted(signal);
+    identified.push(
+      ...(await Promise.all(
+        entries.slice(offset, offset + MAX_CONCURRENT_DECODES).map((entry) => identifyImage(entry, signal))
+      ))
+    );
+  }
   // Grouped by content: the same logo in a header repeats on every page, so a
   // document routinely carries dozens of copies of a handful of images. They
   // share one descriptor and are decoded once.
@@ -95,14 +110,16 @@ export async function fingerprintDocumentImages(entries: readonly ImageSourceEnt
     table.set(entry.id, entry.descriptor);
   }
 
-  await decodeWithinBudget([...groups.values()]);
+  await decodeWithinBudget([...groups.values()], signal);
+  throwIfAborted(signal);
   return table;
 }
 
 type IdentifiedImage = { id: string; blob: Blob; descriptor: ImageDescriptor };
 
-async function identifyImage(entry: ImageSourceEntry): Promise<IdentifiedImage> {
+async function identifyImage(entry: ImageSourceEntry, signal?: AbortSignal): Promise<IdentifiedImage> {
   const bytes = new Uint8Array(await entry.blob.arrayBuffer());
+  throwIfAborted(signal);
   const header = readImageHeader(bytes);
 
   return {
@@ -125,7 +142,11 @@ async function identifyImage(entry: ImageSourceEntry): Promise<IdentifiedImage> 
  * that which images end up with a visual descriptor does not depend on how the
  * decodes happened to interleave.
  */
-async function decodeWithinBudget(groups: Array<{ descriptor: ImageDescriptor; blob: Blob }>): Promise<void> {
+async function decodeWithinBudget(
+  groups: Array<{ descriptor: ImageDescriptor; blob: Blob }>,
+  signal?: AbortSignal
+): Promise<void> {
+  throwIfAborted(signal);
   if (!canDecodeImages()) return;
 
   const admitted: Array<{ descriptor: ImageDescriptor; blob: Blob }> = [];
@@ -147,10 +168,12 @@ async function decodeWithinBudget(groups: Array<{ descriptor: ImageDescriptor; b
   let next = 0;
   const workers = Array.from({ length: Math.min(MAX_CONCURRENT_DECODES, admitted.length) }, async () => {
     for (let index = next++; index < admitted.length; index = next++) {
+      throwIfAborted(signal);
       const group = admitted[index];
       if (!group) continue;
 
       const sample = await sampleImageBlob(group.blob);
+      throwIfAborted(signal);
       if (sample) group.descriptor.visual = createImageVisualDescriptor(sample);
     }
   });

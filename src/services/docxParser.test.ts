@@ -49,6 +49,39 @@ describe('parseDocx', () => {
     imgElement.mockReturnValue('image-converter');
   });
 
+  it('skips conversion when canceled before reading and does not report a parse failure', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await expect(parseDocx(new File(['docx'], 'cancel.docx'), { signal: controller.signal })).rejects.toThrow(
+      'Comparison superseded'
+    );
+    expect(convertToHtml).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it('releases adopted image URLs when canceled before image processing', async () => {
+    const controller = new AbortController();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:canceled');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    convertToHtml.mockResolvedValueOnce({
+      value: '<p><img src="data:image/png;base64,iVBORw0KGgo="></p>',
+      messages: []
+    });
+    const phases: string[] = [];
+    await expect(
+      parseDocx(new File(['docx'], 'cancel.docx'), {
+        signal: controller.signal,
+        onProgress: (phase) => {
+          phases.push(phase);
+          if (phase === 'images') controller.abort();
+        }
+      })
+    ).rejects.toThrow('Comparison superseded');
+    expect(phases).toEqual(['reading', 'converting', 'images']);
+    expect(revoke).toHaveBeenCalledWith('blob:canceled');
+  });
+
   it('includes native headers and footers as layout noise', async () => {
     convertToHtml.mockResolvedValueOnce({
       value: '<header><p>内部资料</p></header><p onclick="alert(1)">正文</p><footer><p>第 1 页</p></footer>',

@@ -5,6 +5,7 @@ import { setLocale } from '@/i18n';
 import { messages } from '@/i18n/messages';
 import { createRenderRegistry } from '@/test-utils/renderReact';
 import type { DiffSummary } from '@/types/diff';
+import { createEmptyDocument } from '@/services/documentFile';
 import type { PlacementSize } from '@/utils/diffActionPlacement';
 import DiffActionPopover from './DiffActionPopover';
 import DiffNavigator from './DiffNavigator';
@@ -107,6 +108,7 @@ describe('review components', () => {
     const events: string[] = [];
     const { host } = renders.render(
       <DiffNavigator
+        documents={{ A: createEmptyDocument(), B: createEmptyDocument() }}
         summary={summary()}
         activeDiffCount={2}
         activeDiffIndex={1}
@@ -136,6 +138,7 @@ describe('review components', () => {
   it('does not render a separate figure count chip', () => {
     const { host } = renders.render(
       <DiffNavigator
+        documents={{ A: createEmptyDocument(), B: createEmptyDocument() }}
         summary={{
           ...summary(),
           images: { paired: 3, revised: 1, moved: 0, inserted: 1, deleted: 1, cosmetic: 0 }
@@ -156,6 +159,32 @@ describe('review components', () => {
     expect(host.querySelector('.summary-chip.images')).toBeNull();
   });
 
+  it.each(['complete', 'object', 'warning'] as const)('qualifies zero differences for %s coverage', (coverage) => {
+    const original = createEmptyDocument();
+    if (coverage === 'object') original.graphics.nativeGraphics = 1;
+    if (coverage === 'warning') original.warnings = ['Unsupported field'];
+    const { host } = renders.render(
+      <DiffNavigator
+        documents={{ A: original, B: createEmptyDocument() }}
+        summary={{ ...summary(), total: 0, inserted: 0, deleted: 0, modified: 0, similarity: 1 }}
+        activeDiffCount={0}
+        activeDiffIndex={0}
+        ignoredDiffs={[]}
+        canPrevious={false}
+        canNext={false}
+        onPrevious={() => undefined}
+        onNext={() => undefined}
+        onLocateIgnored={() => undefined}
+        onRestoreIgnored={() => undefined}
+        onRestoreAllIgnored={() => undefined}
+      />
+    );
+    const total = host.querySelector('.summary-chip.total')!;
+    expect(total.textContent).toBe(coverage === 'complete' ? '无差异' : '已解析内容无差异');
+    expect(total.classList.contains('clean')).toBe(coverage === 'complete');
+    expect(total.classList.contains('limited')).toBe(coverage !== 'complete');
+  });
+
   it('opens layout-noise details from its chip and restores all from the ignored modal', () => {
     const events: string[] = [];
     const noisySummary: DiffSummary = {
@@ -165,6 +194,7 @@ describe('review components', () => {
     };
     const { host } = renders.render(
       <DiffNavigator
+        documents={{ A: createEmptyDocument(), B: createEmptyDocument() }}
         summary={noisySummary}
         activeDiffCount={2}
         activeDiffIndex={1}
@@ -207,6 +237,7 @@ describe('review components', () => {
     const events: string[] = [];
     const { host } = renders.render(
       <DiffNavigator
+        documents={{ A: createEmptyDocument(), B: createEmptyDocument() }}
         summary={summary()}
         activeDiffCount={0}
         activeDiffIndex={0}

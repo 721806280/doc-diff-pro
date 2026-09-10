@@ -33,13 +33,15 @@ Document parsing, text normalization, diffing, and highlighting run in the brows
 ## ✨ Features
 
 - 📥 Side-by-side baseline (A) and revised (B) inputs with drag-and-drop, replacement, document swapping, and bundled samples.
+- ⏳ Processing stages with import/comparison cancellation; retry a canceled comparison using the loaded documents.
 - 🔍 Semantic, word, and character review levels that adjust diff cleanup and grouping behavior.
 - 📊 Similarity plus inserted, deleted, and modified counts, with difference navigation and a difference map.
 - 🙈 Temporary difference ignore actions, an ignored-difference list, restore controls, and batch handling for similar differences.
 - 🧹 Whitespace handling, full-/half-width normalization, and layout filtering for headers, footers, page numbers, and repeated layout text.
 - 📋 Table structure hints for inserted or missing rows, adjacent row splits, and mismatched cell counts.
 - 🔗 Synchronized scrolling and a narrow-screen switch between the baseline and revised panes.
-- 🖼️ Embedded image comparison with adaptive single/paired previews, linked zoom, and DOCX conversion warnings.
+- 🖼️ Embedded image comparison with adaptive single/paired previews, linked or independent zoom, rotation, flips, reset, and visual similarity details.
+- 🧮 Native Word equations are rendered as MathML and compared; document conversion preserves supported paragraph and table alignment.
 - 🎨 English and Chinese UI, theme presets, and light/dark appearance with locally saved preferences.
 - 🔌 Runtime deployment configuration and browser `File` input for embedding in third-party systems.
 
@@ -116,8 +118,10 @@ DocDiff Pro separates layout text from body content before diffing:
 - Each file is limited to 25 MB by default, configurable at runtime. This is an upload validation limit, not a guarantee that every complex document will complete in the same amount of time.
 - Embedded images are compared using content fingerprints and visual features. Visual similarity is an estimate, not the percentage of edited area; image text is not OCR-processed.
 - DOCX-to-HTML fidelity depends on mammoth. The app preserves convertible paragraphs, lists, tables, and images where possible, but complex Word layouts may not match Microsoft Word.
+- Native Word equations are compared after conversion to MathML. Legacy embedded equation objects, charts, and unsupported drawings may still be unavailable; conversion notices identify these limitations.
 - A modern browser with File API, Web Worker, and ES module support is required. Internet Explorer is not supported.
 - A worker timeout or insufficient browser resources can cause comparison to fail; the UI keeps the error and provides a retry action.
+- Cancellation terminates the text worker, stops subsequent image batches, and discards stale results. A synchronous conversion segment already in progress finishes before the next cancellation checkpoint. Canceling a settings refresh keeps the previous result.
 
 ## 🔌 Third-Party Integration
 
@@ -209,7 +213,7 @@ pnpm preview
 
 ## 🔧 How It Works
 
-- 📦 DOCX conversion uses the npm alias `mammoth@npm:@xm721806280/mammoth`, currently based on `1.12.0-rc3`; generated HTML is sanitized with DOMPurify.
+- 📦 DOCX conversion uses the npm alias `mammoth@npm:@xm721806280/mammoth`, currently based on `1.12.2-rc3`; generated HTML is sanitized with DOMPurify.
 - 🧾 Headers and footers are parsed with the document, converted into layout hints, and excluded from the displayed body.
 - 🧮 Text differences are computed by diff-match-patch in a Web Worker; long-running requests time out.
 - 🧯 Environments without Worker support can fall back to the main thread after a text-size safety check.

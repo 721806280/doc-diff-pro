@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n';
 import type { DiffSummary, IgnoredDiffItem } from '@/types/diff';
 import { IgnoredDiffModal, LayoutNoiseModal } from '@/components/ReviewModals';
+import type { DocumentPair } from '@/types/document';
+import { documentCoverage } from '@/utils/documentCoverage';
 
 type DiffNavigatorProps = {
   summary: DiffSummary;
+  documents: DocumentPair;
   activeDiffCount: number;
   activeDiffIndex: number;
   ignoredDiffs: IgnoredDiffItem[];
@@ -19,6 +22,7 @@ type DiffNavigatorProps = {
 
 export default function DiffNavigator({
   summary,
+  documents,
   activeDiffCount,
   activeDiffIndex,
   ignoredDiffs,
@@ -33,6 +37,7 @@ export default function DiffNavigator({
   const { locale, messages: i18n } = useI18n();
   const [ignoredOpen, setIgnoredOpen] = useState(false);
   const [layoutOpen, setLayoutOpen] = useState(false);
+  const limited = Object.values(documents).some((document) => documentCoverage(document, i18n).limited);
   const ignoredCount = ignoredDiffs.length;
   const progressPercent = activeDiffCount > 0 ? Math.round((activeDiffIndex / activeDiffCount) * 100) : 0;
   const similarity = new Intl.NumberFormat(locale, {
@@ -42,7 +47,9 @@ export default function DiffNavigator({
   }).format(summary.similarity);
   const diffCountLabel =
     summary.total === 0
-      ? i18n.diffNavigator.noDiffsTag
+      ? limited
+        ? i18n.diffNavigator.noDiffsWithinScope
+        : i18n.diffNavigator.noDiffsTag
       : ignoredCount === 0
         ? i18n.diffNavigator.differenceCount(summary.total)
         : i18n.diffNavigator.activeDifferenceCount(activeDiffCount, summary.total);
@@ -62,7 +69,7 @@ export default function DiffNavigator({
               {i18n.diffNavigator.similarity} <strong>{similarity}</strong>
             </span>
             <span
-              className={`summary-chip total ${summary.total === 0 ? 'clean' : activeDiffCount === 0 ? 'muted' : 'alert'}`}
+              className={`summary-chip total ${summary.total === 0 ? (limited ? 'limited' : 'clean') : activeDiffCount === 0 ? 'muted' : 'alert'}`}
             >
               {diffCountLabel}
             </span>

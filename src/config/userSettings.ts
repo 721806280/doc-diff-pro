@@ -21,6 +21,11 @@ export type UserSettings = {
   similarDiffLevel: SimilarDiffLevel;
 };
 
+export type ComparisonRules = Pick<
+  UserSettings,
+  'diffGranularity' | 'filterLayoutNoise' | 'ignoreFullHalfWidth' | 'ignoreSpaces'
+>;
+
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   diffGranularity: 'char',
   themeColor: 'indigo',

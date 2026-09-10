@@ -397,6 +397,66 @@ describe('React app workflow', () => {
     expect(host.textContent).not.toContain('baseline.docx');
   });
 
+  it('cancels a comparison, ignores its late result and retries with the loaded files', async () => {
+    const pending = deferred<ReturnType<typeof comparisonWithDiffs>>();
+    mocks.parseDocx.mockResolvedValueOnce(parsed('<p>baseline</p>')).mockResolvedValueOnce(parsed('<p>revised</p>'));
+    mocks.compareDocuments.mockReturnValueOnce(pending.promise);
+    renderApp();
+    await selectFile(0, new File(['a'], 'baseline.docx'));
+    await selectFile(1, new File(['b'], 'revised.docx'));
+    const options = mocks.compareDocuments.mock.calls[0]![2];
+    await act(async () => {
+      options.onProgress('text');
+    });
+    expect(host.querySelector('.compare-toast')?.textContent).toContain('Comparing text');
+    expect(host.querySelector('.docx-render-content')).toBeNull();
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('.compare-toast button')?.click();
+    });
+    expect(options.signal.aborted).toBe(true);
+    expect(host.querySelector('.app-task-banner')?.textContent).toContain('Comparison canceled');
+    expect(host.querySelectorAll('.docx-render-content')).toHaveLength(2);
+    expect(host.querySelector('.pane-preview-notice')).toBeNull();
+    await act(async () => {
+      pending.resolve(comparisonWithDiffs());
+      await Promise.resolve();
+    });
+    expect(host.querySelector('.floating-navigator')).toBeNull();
+    mocks.compareDocuments.mockResolvedValueOnce(comparisonWithDiffs());
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('.app-task-banner button')?.click();
+    });
+    await flush();
+    expect(mocks.compareDocuments).toHaveBeenCalledTimes(2);
+    expect(host.querySelector('.floating-navigator')).not.toBeNull();
+    expect(host.querySelector('.app-task-banner')).toBeNull();
+  });
+
+  it('cancels a pending import from the task control and keeps the ready document', async () => {
+    const pending = deferred<ParsedDocx>();
+    mocks.parseDocx.mockResolvedValueOnce(parsed('<p>keep</p>')).mockReturnValueOnce(pending.promise);
+    renderApp();
+    await selectFile(0, new File(['a'], 'keep.docx'));
+    dispatchFile(1, new File(['b'], 'cancel.docx'));
+    const options = mocks.parseDocx.mock.calls[1]![1];
+    await act(async () => {
+      options.onProgress('images');
+    });
+    expect(host.textContent).toContain('Processing images');
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('.compare-toast button')?.click();
+    });
+    expect(options.signal.aborted).toBe(true);
+    expect(host.textContent).toContain('keep.docx');
+    expect(host.textContent).not.toContain('cancel.docx');
+    await act(async () => {
+      pending.resolve(parsed('<p>late</p>'));
+      await Promise.resolve();
+    });
+    expect(mocks.compareDocuments).not.toHaveBeenCalled();
+    expect(host.textContent).not.toContain('late');
+  });
+
   it('debounces rapid comparison-setting changes', async () => {
     await mountComparedApp();
     vi.useFakeTimers();

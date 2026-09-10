@@ -6,6 +6,16 @@ const en = {
   app: {
     documentTitle: 'DocDiff Pro - DOCX Document Comparison',
     retryCompare: 'Compare again',
+    cancelProcessing: 'Cancel',
+    importing: 'Importing documents…',
+    comparisonCancelled: 'Comparison canceled.',
+    cancelledWithResult: 'Comparison canceled. Showing the previous result.',
+    comparePhases: {
+      preparing: 'Preparing documents…',
+      text: 'Comparing text…',
+      images: 'Comparing images and equations…',
+      finalizing: 'Organizing differences…'
+    },
     newComparisonConfirm: 'Clear both documents and start a new comparison?',
     localProcessingNotice: 'Documents stay in this browser',
     loadSample: 'Load sample',
@@ -43,7 +53,8 @@ const en = {
       newComparisonStarted: 'Ready for a new comparison.',
       sampleLoadFailed: 'Could not load the sample documents.',
       compareFailed: 'Could not compare the documents. Adjust the files or settings and try again.',
-      compareRefreshed: 'Comparison updated with the latest settings.'
+      compareRefreshed: 'Comparison updated with the latest settings.',
+      importCancelled: 'Import canceled.'
     },
     errors: {
       invalidType: 'Only .docx files are supported. Choose a different document.',
@@ -130,6 +141,11 @@ const en = {
     uploadSupport: 'Click or drag to upload',
     uploadAction: 'Choose file',
     parsing: 'Parsing document...',
+    parsePhases: {
+      reading: 'Reading file…',
+      converting: 'Converting document…',
+      images: 'Processing images…'
+    },
     comparing: 'Analyzing differences...',
     failedTitle: 'Could not process document',
     embeddedImageAlt: 'Embedded document image',
@@ -259,6 +275,7 @@ const en = {
   },
   diffNavigator: {
     noDiffsTag: 'No differences',
+    noDiffsWithinScope: 'No differences in parsed content',
     differenceCount(count: number): string {
       return count === 1 ? '1 diff' : `${count} diffs`;
     },
@@ -376,6 +393,16 @@ const zhCN: I18nMessages = {
   app: {
     documentTitle: 'DocDiff Pro - DOCX 文档比对',
     retryCompare: '重新比对',
+    cancelProcessing: '取消',
+    importing: '正在导入文档…',
+    comparisonCancelled: '比对已取消',
+    cancelledWithResult: '比对已取消，正在显示上次结果',
+    comparePhases: {
+      preparing: '正在准备文档…',
+      text: '正在比对正文…',
+      images: '正在比对图片和公式…',
+      finalizing: '正在整理差异…'
+    },
     newComparisonConfirm: '清空两份文档并开始新的比对吗？',
     localProcessingNotice: '文档仅在当前浏览器本地处理',
     loadSample: '加载示例',
@@ -413,7 +440,8 @@ const zhCN: I18nMessages = {
       newComparisonStarted: '可以开始新的文档比对',
       sampleLoadFailed: '示例文档加载失败，请稍后重试',
       compareFailed: '文档比对失败，请调整文件或设置后重试',
-      compareRefreshed: '已根据最新设置刷新比对结果'
+      compareRefreshed: '已根据最新设置刷新比对结果',
+      importCancelled: '已取消导入'
     },
     errors: {
       invalidType: '仅支持上传 .docx 文件，请重新选择文档。',
@@ -499,6 +527,11 @@ const zhCN: I18nMessages = {
     uploadSupport: '支持点击选择或拖拽上传',
     uploadAction: '选择文件',
     parsing: '正在解析文档...',
+    parsePhases: {
+      reading: '正在读取文件…',
+      converting: '正在转换文档…',
+      images: '正在处理图片…'
+    },
     comparing: '正在分析文档差异...',
     failedTitle: '文档处理失败',
     embeddedImageAlt: '文档嵌入图片',
@@ -619,6 +652,7 @@ const zhCN: I18nMessages = {
   },
   diffNavigator: {
     noDiffsTag: '无差异',
+    noDiffsWithinScope: '已解析内容无差异',
     differenceCount(count: number): string {
       return `差异 ${count}`;
     },
