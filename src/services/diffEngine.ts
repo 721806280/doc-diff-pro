@@ -12,6 +12,7 @@ import {
 import { DIFF_DELETE, DIFF_INSERT, summarizeDiffs } from '@/utils/textDiffCore';
 import { throwIfAborted, yieldToBrowser } from '@/utils/comparisonScheduling';
 import { refineDiffGroups } from '@/utils/diffGroupStructure';
+import { markMathDifferences } from '@/utils/mathAlignment';
 import {
   alignDocumentImages,
   markImageDifferences,
@@ -122,6 +123,7 @@ export async function compareDocuments(
     unrenderableLabel: options.unrenderableImageLabel
   });
   summary.images = summarizeImageAlignment(imageAlignment);
+  markMathDifferences(originalDom, revisedDom);
 
   await yieldToBrowser(signal);
   const refinedSummary = refineDiffGroups(originalDom, revisedDom, {

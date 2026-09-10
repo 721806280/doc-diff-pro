@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { collectDocxMetadata, collectMammothWarnings, parseDocx } from './docxParser';
 
 const convertToHtml = vi.fn();
@@ -60,6 +61,7 @@ describe('parseDocx', () => {
     expect(input.arrayBuffer.byteLength).toBe(4);
     expect(config).toEqual({
       includeHeadersAndFooters: true,
+      preserveAlignment: true,
       convertImage: 'image-converter'
     });
     expect(parsed.html).toBe('<p>正文</p>');
@@ -85,6 +87,21 @@ describe('parseDocx', () => {
     expect(parsed.imageCount).toBe(1);
     expect(createObjectURL.mock.calls[0]![0]).toBeInstanceOf(Blob);
     expect((createObjectURL.mock.calls[0]![0] as Blob).type).toBe('image/png');
+  });
+
+  it.each([true, false])('reports only equations absent from the converted output (rendered: %s)', async (rendered) => {
+    convertToHtml.mockResolvedValueOnce({
+      value: rendered ? '<p style="text-align: center"><math display="block"><mi>x</mi></math></p>' : '<p>正文</p>',
+      messages: []
+    });
+    const source = new Uint8Array(readFileSync('public/samples/baseline.docx'));
+    const parsed = await parseDocx(new File([source], 'baseline.docx'));
+
+    expect(parsed.graphics.formulas).toBe(rendered ? 0 : 1);
+    if (rendered) {
+      expect(parsed.html).toContain('<math');
+      expect(parsed.html).toContain('text-align: center');
+    }
   });
 
   it('drops an image whose payload will not decode', async () => {

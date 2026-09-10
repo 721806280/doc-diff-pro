@@ -2,6 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { sanitizeDocumentHtml } from './sanitizeDocumentHtml';
 
 describe('sanitizeDocumentHtml', () => {
+  it('keeps safe MathML while removing executable markup and inline SVG', async () => {
+    const body = new DOMParser().parseFromString(
+      await sanitizeDocumentHtml(
+        '<math onclick="alert(1)"><msup><mi href="javascript:alert(1)">x</mi><mn>2</mn></msup>' +
+          '<script>alert(1)</script></math><svg onload="alert(1)"><circle/></svg>'
+      ),
+      'text/html'
+    ).body;
+
+    expect(body.querySelector('msup')?.namespaceURI).toBe('http://www.w3.org/1998/Math/MathML');
+    expect(body.querySelector('math')?.textContent).toBe('x2');
+    expect(body.querySelector('script, svg, [onclick], [onload], [href]')).toBeNull();
+  });
+
+  it('preserves equation argument slots and safe alignment styles', async () => {
+    const body = new DOMParser().parseFromString(
+      await sanitizeDocumentHtml(
+        '<p style="text-align: center"><math display="block" style="text-align: right; position: fixed; background: url(https://tracker.example)">' +
+          '<mfrac><mrow></mrow><mn>2</mn></mfrac></math></p>'
+      ),
+      'text/html'
+    ).body;
+
+    expect(body.querySelector('mfrac')?.children).toHaveLength(2);
+    expect(body.querySelector('p')?.style.textAlign).toBe('center');
+    expect(body.querySelector('math')?.getAttribute('style')).toContain('text-align: right');
+    expect(body.querySelector('math')?.getAttribute('style')).not.toMatch(/position|url\(/);
+  });
+
   it('removes executable markup and unsafe URLs', async () => {
     const sanitized = await sanitizeDocumentHtml(
       '<p onclick="alert(1)">正文<script>alert(1)</script></p>' +
@@ -91,7 +120,7 @@ describe('sanitizeDocumentHtml', () => {
     expect(body.querySelector('td')?.style.getPropertyValue('text-align')).toBe('center');
   });
 
-  it('keeps safe links with noopener but removes non-html active content', async () => {
+  it('keeps safe links and MathML but removes inline SVG', async () => {
     const sanitized = await sanitizeDocumentHtml(
       '<a href="https://example.com/report">报告</a>' +
         '<svg><a href="javascript:alert(1)"><text>x</text></a></svg>' +
@@ -102,6 +131,6 @@ describe('sanitizeDocumentHtml', () => {
     expect(body.querySelector('a')?.getAttribute('href')).toBe('https://example.com/report');
     expect(body.querySelector('a')?.rel).toBe('noopener noreferrer');
     expect(body.querySelector('svg')).toBeNull();
-    expect(body.querySelector('math')).toBeNull();
+    expect(body.querySelector('math')?.textContent).toBe('formula');
   });
 });

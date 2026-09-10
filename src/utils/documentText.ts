@@ -205,6 +205,9 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
     const element = node as HTMLElement;
+    // Equations are compared as complete structures; HTML markers inside
+    // MathML would break its layout and miss changes such as superscripts.
+    if (element.namespaceURI === 'http://www.w3.org/1998/Math/MathML') return;
     const tagName = element.tagName.toUpperCase();
     const isBlock = BLOCK_TAGS.has(tagName);
     const isListItem = tagName === LIST_ITEM_TAG;

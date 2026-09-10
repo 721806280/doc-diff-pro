@@ -88,22 +88,23 @@ test('opens a full-size preview without losing image-difference focus', async ({
 });
 
 /**
- * The formula is not converted, but the VML text box is read as ordinary text.
- * Word/WPS may also save a DrawingML alternative and an empty image marker for
- * that same text box; neither is another piece of missing content.
+ * The native equation and VML text box survive conversion. Word/WPS may also
+ * save a DrawingML alternative and an empty image marker for that same text
+ * box; neither is another piece of missing content.
  */
-test('admits which parts of the sample documents were not compared', async ({ page }) => {
+test('retains centered equations without reporting them as missing content', async ({ page }) => {
   await page.goto('./');
   await page.locator('.local-processing-strip button').click();
   await expect(page.locator('.floating-navigator')).toBeVisible({ timeout: 30_000 });
 
-  const notices = page.locator('.warning-chip.uncomparable');
-  await expect(notices).toHaveCount(2);
-  await expect(notices.locator('.status-chip')).toHaveText(['1', '1']);
-  for (const notice of await notices.all()) {
-    await expect(notice).toHaveAttribute('tabindex', '0');
-    await expect(notice.locator('li')).toHaveCount(1);
+  await expect(page.locator('.warning-chip.uncomparable')).toHaveCount(0);
+  const equations = page.locator('.docx-render-content math');
+  await expect(equations).toHaveCount(2);
+  for (const equation of await equations.all()) {
+    await expect(equation).toContainText('阶段付款金额');
+    await expect(equation.locator('..')).toHaveCSS('text-align', 'center');
   }
+  await expect(page.locator('.docx-render-content math ins, .docx-render-content math del')).toHaveCount(0);
   const archiveNote = '履约资料：源代码、部署包、测试报告与验收记录应完整归档。';
   await expect(page.locator('.docx-render-content')).toContainText([archiveNote, archiveNote]);
 });

@@ -9,9 +9,9 @@
  * A comparison that silently ignores part of a document is worse than one that
  * says it could not read it, and the reader has no other way to find out.
  *
- * Formulas are counted here too. They are lost the same way — `m:oMath` has no
- * handler, so an edited equation produces no difference and, unlike an image, not
- * even an empty element where it used to be. The scan was already open.
+ * Formulas are counted here too. The parser subtracts the equations retained
+ * in the converted HTML so only missing formulas reach the warning shown to
+ * the reader. The scan was already open.
  *
  * Tracked changes are counted for a different reason. The converter renders the
  * document as if every revision had been accepted — insertions applied, deletions
@@ -142,10 +142,11 @@ function countGraphics(xml: string, report: DocxGraphicsReport): void {
 
   report.embeddedObjects += countEmbeddedObjects(xml);
   collectEmbeddedObjectKinds(xml, report.embeddedObjectKinds);
-  // `m:oMath` only. A display formula is an `m:oMath` inside an `m:oMathPara`
-  // wrapper and an inline one is not, so counting the wrapper as well would
-  // report every displayed equation twice.
-  report.formulas += countTag(xml, 'm:oMath');
+  // Mammoth emits one MathML root per display paragraph, even when it holds
+  // several equations. Count those groups and the remaining inline equations
+  // in the same units as the rendered output the parser subtracts.
+  const inlineEquations = xml.replace(/<m:oMathPara\b[^>]*(?<!\/)>[\s\S]*?<\/m:oMathPara>/g, '');
+  report.formulas += countTag(xml, 'm:oMathPara') + countTag(inlineEquations, 'm:oMath');
 }
 
 /**

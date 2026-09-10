@@ -71,14 +71,21 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
       src: `data:${image.contentType};base64,${await image.read('base64')}`,
       alt: options.embeddedImageAlt ?? 'Embedded document image'
     }));
-    const result = await mammoth.convertToHtml({ arrayBuffer }, { convertImage, includeHeadersAndFooters: true });
+    const result = await mammoth.convertToHtml(
+      { arrayBuffer },
+      { convertImage, includeHeadersAndFooters: true, preserveAlignment: true }
+    );
     const html = result.value ? result.value.trim() : (options.emptyDocumentHtml ?? '<p>(Empty document)</p>');
     // One parse, mutated in place through every stage, serialized once at the
     // end: the markup is large enough that each extra round trip shows up.
     const body = await sanitizeDocumentBody(html);
+    const renderedFormulas = body.querySelectorAll('math').length;
     const layoutNoise = extractLayoutNoise(body);
     const adopted = adoptInlineImages(body);
     imageUrls = adopted.urls;
+    const scan = await scanParts(arrayBuffer);
+    // Source equations retained by the sanitizer are no longer missing figures.
+    scan.graphics.formulas = Math.max(0, scan.graphics.formulas - renderedFormulas);
 
     return {
       html: body.innerHTML,
@@ -89,7 +96,7 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
       // without being decoded, which is the part that would have cost.
       imageDescriptors: await fingerprintImages(adopted.entries),
       // The same buffer mammoth was handed, read again for what it discarded.
-      ...(await scanParts(arrayBuffer)),
+      ...scan,
       ...collectDocxMetadata(body),
       warnings: collectMammothWarnings((result as MammothResultWithMessages).messages)
     };

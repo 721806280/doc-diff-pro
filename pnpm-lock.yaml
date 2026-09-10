@@ -18,8 +18,8 @@ importers:
         specifier: ^3.4.10
         version: 3.4.10
       mammoth:
-        specifier: npm:@xm721806280/mammoth@1.12.2-rc2
-        version: '@xm721806280/mammoth@1.12.2-rc2'
+        specifier: npm:@xm721806280/mammoth@1.12.2-rc3
+        version: '@xm721806280/mammoth@1.12.2-rc3'
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -626,14 +626,15 @@ packages:
   '@vitest/utils@4.1.8':
     resolution: {integrity: sha512-uOJamYALNhfJ6iolExyQM40yIQwDqYnkKtQ5VCiSe17E33H0aQ/u+1GlRuz4LZBk6Mm3sg90G9hEbmEt37C1Zg==}
 
-  '@xm721806280/mammoth@1.12.2-rc2':
-    resolution: {integrity: sha512-OhoJRoCHohjpmD+a7F+oMtN6BKIzClPpuX0iqsC9sYKqZe6qNISQolmx513YjosVuRtxFJINoxslTWIx2MB4Ew==}
+  '@xm721806280/mammoth@1.12.2-rc3':
+    resolution: {integrity: sha512-TL199ZciNhHMIgYVypNMTybKDHeRVnwrqBxLJ6eRVlP7HcCuLwcHuFMeKT+5nvxuxZfIkzt70US+gkNGzOW8Dw==}
     engines: {node: '>=12.0.0'}
     hasBin: true
 
   '@xmldom/xmldom@0.8.13':
     resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -2658,7 +2659,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
-  '@xm721806280/mammoth@1.12.2-rc2':
+  '@xm721806280/mammoth@1.12.2-rc3':
     dependencies:
       '@xmldom/xmldom': 0.8.13
       argparse: 1.0.10

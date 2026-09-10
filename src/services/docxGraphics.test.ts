@@ -182,7 +182,7 @@ describe('scanDocxParts', () => {
     expect(report.graphics).toEqual(createEmptyGraphicsReport());
   });
 
-  it.each(['baseline', 'revised'])('reports only the missing formula in the saved %s sample', async (side) => {
+  it.each(['baseline', 'revised'])('counts the source equation in the saved %s sample', async (side) => {
     const file = readFileSync(`public/samples/${side}.docx`);
     const report = await scanDocxParts(new Uint8Array(file).buffer);
 
@@ -271,7 +271,7 @@ describe('scanDocxParts', () => {
     expect(report.graphics).toEqual(createEmptyGraphicsReport());
   });
 
-  it('counts formulas, which vanish without even an empty element', async () => {
+  it('counts display and inline formulas in the same units as the converted output', async () => {
     // A displayed formula is an `m:oMath` inside an `m:oMathPara`, and an inline
     // one is not, so both shapes have to count as exactly one formula.
     const report = (
@@ -286,6 +286,15 @@ describe('scanDocxParts', () => {
     ).graphics;
 
     expect(report.formulas).toBe(2);
+  });
+
+  it('counts a display group once even when it contains several equations', async () => {
+    const formula = '<m:oMath><m:r><m:t>x</m:t></m:r></m:oMath>';
+    const report = await scanDocxParts(
+      zip(documentWith(`<m:oMathPara/><m:oMathPara>${formula}${formula}</m:oMathPara><w:p>${formula}</w:p>`))
+    );
+
+    expect(report.graphics.formulas).toBe(3);
   });
 
   it('scans headers and footers, which are converted alongside the body', async () => {

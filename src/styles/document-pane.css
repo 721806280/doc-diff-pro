@@ -673,6 +673,17 @@
   border-bottom: 2px solid;
   transition: all 0.18s ease;
 }
+.docx-render-content ins:has(> math),
+.docx-render-content del:has(> math) {
+  display: inline-block;
+}
+.docx-render-content ins:has(> math[display='block']),
+.docx-render-content del:has(> math[display='block']) {
+  display: block;
+}
+.docx-render-content math[display='block'] {
+  overflow-x: auto;
+}
 .docx-render-content ins {
   background: var(--gradient-ins);
   color: var(--ins-text);

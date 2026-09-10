@@ -501,10 +501,9 @@ function remarkCellDifference(
 ): void {
   [originalCell, revisedCell].forEach((cell) => {
     Array.from(cell.querySelectorAll<HTMLElement>(DIFF_ELEMENT_SELECTOR))
-      // Image markup is not this pass's to redo. Re-diffing a cell's text and
-      // then reapplying markup to its text nodes would leave the `<img>` behind
-      // unwrapped, silently dropping a difference this pass never examined.
-      .filter((element) => element.querySelector('img') === null)
+      // Image and equation markers are not this pass's to redo. Re-diffing
+      // only the cell's text would silently drop those differences.
+      .filter((element) => element.querySelector('img, math') === null)
       .reverse()
       .forEach(unwrapDiffElement);
   });
@@ -616,7 +615,7 @@ function wrapUnmarkedText(container: HTMLElement, tag: 'ins' | 'del', id: string
     if (
       current instanceof Text &&
       normalizeStructureText(current.nodeValue ?? '') &&
-      !current.parentElement?.closest(DIFF_ELEMENT_SELECTOR)
+      !current.parentElement?.closest(`${DIFF_ELEMENT_SELECTOR}, math`)
     ) {
       nodes.push(current);
     }

@@ -86,7 +86,7 @@ export async function sanitizeDocumentBody(html: string): Promise<HTMLElement> {
   // it is documented to hand back the <body> element it built.
   const body = purifier.sanitize(html, {
     FORBID_TAGS: FORBIDDEN_TAGS,
-    USE_PROFILES: { html: true },
+    USE_PROFILES: { html: true, mathMl: true },
     RETURN_DOM: true
   }) as HTMLElement;
 
@@ -120,8 +120,11 @@ export async function sanitizeDocumentHtml(html: string): Promise<string> {
 }
 
 function filterInlineStyles(root: HTMLElement): void {
-  root.querySelectorAll<HTMLElement>('[style]').forEach((element) => {
-    const style = element.style;
+  // MathML elements do not expose .style in every DOM implementation. Parse
+  // declarations with the same CSSOM for both HTML and MathML elements.
+  const style = root.ownerDocument.createElement('span').style;
+  root.querySelectorAll('[style]').forEach((element) => {
+    style.cssText = element.getAttribute('style') ?? '';
 
     // Backwards: removeProperty renumbers the declarations behind the cursor.
     for (let index = style.length - 1; index >= 0; index--) {
@@ -132,6 +135,7 @@ function filterInlineStyles(root: HTMLElement): void {
     }
 
     if (style.length === 0) element.removeAttribute('style');
+    else element.setAttribute('style', style.cssText);
   });
 }
 

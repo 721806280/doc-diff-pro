@@ -16,6 +16,83 @@ const DEFAULT_OPTIONS: CompareOptions = {
 };
 
 describe('compareDocuments', () => {
+  it('compares equation structure even when the text is unchanged', async () => {
+    const result = await compareDocuments(
+      '<p><math><msup><mi>x</mi><mn>2</mn></msup></math></p>',
+      '<p><math><msub><mi>x</mi><mn>2</mn></msub></math></p>',
+      DEFAULT_OPTIONS
+    );
+    const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+    const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+
+    expect(result.summary).toMatchObject({ total: 1, modified: 1, inserted: 0, deleted: 0 });
+    expect(original.querySelector('del > math > msup')).not.toBeNull();
+    expect(revised.querySelector('ins > math > msub')).not.toBeNull();
+    expect(original.querySelector('math ins, math del')).toBeNull();
+    expect(revised.querySelector('math ins, math del')).toBeNull();
+    expect(revised.querySelector('msub')?.namespaceURI).toBe('http://www.w3.org/1998/Math/MathML');
+  });
+
+  it.each(['insert', 'delete'])('aligns an equation %s without changing the following equations', async (operation) => {
+    const equation = (text: string) => `<p><math><mi>${text}</mi></math></p>`;
+    const original = equation('x') + equation('y');
+    const revised = equation('z') + original;
+    const inserting = operation === 'insert';
+    const result = await compareDocuments(
+      inserting ? original : revised,
+      inserting ? revised : original,
+      DEFAULT_OPTIONS
+    );
+    const changed = new DOMParser().parseFromString(
+      inserting ? result.revisedHtml : result.originalHtml,
+      'text/html'
+    ).body;
+
+    expect(result.summary).toMatchObject({
+      total: 1,
+      inserted: inserting ? 1 : 0,
+      modified: 0,
+      deleted: inserting ? 0 : 1
+    });
+    expect(changed.querySelectorAll('ins, del')).toHaveLength(1);
+    expect(changed.querySelector('ins math, del math')?.textContent).toBe('z');
+  });
+
+  it('does not include an unchanged equation in surrounding text edits', async () => {
+    const math = '<math><mfrac><mi>x</mi><mn>2</mn></mfrac></math>';
+    const result = await compareDocuments(`<p>旧${math}旧</p>`, `<p>新${math}新</p>`, DEFAULT_OPTIONS);
+    const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+
+    expect(result.summary.total).toBeGreaterThan(0);
+    expect(revised.querySelector('math')?.closest('ins, del')).toBeNull();
+    expect(revised.querySelector('math')?.outerHTML).toBe(math);
+  });
+
+  it('preserves equation differences when a table cell is repaired', async () => {
+    const result = await compareDocuments(
+      '<table><tr><td>值</td><td><math><mi>x</mi></math></td></tr></table>',
+      '<table><tr><td>值</td><td><math><mi>y</mi></math>说明</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+    const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+    const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+
+    expect(original.querySelector('del > math')?.textContent).toBe('x');
+    expect(revised.querySelector('ins > math')?.textContent).toBe('y');
+    expect(revised.querySelector('math ins, math del')).toBeNull();
+  });
+
+  it('ignores equation alignment, attribute order and formatting whitespace', async () => {
+    const result = await compareDocuments(
+      '<p><math style="text-align: center" display="block"><mfrac><mi>x</mi><mn>2</mn></mfrac></math></p>',
+      '<p><math display="inline" style="text-align: left">\n<mfrac><mi>x</mi><mn>2</mn></mfrac>\n</math></p>',
+      DEFAULT_OPTIONS
+    );
+
+    expect(result.summary.total).toBe(0);
+    expect(result.revisedHtml).not.toContain('<ins');
+  });
+
   // Phases hand the main thread back between them, which is also where a
   // superseded run gets to stop instead of finishing work nobody will read.
   it('stops instead of comparing when the run has already been superseded', async () => {
