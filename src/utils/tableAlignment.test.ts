@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { alignDocumentTables, directRowCells, directTableRows, normalizeStructureText } from './tableAlignment';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  alignDocumentTables,
+  alignSequences,
+  directRowCells,
+  directTableRows,
+  normalizeStructureText
+} from './tableAlignment';
 
 function bodyFromHtml(html: string): HTMLElement {
   return new DOMParser().parseFromString(html, 'text/html').body;
@@ -8,6 +14,72 @@ function bodyFromHtml(html: string): HTMLElement {
 function tableHtml(text: string): string {
   return `<table><tbody><tr><td>${text}</td></tr></tbody></table>`;
 }
+
+describe('alignSequences', () => {
+  const options = { matchThreshold: 0.35, gapPenalty: 0.175, maxPairs: 1000 };
+
+  it('keeps null and undefined entries as sequence values', () => {
+    const removed = { label: 'removed' };
+    expect(
+      alignSequences([null, removed, undefined], [null, undefined], (left, right) => (left === right ? 1 : 0), options)
+    ).toStrictEqual([
+      { original: null, revised: null },
+      { original: removed },
+      { original: undefined, revised: undefined }
+    ]);
+  });
+
+  it('pairs the earliest candidates when all similarities tie', () => {
+    expect(alignSequences([0], [0, 1, 2], () => 1, options)).toStrictEqual([
+      { original: 0, revised: 0 },
+      { revised: 1 },
+      { revised: 2 }
+    ]);
+    expect(alignSequences([0, 1, 2], [0], () => 1, options)).toStrictEqual([
+      { original: 0, revised: 0 },
+      { original: 1 },
+      { original: 2 }
+    ]);
+  });
+
+  it('preserves the score tolerance while accepting a better pairing', () => {
+    const align = (bonus: number) =>
+      alignSequences([0], [0, 1, 2], (_left, right) => 1 + (right === 2 ? bonus : 0), options);
+
+    expect(align(5e-10)).toStrictEqual([{ original: 0, revised: 0 }, { revised: 1 }, { revised: 2 }]);
+    expect(align(2e-9)).toStrictEqual([{ revised: 0 }, { revised: 1 }, { original: 0, revised: 2 }]);
+  });
+
+  it('scores pairs in order at the size limit and falls back only above it', () => {
+    const similarity = vi.fn(() => 0);
+    expect(alignSequences([0, 1], [2, 3], similarity, { ...options, maxPairs: 4 })).toStrictEqual([
+      { revised: 2 },
+      { revised: 3 },
+      { original: 0 },
+      { original: 1 }
+    ]);
+    expect(similarity.mock.calls).toEqual([
+      [0, 2, options.matchThreshold],
+      [0, 3, options.matchThreshold],
+      [1, 2, options.matchThreshold],
+      [1, 3, options.matchThreshold]
+    ]);
+    similarity.mockClear();
+    expect(alignSequences([0, 1], [2, 3], similarity, { ...options, maxPairs: 3 })).toStrictEqual([
+      { original: 0, revised: 2 },
+      { original: 1, revised: 3 }
+    ]);
+    expect(similarity).not.toHaveBeenCalled();
+  });
+
+  it('handles empty inputs without evaluating similarity', () => {
+    const similarity = vi.fn(() => 1);
+    expect(alignSequences([], [0, 1], similarity, options)).toStrictEqual([{ revised: 0 }, { revised: 1 }]);
+    expect(alignSequences([0, 1], [], similarity, options)).toStrictEqual([{ original: 0 }, { original: 1 }]);
+    expect(alignSequences([], [], similarity, options)).toStrictEqual([]);
+    expect(similarity).not.toHaveBeenCalled();
+  });
+});
 
 describe('tableAlignment', () => {
   it('keeps a moved table paired and reports the inserted table as one-sided', () => {

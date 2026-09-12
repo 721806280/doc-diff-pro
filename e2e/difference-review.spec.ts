@@ -141,7 +141,12 @@ test.describe('difference review', () => {
     test.skip(isMobile, 'Only one pane is visible below the mobile breakpoint');
     // Seed once in beforeEach: Playwright does not guarantee the order of
     // multiple init scripts, so a second one could silently lose this setting.
+    await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
     await loadSampleComparison(page);
+
+    // Pause before opening the tip so slow WebKit actionability checks cannot
+    // race its three-second dismiss timer. Let initial page loading run normally.
+    await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
 
     const inserted = page.locator('table ins[data-diff-id]').last();
     await inserted.scrollIntoViewIfNeeded();
@@ -153,7 +158,7 @@ test.describe('difference review', () => {
 
     // The tip auto-dismisses; a pointer resting on it holds it open.
     await tip.hover();
-    await page.waitForTimeout(3600);
+    await page.clock.fastForward(3600);
     await expect(tip).toBeVisible();
 
     await page.mouse.move(10, 10);

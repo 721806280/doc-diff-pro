@@ -108,13 +108,13 @@ test('pairs unchanged figures and leaves additions and removals on their correct
   await page.screenshot({ path: testInfo.outputPath('image-added.png'), animations: 'disabled' });
 });
 
-test('links zoom and pan and supports independent adjustment', async ({ page, isMobile }) => {
+// Keep these interaction sequences separate so each has a full test budget on Linux WebKit.
+test('links zoom and pan between paired images', async ({ page }) => {
   await loadComparison(page);
   await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
   const a = previewImage(page, 'A');
   const b = previewImage(page, 'B');
   const canvas = page.locator('.image-preview-canvas[data-side="A"]');
-  const naturalWidth = await a.evaluate((image: HTMLImageElement) => image.naturalWidth);
   const initial = (await a.boundingBox())!;
   for (let index = 0; index < 4; index++) await page.getByRole('button', { name: '放大', exact: true }).click();
   await expect.poll(async () => (await a.boundingBox())!.width).toBeGreaterThan(initial.width * 2);
@@ -130,19 +130,37 @@ test('links zoom and pan and supports independent adjustment', async ({ page, is
   expect((await b.boundingBox())!.x - enlargedPeer.x).toBeCloseTo(moved.x - enlarged.x, 0);
   const peerWidth = (await b.boundingBox())!.width;
   expect(peerWidth).toBeCloseTo(moved.width, 0);
+});
+
+test('zooms the focused image independently when linking is disabled', async ({ page }) => {
+  await loadComparison(page);
+  await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
+  const a = previewImage(page, 'A');
+  const b = previewImage(page, 'B');
+  await page.getByRole('button', { name: '放大', exact: true }).click();
+  const originalWidth = (await a.boundingBox())!.width;
+  const peerWidth = (await b.boundingBox())!.width;
 
   await page.getByRole('button', { name: '联动图片操作' }).click();
   await expect(page.getByRole('button', { name: '联动图片操作' })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: '放大', exact: true }).click();
   const independentWidth = (await a.boundingBox())!.width;
-  expect(independentWidth).toBeGreaterThan(moved.width);
+  expect(independentWidth).toBeGreaterThan(originalWidth);
   expect((await b.boundingBox())!.width).toBeCloseTo(peerWidth, 0);
   await page.locator('.image-preview-canvas[data-side="B"]').focus();
   await page.getByRole('button', { name: '放大', exact: true }).click();
   expect((await a.boundingBox())!.width).toBeCloseTo(independentWidth, 0);
-  await canvas.focus();
+  expect((await b.boundingBox())!.width).toBeGreaterThan(peerWidth);
+});
+
+test('switches image sizes and zooms with keyboard and wheel input', async ({ page, isMobile }) => {
+  await loadComparison(page);
+  await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
+  const a = previewImage(page, 'A');
+  const canvas = page.locator('.image-preview-canvas[data-side="A"]');
 
   await page.getByRole('button', { name: '原始尺寸（100%）' }).click();
+  const naturalWidth = await a.evaluate((image: HTMLImageElement) => image.naturalWidth);
   expect((await a.boundingBox())!.width).toBeCloseTo(naturalWidth, 0);
   await page.getByRole('button', { name: '适应窗口', exact: true }).click();
   expect((await a.boundingBox())!.width).toBeLessThanOrEqual(naturalWidth);
@@ -202,6 +220,7 @@ test('rotates and flips in screen directions and fits rotated images', async ({ 
 test('preserves independent orientations when relinking and resets the view', async ({ page }, testInfo) => {
   await loadComparison(page);
   const figure = page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first();
+  const dialog = page.getByRole('dialog', { name: '图片对比' });
   await figure.click();
   const a = previewImage(page, 'A');
   const b = previewImage(page, 'B');
@@ -234,7 +253,10 @@ test('preserves independent orientations when relinking and resets the view', as
   expect(await previewOrientation(page, 'B')).toEqual([1, 0, 0, 1]);
   await expect(reset).toBeDisabled();
   await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(figure).toBeFocused();
   await figure.click();
+  await expect(dialog).toBeVisible();
   expect(await previewOrientation(page, 'A')).toEqual([1, 0, 0, 1]);
   await expect(reset).toBeDisabled();
 });

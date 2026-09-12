@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, type RefObject } from 'react';
 import type { DiffMapItem } from '@/types/diff';
 import type { PaneSide } from '@/types/document';
 import { buildDiffElementIndex, type DiffElementIndex } from '@/utils/diffElementIndex';
-import { createReviewItem, diffReviewId, firstReviewElement } from '@/utils/diffReview';
+import { diffReviewId, firstReviewElement, resolveReviewKind } from '@/utils/diffReview';
 import { resolveSyncScrollTop, type ScrollAnchor } from '@/utils/scrollSync';
 
 type ComparisonResultIndexOptions = {
@@ -18,37 +18,44 @@ export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResu
   const [version, setVersion] = useState(0);
 
   const rebuild = useCallback(() => {
-    const nextIndex = buildDiffElementIndex(paneA.current, paneB.current);
+    const originalPane = paneA.current;
+    const revisedPane = paneB.current;
+    const nextIndex = buildDiffElementIndex(originalPane, revisedPane);
     diffIndex.current = nextIndex;
-    nextIndex.forEach((group) =>
-      [...group.A, ...group.B].forEach((element) => {
-        element.tabIndex = 0;
-      })
-    );
+    for (const group of nextIndex.values()) {
+      for (const element of group.A) element.tabIndex = 0;
+      for (const element of group.B) element.tabIndex = 0;
+    }
+
+    // Take a fresh geometry snapshot on every rebuild, after the DOM writes.
+    // Reuse it for all anchors and map items without repeated layout reads.
+    const paneTopA = originalPane?.getBoundingClientRect().top ?? 0;
+    const paneTopB = revisedPane?.getBoundingClientRect().top ?? 0;
+    const scrollTopA = originalPane?.scrollTop ?? 0;
+    const scrollTopB = revisedPane?.scrollTop ?? 0;
+    const heightA = Math.max(1, originalPane?.scrollHeight ?? 0);
+    const heightB = Math.max(1, revisedPane?.scrollHeight ?? 0);
     const anchors: ScrollAnchor[] = [];
     const nextItems: DiffMapItem[] = [];
     for (let index = 1; index <= total; index++) {
       const group = nextIndex.get(diffReviewId(index));
-      const item = createReviewItem(index, group);
+      if (!group) continue;
       const elementA = firstReviewElement(group, 'A');
       const elementB = firstReviewElement(group, 'B');
-      if (paneA.current && paneB.current && elementA && elementB) {
-        anchors.push({ topA: scrollTop(paneA.current, elementA), topB: scrollTop(paneB.current, elementB) });
+      const topA = originalPane && elementA ? elementA.getBoundingClientRect().top - paneTopA + scrollTopA : null;
+      const topB = revisedPane && elementB ? elementB.getBoundingClientRect().top - paneTopB + scrollTopB : null;
+      if (topA !== null && topB !== null) {
+        anchors.push({ topA, topB });
       }
-      if (!item) continue;
-      const positions = [
-        paneA.current && elementA ? scrollTop(paneA.current, elementA) / Math.max(1, paneA.current.scrollHeight) : null,
-        paneB.current && elementB ? scrollTop(paneB.current, elementB) / Math.max(1, paneB.current.scrollHeight) : null
-      ].filter((value): value is number => value !== null);
-      if (positions.length)
+      const sides = Number(topA !== null) + Number(topB !== null);
+      if (sides > 0) {
+        const position = ((topA === null ? 0 : topA / heightA) + (topB === null ? 0 : topB / heightB)) / sides;
         nextItems.push({
           index,
-          kind: item.kind,
-          position: Math.min(
-            99,
-            Math.max(1, (positions.reduce((sum, value) => sum + value, 0) / positions.length) * 100)
-          )
+          kind: resolveReviewKind(group),
+          position: Math.min(99, Math.max(1, position * 100))
         });
+      }
     }
     alignmentAnchors.current = anchors;
     setItems(nextItems);
@@ -78,10 +85,4 @@ export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResu
   }, []);
 
   return { diffIndex, items, version, rebuild, syncPaneFrom, clear };
-}
-
-function scrollTop(container: HTMLElement, element: HTMLElement): number {
-  const containerRect = container.getBoundingClientRect();
-  const elementRect = element.getBoundingClientRect();
-  return elementRect.top - containerRect.top + container.scrollTop;
 }

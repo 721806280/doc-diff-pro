@@ -142,6 +142,65 @@ describe('useComparisonResultIndex', () => {
     expect(view.paneB.current.scrollTop).toBe(400);
   });
 
+  it('measures geometry once per rebuild and refreshes it after layout changes', () => {
+    const view = mountIndex(3, { spacingA: 100, spacingB: 200 });
+    let paneTopA = 40;
+    let paneTopB = 80;
+    const rectA = view.paneA.current.getBoundingClientRect();
+    const rectB = view.paneB.current.getBoundingClientRect();
+    const measureA = vi
+      .spyOn(view.paneA.current, 'getBoundingClientRect')
+      .mockImplementation(() => ({ ...rectA, top: paneTopA }));
+    const measureB = vi
+      .spyOn(view.paneB.current, 'getBoundingClientRect')
+      .mockImplementation(() => ({ ...rectB, top: paneTopB }));
+    const elements = [...view.paneA.current.querySelectorAll('ins'), ...view.paneB.current.querySelectorAll('ins')];
+    const measurements = elements.map((element) => vi.spyOn(element, 'getBoundingClientRect'));
+    const previewReads = elements.map((element) => vi.spyOn(element, 'textContent', 'get'));
+    view.paneA.current.scrollTop = 240;
+    view.paneB.current.scrollTop = 180;
+
+    act(() => view.result.current.rebuild());
+
+    expect(view.result.current.items.map((item) => item.position)).toEqual([15, 22.5, 30]);
+    expect(measureA).toHaveBeenCalledTimes(1);
+    expect(measureB).toHaveBeenCalledTimes(1);
+    measurements.forEach((measure) => expect(measure).toHaveBeenCalledTimes(1));
+    previewReads.forEach((read) => expect(read).not.toHaveBeenCalled());
+
+    paneTopA = 90;
+    paneTopB = 120;
+    view.paneA.current.scrollTop = 390;
+    view.paneB.current.scrollTop = 220;
+    Object.defineProperty(view.paneB.current, 'scrollHeight', { value: 4000 });
+    act(() => view.result.current.rebuild());
+
+    const positions = view.result.current.items.map((item) => item.position);
+    expect(positions).toHaveLength(3);
+    [13.75, 18.75, 23.75].forEach((position, index) => expect(positions[index]).toBeCloseTo(position, 12));
+    expect(measureA).toHaveBeenCalledTimes(2);
+    expect(measureB).toHaveBeenCalledTimes(2);
+    measurements.forEach((measure) => expect(measure).toHaveBeenCalledTimes(2));
+    previewReads.forEach((read) => expect(read).not.toHaveBeenCalled());
+  });
+
+  it('handles a missing pane and missing difference ids on either side', () => {
+    const paneA: { current: HTMLDivElement | null } = { current: null };
+    const paneB: { current: HTMLDivElement | null } = {
+      current: buildPane(1, { scrollHeight: 1000, clientHeight: 500 }, 200)
+    };
+    const { result } = renderHook(() => useComparisonResultIndex({ paneA, paneB, total: 3 }));
+
+    act(() => result.current.rebuild());
+    expect(result.current.items).toEqual([{ index: 1, kind: 'inserted', position: 20 }]);
+
+    paneA.current = buildPane(1, { scrollHeight: 2000, clientHeight: 500 });
+    paneB.current = null;
+    act(() => result.current.rebuild());
+    expect(result.current.items).toEqual([{ index: 1, kind: 'deleted', position: 5 }]);
+    expect(() => result.current.syncPaneFrom('A', 100)).not.toThrow();
+  });
+
   it('clears the index and map items', () => {
     const view = mountIndex(3);
     act(() => view.result.current.rebuild());

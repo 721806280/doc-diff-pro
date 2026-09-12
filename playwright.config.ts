@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Complete image-preview flows take about 30 seconds on Linux WebKit in CI.
+// Give those projects headroom while keeping individual assertions at 10 seconds.
+const webkitTimeout = process.platform === 'linux' ? 60_000 : 30_000;
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
@@ -32,7 +36,7 @@ export default defineConfig({
       }
     },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-    { name: 'mobile-webkit', use: { ...devices['iPhone 13'] } }
+    { name: 'webkit', timeout: webkitTimeout, use: { ...devices['Desktop Safari'] } },
+    { name: 'mobile-webkit', timeout: webkitTimeout, use: { ...devices['iPhone 13'] } }
   ]
 });

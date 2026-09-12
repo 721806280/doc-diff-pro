@@ -184,7 +184,7 @@ export function selectReviewElement(
   return elements.find((element) => predicate(element)) ?? null;
 }
 
-function resolveReviewKind(group: DiffElementGroup): DiffChangeKind {
+export function resolveReviewKind(group: DiffElementGroup): DiffChangeKind {
   const hasOriginal = group.A.length > 0;
   const hasRevised = group.B.length > 0;
 

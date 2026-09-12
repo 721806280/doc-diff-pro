@@ -102,54 +102,41 @@ export function alignSequences<T>(
   similarity: (original: T, revised: T, matchThreshold: number) => number,
   options: SequenceAlignmentOptions
 ): Array<AlignmentPair<T>> {
-  type AlignmentChoice = 'match' | 'original' | 'revised';
   const { matchThreshold, gapPenalty } = options;
 
-  if (original.length * revised.length > options.maxPairs) {
+  if (original.length === 0 || revised.length === 0 || original.length * revised.length > options.maxPairs) {
     return alignByPosition(original, revised);
   }
 
-  const scores = Array.from({ length: original.length + 1 }, () =>
-    new Array<number>(revised.length + 1).fill(Number.NEGATIVE_INFINITY)
-  );
-  const choices = Array.from({ length: original.length + 1 }, () =>
-    new Array<AlignmentChoice | null>(revised.length + 1).fill(null)
-  );
+  const MATCH = 0;
+  const ORIGINAL = 1;
+  const REVISED = 2;
+  const width = revised.length + 1;
+  // Scoring needs only the previous and current row. Traceback retains one
+  // byte per choice; all reads below follow initialized cells within bounds.
+  let previous = new Float64Array(width);
+  let current = new Float64Array(width);
+  const choices = new Uint8Array((original.length + 1) * width);
 
-  // Both matrices are allocated at (original.length + 1) x (revised.length + 1)
-  // and every index below is derived from those same bounds, so these accessors
-  // never fall back at runtime. They exist to state the invariant once instead
-  // of guarding at each of the dozen index sites in the loops.
-  const scoreAt = (row: number, column: number): number => scores[row]?.[column] ?? Number.NEGATIVE_INFINITY;
-  const setScore = (row: number, column: number, value: number): void => {
-    const line = scores[row];
-    if (line) line[column] = value;
-  };
-  const setChoice = (row: number, column: number, value: AlignmentChoice): void => {
-    const line = choices[row];
-    if (line) line[column] = value;
-  };
   // Loop bounds keep these element reads in range; T itself may legitimately be
   // a nullable type, so a value guard would be wrong here.
   const originalAt = (index: number): T => original[index] as T;
   const revisedAt = (index: number): T => revised[index] as T;
 
-  setScore(0, 0, 0);
-  for (let index = 1; index <= original.length; index++) {
-    setScore(index, 0, scoreAt(index - 1, 0) - gapPenalty);
-    setChoice(index, 0, 'original');
-  }
-  for (let index = 1; index <= revised.length; index++) {
-    setScore(0, index, scoreAt(0, index - 1) - gapPenalty);
-    setChoice(0, index, 'revised');
+  for (let index = 1; index < width; index++) {
+    previous[index] = previous[index - 1]! - gapPenalty;
+    choices[index] = REVISED;
   }
 
   for (let originalIndex = 1; originalIndex <= original.length; originalIndex++) {
-    for (let revisedIndex = 1; revisedIndex <= revised.length; revisedIndex++) {
+    const offset = originalIndex * width;
+    current[0] = previous[0]! - gapPenalty;
+    choices[offset] = ORIGINAL;
+    for (let revisedIndex = 1; revisedIndex < width; revisedIndex++) {
       const matchScore = similarity(originalAt(originalIndex - 1), revisedAt(revisedIndex - 1), matchThreshold);
-      let bestScore = scoreAt(originalIndex - 1, revisedIndex) - gapPenalty;
-      let bestChoice: AlignmentChoice = 'original';
-      const revisedScore = scoreAt(originalIndex, revisedIndex - 1) - gapPenalty;
+      let bestScore = previous[revisedIndex]! - gapPenalty;
+      let bestChoice = ORIGINAL;
+      const revisedScore = current[revisedIndex - 1]! - gapPenalty;
       // Each candidate has to beat the standing one outright, so a tie leaves
       // the earlier one in place: skipping beats pairing here, and because the
       // traceback reads these backwards, that is what pulls the pairings toward
@@ -157,19 +144,20 @@ export function alignSequences<T>(
       // pair with the first, not the last.
       if (revisedScore > bestScore + SCORE_EPSILON) {
         bestScore = revisedScore;
-        bestChoice = 'revised';
+        bestChoice = REVISED;
       }
       if (matchScore >= matchThreshold) {
-        const alignedScore = scoreAt(originalIndex - 1, revisedIndex - 1) + matchScore;
+        const alignedScore = previous[revisedIndex - 1]! + matchScore;
         if (alignedScore > bestScore + SCORE_EPSILON) {
           bestScore = alignedScore;
-          bestChoice = 'match';
+          bestChoice = MATCH;
         }
       }
 
-      setScore(originalIndex, revisedIndex, bestScore);
-      setChoice(originalIndex, revisedIndex, bestChoice);
+      current[revisedIndex] = bestScore;
+      choices[offset + revisedIndex] = bestChoice;
     }
+    [previous, current] = [current, previous];
   }
 
   const reversed: Array<AlignmentPair<T>> = [];
@@ -178,12 +166,12 @@ export function alignSequences<T>(
   // Walk the recorded choices back from the far corner to recover the pairing
   // that produced the best score, then flip it into document order.
   while (originalIndex > 0 || revisedIndex > 0) {
-    const choice = choices[originalIndex]?.[revisedIndex] ?? null;
-    if (choice === 'match') {
+    const choice = choices[originalIndex * width + revisedIndex];
+    if (choice === MATCH) {
       reversed.push({ original: originalAt(originalIndex - 1), revised: revisedAt(revisedIndex - 1) });
       originalIndex--;
       revisedIndex--;
-    } else if (choice === 'original') {
+    } else if (choice === ORIGINAL) {
       reversed.push({ original: originalAt(originalIndex - 1) });
       originalIndex--;
     } else {
