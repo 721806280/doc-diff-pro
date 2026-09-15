@@ -18,8 +18,8 @@ importers:
         specifier: ^3.4.10
         version: 3.4.10
       mammoth:
-        specifier: npm:@xm721806280/mammoth@1.12.2-rc3
-        version: '@xm721806280/mammoth@1.12.2-rc3'
+        specifier: npm:@xm721806280/mammoth@1.12.3-rc1
+        version: '@xm721806280/mammoth@1.12.3-rc1'
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -626,8 +626,8 @@ packages:
   '@vitest/utils@4.1.8':
     resolution: {integrity: sha512-uOJamYALNhfJ6iolExyQM40yIQwDqYnkKtQ5VCiSe17E33H0aQ/u+1GlRuz4LZBk6Mm3sg90G9hEbmEt37C1Zg==}
 
-  '@xm721806280/mammoth@1.12.2-rc3':
-    resolution: {integrity: sha512-TL199ZciNhHMIgYVypNMTybKDHeRVnwrqBxLJ6eRVlP7HcCuLwcHuFMeKT+5nvxuxZfIkzt70US+gkNGzOW8Dw==}
+  '@xm721806280/mammoth@1.12.3-rc1':
+    resolution: {integrity: sha512-vuTvjayYbHMuqMEL9MP9iKdX5rGEu5YTUAuJEAcDu8KklmxDsg23rHwNtQLgG+lBGLVcIHetteujp2Dt1BTjqQ==, tarball: https://registry.npmjs.org/@xm721806280/mammoth/-/mammoth-1.12.3-rc1.tgz}
     engines: {node: '>=12.0.0'}
     hasBin: true
 
@@ -2659,7 +2659,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
-  '@xm721806280/mammoth@1.12.2-rc3':
+  '@xm721806280/mammoth@1.12.3-rc1':
     dependencies:
       '@xmldom/xmldom': 0.8.13
       argparse: 1.0.10
