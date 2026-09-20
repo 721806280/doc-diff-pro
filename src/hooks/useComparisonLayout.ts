@@ -8,6 +8,7 @@ type ComparisonLayoutOptions = {
   originalHtml: string;
   revisedHtml: string;
   rebuildResultIndex: () => void;
+  remeasureResultIndex: () => void;
   scheduleDiffActionUpdate: () => void;
   syncPaneFrom: (side: PaneSide) => void;
   syncScroll: boolean;
@@ -23,6 +24,7 @@ export function useComparisonLayout({
   originalHtml,
   revisedHtml,
   rebuildResultIndex,
+  remeasureResultIndex,
   scheduleDiffActionUpdate,
   syncPaneFrom,
   syncScroll,
@@ -34,7 +36,10 @@ export function useComparisonLayout({
 
   const refresh = useCallback(() => {
     if (!hasComparisonResult) return;
-    rebuildResultIndex();
+    // A resize only shifts element geometry, so remeasure anchors and diff-map
+    // positions without rebuilding the index or bumping the version — bumping it
+    // would re-align the viewport onto the current diff and fight the user.
+    remeasureResultIndex();
     scheduleDiffActionUpdate();
     if (syncScroll && activeDriver.current) {
       syncInProgress.current = true;
@@ -44,7 +49,7 @@ export function useComparisonLayout({
   }, [
     activeDriver,
     hasComparisonResult,
-    rebuildResultIndex,
+    remeasureResultIndex,
     scheduleDiffActionUpdate,
     scheduleSyncRelease,
     syncInProgress,

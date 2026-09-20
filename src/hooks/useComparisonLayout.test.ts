@@ -50,6 +50,7 @@ function mountLayout(
   const activeDriver = { current: overrides.driver ?? null };
   const syncInProgress = { current: false };
   const rebuildResultIndex = vi.fn();
+  const remeasureResultIndex = vi.fn();
   const scheduleDiffActionUpdate = vi.fn();
   const syncPaneFrom = vi.fn();
   const scheduleSyncRelease = vi.fn();
@@ -63,6 +64,7 @@ function mountLayout(
         originalHtml: props.originalHtml,
         revisedHtml: props.revisedHtml,
         rebuildResultIndex,
+        remeasureResultIndex,
         scheduleDiffActionUpdate,
         syncPaneFrom,
         syncScroll: props.syncScroll,
@@ -87,6 +89,7 @@ function mountLayout(
     activeDriver,
     syncInProgress,
     rebuildResultIndex,
+    remeasureResultIndex,
     scheduleDiffActionUpdate,
     syncPaneFrom,
     scheduleSyncRelease
@@ -164,30 +167,45 @@ describe('useComparisonLayout', () => {
     expect(view.syncPaneFrom).not.toHaveBeenCalled();
   });
 
-  it('debounces a resize into a single refresh', () => {
+  it('debounces a resize into a single geometry remeasure', () => {
     const view = mountLayout();
     flushFrames();
-    view.rebuildResultIndex.mockClear();
+    view.remeasureResultIndex.mockClear();
 
     act(() => {
       observers[0]?.trigger();
       observers[0]?.trigger();
       observers[0]?.trigger();
     });
-    expect(view.rebuildResultIndex).not.toHaveBeenCalled();
+    expect(view.remeasureResultIndex).not.toHaveBeenCalled();
 
     act(() => {
       vi.advanceTimersByTime(120);
     });
 
-    expect(view.rebuildResultIndex).toHaveBeenCalledTimes(1);
+    expect(view.remeasureResultIndex).toHaveBeenCalledTimes(1);
     expect(view.scheduleDiffActionUpdate).toHaveBeenCalled();
+  });
+
+  it('does not rebuild the index on a resize', () => {
+    const view = mountLayout();
+    flushFrames();
+    view.rebuildResultIndex.mockClear();
+
+    act(() => {
+      observers[0]?.trigger();
+    });
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    expect(view.rebuildResultIndex).not.toHaveBeenCalled();
   });
 
   it('refreshes on a window resize', () => {
     const view = mountLayout();
     flushFrames();
-    view.rebuildResultIndex.mockClear();
+    view.remeasureResultIndex.mockClear();
 
     act(() => {
       window.dispatchEvent(new Event('resize'));
@@ -196,7 +214,7 @@ describe('useComparisonLayout', () => {
       vi.advanceTimersByTime(120);
     });
 
-    expect(view.rebuildResultIndex).toHaveBeenCalledTimes(1);
+    expect(view.remeasureResultIndex).toHaveBeenCalledTimes(1);
   });
 
   it('re-aligns from the driving pane after a resize', () => {
@@ -249,7 +267,7 @@ describe('useComparisonLayout', () => {
   it('disconnects observers and drops pending work on unmount', () => {
     const view = mountLayout();
     flushFrames();
-    view.rebuildResultIndex.mockClear();
+    view.remeasureResultIndex.mockClear();
 
     act(() => {
       observers[0]?.trigger();
@@ -260,13 +278,13 @@ describe('useComparisonLayout', () => {
     });
 
     expect(observers[0]?.disconnected).toBe(true);
-    expect(view.rebuildResultIndex).not.toHaveBeenCalled();
+    expect(view.remeasureResultIndex).not.toHaveBeenCalled();
   });
 
   it('stops refreshing on window resize after unmount', () => {
     const view = mountLayout();
     flushFrames();
-    view.rebuildResultIndex.mockClear();
+    view.remeasureResultIndex.mockClear();
     view.unmount();
 
     act(() => {
@@ -276,6 +294,6 @@ describe('useComparisonLayout', () => {
       vi.advanceTimersByTime(500);
     });
 
-    expect(view.rebuildResultIndex).not.toHaveBeenCalled();
+    expect(view.remeasureResultIndex).not.toHaveBeenCalled();
   });
 });

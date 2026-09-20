@@ -17,18 +17,13 @@ export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResu
   const [items, setItems] = useState<DiffMapItem[]>([]);
   const [version, setVersion] = useState(0);
 
-  const rebuild = useCallback(() => {
+  // Recompute scroll anchors and diff-map positions from the current index.
+  // Pure geometry: reads layout, writes no DOM, and never bumps the version so
+  // an incidental reflow (image load, scrollbar toggle, closing an overlay)
+  // cannot trigger the current-diff re-alignment that a content rebuild does.
+  const measure = useCallback(() => {
     const originalPane = paneA.current;
     const revisedPane = paneB.current;
-    const nextIndex = buildDiffElementIndex(originalPane, revisedPane);
-    diffIndex.current = nextIndex;
-    for (const group of nextIndex.values()) {
-      for (const element of group.A) element.tabIndex = 0;
-      for (const element of group.B) element.tabIndex = 0;
-    }
-
-    // Take a fresh geometry snapshot on every rebuild, after the DOM writes.
-    // Reuse it for all anchors and map items without repeated layout reads.
     const paneTopA = originalPane?.getBoundingClientRect().top ?? 0;
     const paneTopB = revisedPane?.getBoundingClientRect().top ?? 0;
     const scrollTopA = originalPane?.scrollTop ?? 0;
@@ -38,7 +33,7 @@ export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResu
     const anchors: ScrollAnchor[] = [];
     const nextItems: DiffMapItem[] = [];
     for (let index = 1; index <= total; index++) {
-      const group = nextIndex.get(diffReviewId(index));
+      const group = diffIndex.current.get(diffReviewId(index));
       if (!group) continue;
       const elementA = firstReviewElement(group, 'A');
       const elementB = firstReviewElement(group, 'B');
@@ -59,8 +54,21 @@ export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResu
     }
     alignmentAnchors.current = anchors;
     setItems(nextItems);
-    setVersion((value) => value + 1);
   }, [paneA, paneB, total]);
+
+  // Rebuild the diff element index after a content change, then take a fresh
+  // geometry snapshot. Bumping the version re-runs consumers that must react to
+  // new elements, including the current-diff re-alignment.
+  const rebuild = useCallback(() => {
+    const nextIndex = buildDiffElementIndex(paneA.current, paneB.current);
+    diffIndex.current = nextIndex;
+    for (const group of nextIndex.values()) {
+      for (const element of group.A) element.tabIndex = 0;
+      for (const element of group.B) element.tabIndex = 0;
+    }
+    measure();
+    setVersion((value) => value + 1);
+  }, [measure, paneA, paneB]);
 
   const syncPaneFrom = useCallback(
     (sourceKey: PaneSide, sourceTop?: number) => {
@@ -84,5 +92,5 @@ export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResu
     setItems([]);
   }, []);
 
-  return { diffIndex, items, version, rebuild, syncPaneFrom, clear };
+  return { diffIndex, items, version, rebuild, remeasure: measure, syncPaneFrom, clear };
 }

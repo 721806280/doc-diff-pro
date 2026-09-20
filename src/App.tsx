@@ -225,6 +225,7 @@ export default function App() {
     items: diffMapItems,
     version: indexVersion,
     rebuild: rebuildResultIndex,
+    remeasure: remeasureResultIndex,
     syncPaneFrom,
     clear: clearResultIndex
   } = useComparisonResultIndex({ paneA, paneB, total: summary.total });
@@ -315,6 +316,7 @@ export default function App() {
     originalHtml: documents.A.highlightedHtml,
     revisedHtml: documents.B.highlightedHtml,
     rebuildResultIndex,
+    remeasureResultIndex,
     scheduleDiffActionUpdate,
     syncPaneFrom,
     syncScroll,
