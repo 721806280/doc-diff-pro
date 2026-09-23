@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useI18n } from '@/i18n';
 import type { DiffSummary, IgnoredDiffItem } from '@/types/diff';
 import { IgnoredDiffModal, LayoutNoiseModal } from '@/components/ReviewModals';
@@ -20,7 +20,11 @@ type DiffNavigatorProps = {
   onRestoreAllIgnored: () => void;
 };
 
-export default function DiffNavigator({
+/**
+ * Memoized because the app re-renders on every scroll frame to place the
+ * difference popover; the navigator only changes with the review state.
+ */
+export default memo(function DiffNavigator({
   summary,
   documents,
   activeDiffCount,
@@ -200,4 +204,4 @@ export default function DiffNavigator({
       />
     </>
   );
-}
+});

@@ -42,6 +42,40 @@ describe('presentation components', () => {
     expect(selected).toEqual(['B', 'A']);
   });
 
+  it('moves the pane selection with the arrow keys and keeps one tab stop', () => {
+    const selected: string[] = [];
+    const view = renders.render(
+      <MobilePaneSwitch activePane="A" i18n={messages['zh-CN']} onChange={(pane) => selected.push(pane)} />
+    );
+    const [original, revised] = Array.from(view.host.querySelectorAll<HTMLButtonElement>('button'));
+    // Roving tabindex: only the checked option is in the tab order.
+    expect(original?.tabIndex).toBe(0);
+    expect(revised?.tabIndex).toBe(-1);
+
+    act(() => {
+      original?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    });
+    expect(selected).toEqual(['B']);
+    expect(document.activeElement).toBe(revised);
+
+    view.rerender(
+      <MobilePaneSwitch activePane="B" i18n={messages['zh-CN']} onChange={(pane) => selected.push(pane)} />
+    );
+    expect(revised?.tabIndex).toBe(0);
+    act(() => {
+      revised?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    });
+    expect(selected).toEqual(['B', 'A']);
+    // A key that is not navigation, or that names the current pane, changes nothing.
+    act(() => {
+      revised?.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    });
+    act(() => {
+      revised?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(selected).toEqual(['B', 'A']);
+  });
+
   it('renders active and ignored map markers and selects one', () => {
     const selected: number[] = [];
     const { host } = renders.render(

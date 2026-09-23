@@ -1,4 +1,15 @@
-import { memo, useEffect, useMemo, useRef, useState, type RefObject, type MouseEvent, type KeyboardEvent } from 'react';
+import {
+  memo,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+  type MouseEvent,
+  type KeyboardEvent
+} from 'react';
 import { useI18n } from '@/i18n';
 import type { DocumentPaneState, PaneSide } from '@/types/document';
 import { documentCoverage } from '@/utils/documentCoverage';
@@ -21,7 +32,12 @@ type DocumentPaneProps = {
   onActivate: (side: PaneSide) => void;
 };
 
-export default function DocumentPane({
+/**
+ * Memoized because scrolling re-renders the app on every animation frame to
+ * place the difference popover, and the pane's own output does not change with
+ * it. Every callback prop is expected to be stable for that to hold.
+ */
+export default memo(function DocumentPane({
   side,
   document,
   active,
@@ -48,29 +64,31 @@ export default function DocumentPane({
       ? document.originalHtml
       : '';
   const statusLabel = i18n.documentPane.status[document.status];
-  const fileSize =
-    document.size <= 0
-      ? ''
-      : document.size < 1024 * 1024
-        ? `${Math.max(1, Math.round(document.size / 1024))} KB`
-        : `${(document.size / 1024 / 1024).toFixed(1)} MB`;
-  const meta = [
-    fileSize,
-    document.textLength > 0
-      ? i18n.documentPane.textLength(numberFormatter.format(document.textLength), document.textLength)
-      : '',
-    document.imageCount > 0
-      ? i18n.documentPane.imageCount(numberFormatter.format(document.imageCount), document.imageCount)
-      : ''
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const meta = useMemo(() => {
+    const fileSize =
+      document.size <= 0
+        ? ''
+        : document.size < 1024 * 1024
+          ? `${Math.max(1, Math.round(document.size / 1024))} KB`
+          : `${(document.size / 1024 / 1024).toFixed(1)} MB`;
+    return [
+      fileSize,
+      document.textLength > 0
+        ? i18n.documentPane.textLength(numberFormatter.format(document.textLength), document.textLength)
+        : '',
+      document.imageCount > 0
+        ? i18n.documentPane.imageCount(numberFormatter.format(document.imageCount), document.imageCount)
+        : ''
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }, [document.imageCount, document.size, document.textLength, i18n, numberFormatter]);
 
   const {
     unavailable: uncomparableCount,
     reasons: uncomparableReasons,
     revisions: revisionCount
-  } = documentCoverage(document, i18n);
+  } = useMemo(() => documentCoverage(document, i18n), [document, i18n]);
 
   function selectFile(input: HTMLInputElement): void {
     const file = input.files?.[0];
@@ -151,61 +169,53 @@ export default function DocumentPane({
           <div className="indicator-group">
             <span className={`status-chip ${document.status}`}>{statusLabel}</span>
             {document.warnings.length > 0 && (
-              <div className="warning-chip" tabIndex={0}>
-                <span className="status-chip warning">
+              <NoticeChip
+                label={i18n.documentPane.conversionWarningCount(document.warnings.length)}
+                tone="warning"
+                icon={
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                   </svg>
-                  {document.warnings.length}
-                </span>
-                <div className="warning-popover" role="tooltip">
-                  <strong>{i18n.documentPane.conversionWarnings}</strong>
-                  <ul>
-                    {document.warnings.map((warning, index) => (
-                      <li key={index}>{warning}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+                }
+                count={document.warnings.length}
+                title={i18n.documentPane.conversionWarnings}
+                details={document.warnings}
+              />
             )}
             {uncomparableCount > 0 && (
-              <div className="warning-chip uncomparable" tabIndex={0}>
-                <span className="status-chip warning">
+              <NoticeChip
+                className="uncomparable"
+                label={i18n.documentPane.droppedImageCount(uncomparableCount)}
+                tone="warning"
+                icon={
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <rect x="3" y="3" width="18" height="18" rx="2" />
                     <path d="m3 16 5-5 4 4M14 14l2-2 5 5" />
                   </svg>
-                  {uncomparableCount}
-                </span>
-                <div className="warning-popover" role="tooltip">
-                  <strong>{i18n.documentPane.droppedImageCount(uncomparableCount)}</strong>
-                  <ul>
-                    {uncomparableReasons.map((reason) => (
-                      <li key={reason}>{reason}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+                }
+                count={uncomparableCount}
+                title={i18n.documentPane.droppedImageCount(uncomparableCount)}
+                details={uncomparableReasons}
+              />
             )}
             {revisionCount > 0 && (
-              <div className="warning-chip revisions" tabIndex={0}>
-                <span className="status-chip neutral">
+              <NoticeChip
+                className="revisions"
+                label={i18n.documentPane.revisionCount(revisionCount)}
+                tone="neutral"
+                icon={
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M12 20h9" />
                     <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
                   </svg>
-                  {revisionCount}
-                </span>
-                <div className="warning-popover" role="tooltip">
-                  <strong>{i18n.documentPane.revisionCount(revisionCount)}</strong>
-                  <ul>
-                    <li>{i18n.documentPane.revisionTitle}</li>
-                    <li>
-                      {i18n.documentPane.revisionBreakdown(document.revisions.insertions, document.revisions.deletions)}
-                    </li>
-                  </ul>
-                </div>
-              </div>
+                }
+                count={revisionCount}
+                title={i18n.documentPane.revisionCount(revisionCount)}
+                details={[
+                  i18n.documentPane.revisionTitle,
+                  i18n.documentPane.revisionBreakdown(document.revisions.insertions, document.revisions.deletions)
+                ]}
+              />
             )}
             {allowFileInput && (
               <label className="reupload-trigger" title={copy.reuploadTitle} aria-label={copy.reuploadTitle}>
@@ -320,6 +330,52 @@ export default function DocumentPane({
         )}
       </div>
     </section>
+  );
+});
+
+/**
+ * A count chip whose explanation lives in a hover popover. The trigger is a
+ * real button with the count as its name and the popover as its description,
+ * so a keyboard or screen-reader user tabbing onto it hears what the number
+ * means instead of a bare focusable box. The popover stays a sibling rather
+ * than a child of the button so its list markup remains valid HTML.
+ */
+function NoticeChip({
+  className = '',
+  label,
+  tone,
+  icon,
+  count,
+  title,
+  details
+}: {
+  className?: string;
+  label: string;
+  tone: 'warning' | 'neutral';
+  icon: ReactNode;
+  count: number;
+  title: string;
+  details: readonly string[];
+}) {
+  const popoverId = useId();
+
+  return (
+    <div className={`warning-chip ${className}`}>
+      <button type="button" className="warning-chip__trigger" aria-label={label} aria-describedby={popoverId}>
+        <span className={`status-chip ${tone}`}>
+          {icon}
+          {count}
+        </span>
+      </button>
+      <div className="warning-popover" role="tooltip" id={popoverId}>
+        <strong>{title}</strong>
+        <ul>
+          {details.map((detail, index) => (
+            <li key={`${index}:${detail}`}>{detail}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 

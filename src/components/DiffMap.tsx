@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import { memo, type KeyboardEvent } from 'react';
 import type { I18nMessages } from '@/i18n/messages';
 import type { DiffMapItem } from '@/types/diff';
 
@@ -23,7 +23,11 @@ function nextMarker(key: string, position: number, total: number): number | null
   }
 }
 
-export default function DiffMap({
+/**
+ * Memoized because the app re-renders on every scroll frame to place the
+ * difference popover, and the map only changes with the review state.
+ */
+export default memo(function DiffMap({
   items,
   currentIndex,
   ignoredIndices,
@@ -87,4 +91,4 @@ export default function DiffMap({
         })}
     </div>
   );
-}
+});

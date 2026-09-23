@@ -479,6 +479,10 @@ export default function App() {
 
   const previousAvailable = findActiveReviewIndex(currentDiff - 1, -1, summary.total, ignoredDiffIds) !== null;
   const nextAvailable = findActiveReviewIndex(currentDiff + 1, 1, summary.total, ignoredDiffIds) !== null;
+  // Stable so the memoized navigator is not re-rendered by every scroll frame.
+  const onPreviousDiff = useCallback(() => moveDiff(-1), [moveDiff]);
+  const onNextDiff = useCallback(() => moveDiff(1), [moveDiff]);
+  const onLocateIgnored = useCallback((id: string) => locateDiff(diffReviewIndex(id)), [locateDiff]);
   const themeStyle = getThemeStyle(themeColor, appearance) as React.CSSProperties;
 
   const changeSettings = useCallback(
@@ -557,9 +561,9 @@ export default function App() {
           ignoredDiffs={ignoredList}
           canPrevious={previousAvailable}
           canNext={nextAvailable}
-          onPrevious={() => moveDiff(-1)}
-          onNext={() => moveDiff(1)}
-          onLocateIgnored={(id) => locateDiff(diffReviewIndex(id))}
+          onPrevious={onPreviousDiff}
+          onNext={onNextDiff}
+          onLocateIgnored={onLocateIgnored}
           onRestoreIgnored={restoreIgnored}
           onRestoreAllIgnored={restoreAllIgnored}
         />

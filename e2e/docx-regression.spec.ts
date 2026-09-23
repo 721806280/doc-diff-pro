@@ -69,7 +69,7 @@ test('explains accepted tracked changes from the document notice', async ({ page
   if (isMobile) await page.locator('.mobile-pane-switch__option.is-revised').click();
   const notice = page.locator('.warning-chip.revisions');
   await expect(notice).toBeVisible();
-  await notice.focus();
+  await notice.locator('.warning-chip__trigger').focus();
   const tooltip = notice.getByRole('tooltip');
   await expect(tooltip).toBeVisible();
   await expect(tooltip).toContainText('全部修订被接受后的状态');
@@ -79,7 +79,7 @@ test('explains accepted tracked changes from the document notice', async ({ page
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   await page.screenshot({ path: testInfo.outputPath('document-notice.png'), animations: 'disabled' });
   await page.getByRole('button', { name: '切换到夜间模式', exact: true }).click();
-  await notice.focus();
+  await notice.locator('.warning-chip__trigger').focus();
   await expect(tooltip).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('document-notice-dark.png'), animations: 'disabled' });
 });
@@ -90,7 +90,7 @@ test('qualifies a zero-difference result when native chart data could not be com
   await expect(page.locator('.summary-chip.total')).not.toHaveClass(/clean/);
   await expect(page.locator('.warning-chip.uncomparable')).toHaveCount(2);
   const notice = page.locator('.warning-chip.uncomparable').first();
-  await notice.focus();
+  await notice.locator('.warning-chip__trigger').focus();
   await expect(notice.getByRole('tooltip')).toBeVisible();
   await expect(notice.getByRole('tooltip')).toContainText('1');
 });
@@ -103,7 +103,7 @@ test('keeps conversion warnings beside the document when parsed content is ident
   await expect(page.locator('.summary-chip.total')).toHaveText('已解析内容无差异');
   await expect(page.locator('.summary-chip.total')).toHaveClass(/limited/);
   const notice = page.locator('.warning-chip:not(.uncomparable):not(.revisions)').first();
-  await notice.focus();
+  await notice.locator('.warning-chip__trigger').focus();
   await expect(notice.getByRole('tooltip')).toBeVisible();
   await expect(notice.locator('li').first()).not.toBeEmpty();
 });

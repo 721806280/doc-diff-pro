@@ -177,8 +177,13 @@ describe('DocumentPane', () => {
     const { host } = mountPane(true, { ...emptyDocument(), name: 'plan.docx', droppedImageCount: 3 });
 
     expect(host.textContent).toContain('3 处内容无法对比');
-    // Reachable by keyboard, since the explanation lives in a hover popover.
-    expect(host.querySelectorAll('.warning-chip[tabindex="0"]').length).toBeGreaterThan(0);
+    // Reachable by keyboard, since the explanation lives in a hover popover:
+    // the trigger is a named button described by that popover.
+    const trigger = host.querySelector<HTMLButtonElement>('.warning-chip.uncomparable button');
+    expect(trigger?.getAttribute('aria-label')).toBe('3 处内容无法对比');
+    const describedBy = trigger?.getAttribute('aria-describedby') ?? '';
+    const popover = describedBy ? host.ownerDocument.getElementById(describedBy) : null;
+    expect(popover?.getAttribute('role')).toBe('tooltip');
   });
 
   it('counts converter-dropped figures and formulas in the same notice', () => {

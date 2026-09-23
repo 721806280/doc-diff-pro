@@ -179,6 +179,9 @@ describe('useReviewActions', () => {
 
     expect(view.state.currentDiff).toBe(0);
     expect(view.onNoActiveDiff).toHaveBeenCalledTimes(1);
+    // The popover holding the ignore button unmounts with the last active
+    // difference; focus stays in the document on the one just ignored.
+    expect(document.activeElement).toBe(view.paneB.querySelector(`[data-diff-id="${diffReviewId(1)}"]`));
   });
 
   it('keeps the active difference when an unrelated one is ignored', () => {

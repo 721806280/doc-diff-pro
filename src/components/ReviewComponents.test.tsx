@@ -40,6 +40,11 @@ describe('review components', () => {
     act(() => document.body.querySelector<HTMLButtonElement>('.diff-action-popover__button--main')?.click());
     act(() => document.body.querySelector<HTMLButtonElement>('.diff-action-popover__button--similar')?.click());
     expect(events).toEqual(['ignore', 'similar']);
+    // Portalled to the end of the body, so the group name is what tells a
+    // screen-reader user which difference these buttons act on.
+    const popover = document.body.querySelector('.diff-action-popover');
+    expect(popover?.getAttribute('role')).toBe('group');
+    expect(popover?.getAttribute('aria-label')).toBe('差异 1');
     first.rerender(
       <DiffActionPopover
         open

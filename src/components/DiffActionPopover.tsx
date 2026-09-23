@@ -56,6 +56,8 @@ export default function DiffActionPopover({
   return createPortal(
     <div
       ref={report}
+      role="group"
+      aria-label={label}
       className={`diff-action-popover diff-action-popover--${position.side} ${ignored ? 'ignored' : ''}`}
       style={{ top: position.top, left: position.left, '--diff-action-arrow': `${position.arrow}px` } as CSSProperties}
     >

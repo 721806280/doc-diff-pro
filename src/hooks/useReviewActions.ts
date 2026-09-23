@@ -85,6 +85,10 @@ export function useReviewActions({
       }
       setCurrentDiff(0);
       clearReviewClass(diffIndex.current, 'focus-diff');
+      // The popover that held the ignore button unmounts with the last active
+      // difference; keeping focus on the difference just ignored leaves the
+      // keyboard user in the document rather than dropping them onto <body>.
+      focusReviewElement(diffIndex.current.get(diffReviewId(currentDiff)));
       onNoActiveDiff();
     },
     [

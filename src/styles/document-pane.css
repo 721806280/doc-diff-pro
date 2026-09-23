@@ -440,6 +440,18 @@
 .warning-chip {
   position: relative;
   display: inline-flex;
+}
+/* The trigger is a button for its semantics only; it draws as the chip inside. */
+.warning-chip__trigger {
+  appearance: none;
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: default;
   outline: none;
 }
 .status-chip.warning {
@@ -448,7 +460,7 @@
   color: var(--warning-strong);
   border-color: var(--warning-border-strong);
 }
-.warning-chip:focus-visible .status-chip.warning {
+.warning-chip__trigger:focus-visible .status-chip.warning {
   box-shadow: 0 0 0 2px var(--warning-glow);
 }
 
@@ -461,7 +473,7 @@
   color: var(--muted-chip-strong);
   border-color: var(--muted-chip-border);
 }
-.warning-chip.revisions:focus-visible .status-chip.neutral {
+.warning-chip__trigger:focus-visible .status-chip.neutral {
   box-shadow: 0 0 0 2px var(--muted-chip-bg-hover);
 }
 .warning-chip.revisions .warning-popover {

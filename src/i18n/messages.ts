@@ -134,6 +134,9 @@ const en = {
   },
   documentPane: {
     conversionWarnings: 'Conversion warnings',
+    conversionWarningCount(count: number): string {
+      return `${count} conversion ${count === 1 ? 'warning' : 'warnings'}`;
+    },
     changeDocument: 'Replace',
     mobileViewLabel: 'Document view',
     mobileOriginal: 'Baseline (A)',
@@ -520,6 +523,9 @@ const zhCN: I18nMessages = {
   },
   documentPane: {
     conversionWarnings: '转换提示',
+    conversionWarningCount(count: number): string {
+      return `${count} 条转换提示`;
+    },
     changeDocument: '更换文档',
     mobileViewLabel: '文档视图',
     mobileOriginal: '基准文档 (A)',
