@@ -63,10 +63,20 @@ export function graphicsReportTotal(report: DocxGraphicsReport): number {
 export async function scanDocxParts(archive: ArrayBuffer): Promise<DocxScanReport> {
   const report = createEmptyScanReport();
 
+  let entries: ZipEntry[];
   try {
-    for (const entry of listEntries(archive)) {
-      if (!BODY_PART_PATTERN.test(entry.name)) continue;
+    entries = listEntries(archive);
+  } catch {
+    return createEmptyScanReport();
+  }
 
+  for (const entry of entries) {
+    if (!BODY_PART_PATTERN.test(entry.name)) continue;
+
+    // One malformed part must not discard the counts gathered from every other
+    // one: a reader is better served by a partial report than by silence, which
+    // is the whole reason this scan exists.
+    try {
       const xml = await readEntry(archive, entry);
       if (!xml) continue;
 
@@ -77,9 +87,9 @@ export async function scanDocxParts(archive: ArrayBuffer): Promise<DocxScanRepor
       // text that was compared, and reporting it as something the comparison
       // could not look at would be reporting a figure that is not there.
       countGraphics(withoutRejectedContent(content), report.graphics);
+    } catch {
+      continue;
     }
-  } catch {
-    return createEmptyScanReport();
   }
 
   return report;
@@ -267,6 +277,7 @@ async function readEntry(archive: ArrayBuffer, entry: ZipEntry): Promise<string 
   if (header + 30 > view.byteLength || view.getUint32(header, true) !== LOCAL_FILE_HEADER) return null;
 
   const start = header + 30 + view.getUint16(header + 26, true) + view.getUint16(header + 28, true);
+  if (start > view.byteLength) return null;
   const bytes = new Uint8Array(archive, start, Math.min(entry.compressedSize, view.byteLength - start));
 
   if (entry.compressionMethod === STORED) return new TextDecoder().decode(bytes);
@@ -297,14 +308,20 @@ async function inflateRaw(bytes: Uint8Array<ArrayBuffer>): Promise<string | null
   const decoder = new TextDecoder();
   let text = '';
 
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) text += decoder.decode(value, { stream: true });
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) text += decoder.decode(value, { stream: true });
+    }
+    await pump;
+    return text + decoder.decode();
+  } finally {
+    // A corrupt stream can reject the read loop before `pump` is awaited; settle
+    // its write side here so its rejection cannot escape as a global
+    // unhandledrejection after this function has already thrown.
+    await pump.catch(() => {});
   }
-
-  await pump;
-  return text + decoder.decode();
 }
 
 function decodeAscii(archive: ArrayBuffer, offset: number, length: number): string {

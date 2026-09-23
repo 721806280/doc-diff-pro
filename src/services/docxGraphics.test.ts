@@ -420,4 +420,20 @@ describe('scanDocxParts', () => {
 
     expect((await scanDocxParts(archive)).graphics).toEqual(createEmptyGraphicsReport());
   });
+
+  it('keeps the counts from good parts when one body part is malformed', async () => {
+    // A single unreadable part must not zero the whole report: a partial count
+    // still tells the reader a figure is there, which is the point of the scan.
+    const archive = zip({
+      '[Content_Types].xml': '<Types/>',
+      'word/document.xml': `<w:document>${CHART_DRAWING}</w:document>`,
+      // Malformed XML that carries an AlternateContent block, so the header part
+      // throws in the parser while the document part scans cleanly.
+      'word/header1.xml': '<w:hdr><mc:AlternateContent><w:drawing></w:hdr>'
+    });
+
+    const report = (await scanDocxParts(archive)).graphics;
+
+    expect(report.nativeGraphics).toBe(1);
+  });
 });
