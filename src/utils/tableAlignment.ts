@@ -7,6 +7,13 @@
  * lets the whole comparison engine load on demand.
  */
 
+import {
+  createBigramProfile,
+  diceSimilarityFromProfiles,
+  maxDiceSimilarity,
+  type BigramProfile
+} from './bigramSimilarity';
+
 // How alike two tables must look before the alignment is willing to call them
 // the same table. Low, because a table can be edited heavily and still be the
 // one the reader is following: shape alone carries a lot of the evidence.
@@ -207,11 +214,17 @@ function alignByPosition<T>(original: T[], revised: T[]): Array<AlignmentPair<T>
  * survives a rewrite. A table whose every cell was reworded still has the same
  * number of rows, and that is often the only evidence left that it is the same
  * table.
+ *
+ * The text is held as a bigram profile because the alignment scores every
+ * table against every other one; profiling once here keeps each of those
+ * scores proportional to the number of distinct pairs, not the text length.
  */
-function createTableSignature(table: HTMLTableElement): { text: string; rows: number; cells: number } {
+type TableSignature = { text: BigramProfile; rows: number; cells: number };
+
+function createTableSignature(table: HTMLTableElement): TableSignature {
   const rows = directTableRows(table);
   return {
-    text: normalizeStructureText(table.textContent ?? ''),
+    text: createBigramProfile(normalizeStructureText(table.textContent ?? '')),
     rows: rows.length,
     cells: rows.reduce((total, row) => total + directRowCells(row).length, 0)
   };
@@ -226,69 +239,20 @@ function createTableSignature(table: HTMLTableElement): { text: string; rows: nu
  * Two tables with no text at all can only be judged on shape, which is the
  * early return.
  */
-function tableSimilarity(
-  left: { text: string; rows: number; cells: number },
-  right: { text: string; rows: number; cells: number },
-  matchThreshold: number
-): number {
+function tableSimilarity(left: TableSignature, right: TableSignature, matchThreshold: number): number {
   const rowScore = ratioSimilarity(left.rows, right.rows);
   const cellScore = ratioSimilarity(left.cells, right.cells);
-  if (!left.text && !right.text) return (rowScore + cellScore) / 2;
+  if (!left.text.text && !right.text.text) return (rowScore + cellScore) / 2;
 
   const shapeScore = rowScore * 0.15 + cellScore * 0.15;
   // Dice similarity can never exceed the bigram-count ratio of the two texts,
   // so a pair whose best case still falls short is rejected on lengths alone.
   // The caller only reads this score when it clears the threshold, which makes
-  // the early exit invisible to the alignment and turns the n*m full-text
-  // scans into n*m integer comparisons.
+  // the early exit invisible to the alignment and turns the n*m profile
+  // comparisons into n*m integer comparisons.
   if (shapeScore + maxDiceSimilarity(left.text, right.text) * 0.7 < matchThreshold) return 0;
 
-  return diceSimilarity(left.text, right.text) * 0.7 + shapeScore;
-}
-
-/** Largest `diceSimilarity` the two texts could reach, from their lengths alone. */
-function maxDiceSimilarity(left: string, right: string): number {
-  const leftPairs = Math.max(0, left.length - 1);
-  const rightPairs = Math.max(0, right.length - 1);
-  // Mirrors diceSimilarity's own handling of texts too short to form a bigram.
-  if (leftPairs === 0 || rightPairs === 0) return left === right ? 1 : 0;
-
-  return (2 * Math.min(leftPairs, rightPairs)) / (leftPairs + rightPairs);
-}
-
-/**
- * Sørensen–Dice over adjacent character pairs: how much of two texts is built
- * from the same two-character sequences.
- *
- * Bigrams rather than characters because they carry a little word order — "甲
- * 方乙方" and "乙方甲方" share every character but few pairs. The count map is
- * consumed as it matches, so a pair occurring twice on one side and once on
- * the other is credited once rather than twice.
- *
- * Shared with line alignment, which needs the same question answered about two
- * paragraphs and wants it answered in linear time.
- */
-export function diceSimilarity(left: string, right: string): number {
-  if (left === right) return 1;
-  if (!left || !right) return 0;
-  if (left.length < 2 || right.length < 2) return 0;
-
-  const counts = new Map<string, number>();
-  for (let index = 0; index < left.length - 1; index++) {
-    const pair = left.slice(index, index + 2);
-    counts.set(pair, (counts.get(pair) ?? 0) + 1);
-  }
-
-  let matches = 0;
-  for (let index = 0; index < right.length - 1; index++) {
-    const pair = right.slice(index, index + 2);
-    const count = counts.get(pair) ?? 0;
-    if (count <= 0) continue;
-    matches++;
-    counts.set(pair, count - 1);
-  }
-
-  return (matches * 2) / (left.length - 1 + (right.length - 1));
+  return diceSimilarityFromProfiles(left.text, right.text) * 0.7 + shapeScore;
 }
 
 function ratioSimilarity(left: number, right: number): number {

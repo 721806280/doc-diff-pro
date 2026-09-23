@@ -22,8 +22,9 @@
  * distinctive heading does.
  */
 
+import { createBigramProfile, diceSimilarityFromProfiles, type BigramProfile } from './bigramSimilarity';
 import { longestCommonSubsequenceLength } from './longestCommonSubsequence';
-import { alignSequences, diceSimilarity } from './tableAlignment';
+import { alignSequences } from './tableAlignment';
 
 /** Lowest bigram similarity at which two paragraphs may be called the same one. */
 const LINE_MATCH_THRESHOLD = 0.35;
@@ -295,19 +296,39 @@ function weighGap(
     return;
   }
 
-  const originalIndices = range(originalStart, originalEnd);
-  const revisedIndices = range(revisedStart, revisedEnd);
+  const originalLines = original.slice(originalStart, originalEnd).map(scoredLine);
+  const revisedLines = revised.slice(revisedStart, revisedEnd).map(scoredLine);
 
   const paired = alignSequences(
-    originalIndices,
-    revisedIndices,
-    (left, right) => lineSimilarity(original[left] ?? '', revised[right] ?? ''),
+    range(originalStart, originalEnd),
+    range(revisedStart, revisedEnd),
+    (left, right) =>
+      lineSimilarity(
+        originalLines[left - originalStart] as ScoredLine,
+        revisedLines[right - revisedStart] as ScoredLine
+      ),
     { matchThreshold: LINE_MATCH_THRESHOLD, gapPenalty: LINE_GAP_PENALTY, maxPairs: MAX_GAP_ALIGNMENT_PAIRS }
   );
 
   for (const pair of paired) {
     entries.push({ original: pair.original, revised: pair.revised });
   }
+}
+
+/**
+ * A line with its bigram profile taken at most once. Every line in a gap is
+ * scored against every line on the other side, and profiling inside that
+ * scoring would cost the line's length per cell rather than per line. Lazy
+ * because a line short enough for the exact path may never need one.
+ */
+type ScoredLine = { text: string; bigrams: () => BigramProfile };
+
+function scoredLine(text: string): ScoredLine {
+  let profile: BigramProfile | undefined;
+  return {
+    text,
+    bigrams: () => (profile ??= createBigramProfile(text.slice(0, MAX_SIMILARITY_LENGTH)))
+  };
 }
 
 /**
@@ -320,13 +341,13 @@ function weighGap(
  * scores 0.33, below the threshold, so the alignment would rather leave it
  * unpaired and pick a worse arrangement elsewhere.
  */
-function lineSimilarity(left: string, right: string): number {
-  if (left.length <= MAX_EXACT_SIMILARITY_LENGTH && right.length <= MAX_EXACT_SIMILARITY_LENGTH) {
-    const total = left.length + right.length;
-    return total === 0 ? 1 : (2 * longestCommonSubsequenceLength(left, right)) / total;
+function lineSimilarity(left: ScoredLine, right: ScoredLine): number {
+  if (left.text.length <= MAX_EXACT_SIMILARITY_LENGTH && right.text.length <= MAX_EXACT_SIMILARITY_LENGTH) {
+    const total = left.text.length + right.text.length;
+    return total === 0 ? 1 : (2 * longestCommonSubsequenceLength(left.text, right.text)) / total;
   }
 
-  return diceSimilarity(left.slice(0, MAX_SIMILARITY_LENGTH), right.slice(0, MAX_SIMILARITY_LENGTH));
+  return diceSimilarityFromProfiles(left.bigrams(), right.bigrams());
 }
 
 function range(start: number, end: number): number[] {
