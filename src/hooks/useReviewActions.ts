@@ -7,6 +7,7 @@ import {
   diffReviewId,
   diffReviewIndex,
   findActiveReviewIndex,
+  focusReviewElement,
   setReviewClass
 } from '@/utils/diffReview';
 
@@ -38,8 +39,12 @@ export function useReviewActions({
       if (index < 1 || index > summary.total) return;
       setCurrentDiff(index);
       focusDiff(index, behavior);
+      // Only explicit navigation moves keyboard focus. The re-alignment that
+      // follows a content rebuild goes through `focusDiff` alone, so it cannot
+      // pull focus out of the settings panel a user is still working in.
+      focusReviewElement(diffIndex.current.get(diffReviewId(index)));
     },
-    [focusDiff, setCurrentDiff, summary.total]
+    [diffIndex, focusDiff, setCurrentDiff, summary.total]
   );
 
   const moveDiff = useCallback(

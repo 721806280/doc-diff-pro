@@ -6,6 +6,7 @@ import {
   diffReviewId,
   findActiveReviewIndex,
   findSimilarReviewItems,
+  focusReviewElement,
   resolveReviewShortcut,
   selectReviewElement
 } from './diffReview';
@@ -165,6 +166,28 @@ describe('diffReview', () => {
     expect(selectReviewElement(group, revisedSecond, (element) => element === original)).toBe(original);
   });
 
+  it('moves keyboard focus onto the difference, preferring a side that is on screen', () => {
+    const original = focusableElement('旧内容');
+    const revised = focusableElement('新内容');
+    // jsdom lays nothing out, so `offsetParent` is declared: the revised pane
+    // is hidden, as a narrow layout showing one pane at a time would hide it.
+    Object.defineProperty(original, 'offsetParent', { configurable: true, value: document.body });
+    Object.defineProperty(revised, 'offsetParent', { configurable: true, value: null });
+
+    focusReviewElement({ A: [original], B: [revised] });
+    expect(document.activeElement).toBe(original);
+
+    // A pure deletion has no revised side to prefer; the only side wins.
+    focusReviewElement({ A: [focusableElement('删除内容')], B: [] });
+    expect(document.activeElement?.textContent).toBe('删除内容');
+
+    // Nothing to focus leaves focus where it was.
+    focusReviewElement(undefined);
+    expect(document.activeElement?.textContent).toBe('删除内容');
+
+    document.body.innerHTML = '';
+  });
+
   it('maps review keyboard shortcuts without intercepting modified input', () => {
     expect(resolveReviewShortcut(keyboardEvent('ArrowUp', { altKey: true }))).toBe('previous');
     expect(resolveReviewShortcut(keyboardEvent('ArrowDown', { altKey: true }))).toBe('next');
@@ -201,6 +224,14 @@ function insertedGroupFrom(element: HTMLElement): DiffElementGroup {
 function textElement(text: string): HTMLElement {
   const element = document.createElement('span');
   element.textContent = text;
+  return element;
+}
+
+/** An attached, focusable diff element, as the index rebuild leaves it. */
+function focusableElement(text: string): HTMLElement {
+  const element = textElement(text);
+  element.tabIndex = 0;
+  document.body.append(element);
   return element;
 }
 

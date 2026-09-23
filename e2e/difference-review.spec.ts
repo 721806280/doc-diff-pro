@@ -48,6 +48,13 @@ test.describe('difference review', () => {
     await page.keyboard.press('Alt+ArrowDown');
     await expect(position).toHaveAttribute('aria-valuenow', '2');
 
+    // Keyboard focus and an accessible name travel with the navigation, so a
+    // screen reader announces what was moved to rather than just a scroll.
+    const focused = page.locator('[data-diff-id].focus-diff:focus');
+    await expect(focused).toHaveCount(1);
+    await expect(focused).toHaveAttribute('role', 'group');
+    await expect(focused).toHaveAttribute('aria-label', /2/);
+
     await page.keyboard.press('Alt+ArrowDown');
     await expect(position).toHaveAttribute('aria-valuenow', '3');
 

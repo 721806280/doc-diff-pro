@@ -20,7 +20,11 @@ function summaryWith(total: number): DiffSummary {
   };
 }
 
-/** Builds panes holding `total` paired diff elements, then indexes them. */
+/**
+ * Builds panes holding `total` paired diff elements, then indexes them. The
+ * panes are attached and the elements focusable, as after a real rebuild, so
+ * that focus movement is observable.
+ */
 function buildIndex(total: number): { index: DiffElementIndex; paneA: HTMLElement; paneB: HTMLElement } {
   const paneA = document.createElement('div');
   const paneB = document.createElement('div');
@@ -28,13 +32,16 @@ function buildIndex(total: number): { index: DiffElementIndex; paneA: HTMLElemen
     const original = document.createElement('del');
     original.dataset.diffId = diffReviewId(position);
     original.textContent = `original ${position}`;
+    original.tabIndex = 0;
     paneA.append(original);
 
     const revised = document.createElement('ins');
     revised.dataset.diffId = diffReviewId(position);
     revised.textContent = `revised ${position}`;
+    revised.tabIndex = 0;
     paneB.append(revised);
   }
+  document.body.append(paneA, paneB);
   return { index: buildDiffElementIndex(paneA, paneB), paneA, paneB };
 }
 
@@ -89,15 +96,19 @@ describe('useReviewActions', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    document.body.innerHTML = '';
   });
 
   it('locates a difference within range and focuses it', () => {
-    const { result, focusDiff, state } = mountActions(3);
+    const { result, focusDiff, state, paneB } = mountActions(3);
 
     act(() => result.current.locateDiff(2));
 
     expect(state.currentDiff).toBe(2);
     expect(focusDiff).toHaveBeenCalledWith(2, 'smooth');
+    // Keyboard focus travels with the navigation, not only the viewport, so a
+    // screen reader announces the difference just moved to.
+    expect(document.activeElement).toBe(paneB.querySelector(`[data-diff-id="${diffReviewId(2)}"]`));
   });
 
   it('ignores a locate request outside the difference range', () => {

@@ -48,10 +48,17 @@ function buildPane(total: number, geometry: PaneGeometry, spacing = 100): HTMLDi
   return pane;
 }
 
-function mountIndex(total: number, options: { spacingA?: number; spacingB?: number } = {}) {
+function mountIndex(
+  total: number,
+  options: { spacingA?: number; spacingB?: number; labelDiff?: (index: number, kind: string) => string } = {}
+) {
   const paneA = { current: buildPane(total, { scrollHeight: 2000, clientHeight: 500 }, options.spacingA ?? 100) };
   const paneB = { current: buildPane(total, { scrollHeight: 2000, clientHeight: 500 }, options.spacingB ?? 100) };
-  const view = renderHook(() => useComparisonResultIndex({ paneA, paneB, total }));
+  const view = renderHook(
+    (props: { labelDiff?: (index: number, kind: string) => string }) =>
+      useComparisonResultIndex({ paneA, paneB, total, labelDiff: props.labelDiff }),
+    { initialProps: { labelDiff: options.labelDiff } }
+  );
   return { ...view, paneA, paneB };
 }
 
@@ -90,6 +97,30 @@ describe('useComparisonResultIndex', () => {
     view.paneA.current.querySelectorAll('ins').forEach((element) => {
       expect(element.tabIndex).toBe(0);
     });
+  });
+
+  it('names each difference for assistive technology and relabels on a locale change', () => {
+    // `ins`/`del` carry no announceable name of their own, so a keyboard user
+    // landing on one is otherwise told nothing about what it is. Every group
+    // here has an element in both panes, so each reads as a modification.
+    const view = mountIndex(2, { labelDiff: (index, kind) => `Difference ${index}: ${kind}` });
+
+    act(() => view.result.current.rebuild());
+
+    const elements = Array.from(view.paneB.current.querySelectorAll('ins'));
+    expect(elements.map((element) => element.getAttribute('role'))).toEqual(['group', 'group']);
+    expect(elements.map((element) => element.getAttribute('aria-label'))).toEqual([
+      'Difference 1: modified',
+      'Difference 2: modified'
+    ]);
+
+    view.rerender({ labelDiff: (index, kind) => `差异 ${index}：${kind}` });
+
+    expect(elements.map((element) => element.getAttribute('aria-label'))).toEqual([
+      '差异 1：modified',
+      '差异 2：modified'
+    ]);
+    expect(view.result.current.version).toBe(1);
   });
 
   it('bumps the version on each rebuild so dependents recompute', () => {

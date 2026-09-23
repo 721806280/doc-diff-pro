@@ -27,7 +27,7 @@ import { useReviewSummary } from '@/hooks/useReviewSummary';
 import { useReviewActions } from '@/hooks/useReviewActions';
 import { useTableStructureHint } from '@/hooks/useTableStructureHint';
 import { useTimeoutRef } from '@/hooks/useTimeoutRef';
-import type { DiffSummary, IgnoredDiffItem } from '@/types/diff';
+import type { DiffChangeKind, DiffSummary, IgnoredDiffItem } from '@/types/diff';
 import type { PaneSide } from '@/types/document';
 import { DIFF_ELEMENT_SELECTOR } from '@/utils/diffElementIndex';
 import { resolveImagePreview, type ImagePreview } from '@/utils/imagePreview';
@@ -220,6 +220,11 @@ export default function App() {
     hasResult: hasComparisonResult,
     error
   });
+  const labelDiff = useCallback(
+    (index: number, kind: DiffChangeKind) =>
+      i18n.diffNavigator.diffMapItem(index, i18n.diffNavigator.ignoredDiffKind[kind]),
+    [i18n]
+  );
   const {
     diffIndex,
     items: diffMapItems,
@@ -228,7 +233,7 @@ export default function App() {
     remeasure: remeasureResultIndex,
     syncPaneFrom,
     clear: clearResultIndex
-  } = useComparisonResultIndex({ paneA, paneB, total: summary.total });
+  } = useComparisonResultIndex({ paneA, paneB, total: summary.total, labelDiff });
   const {
     position: diffActionPosition,
     schedule: scheduleDiffActionUpdate,

@@ -1,21 +1,53 @@
-import { useCallback, useRef, useState, type RefObject } from 'react';
-import type { DiffMapItem } from '@/types/diff';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import type { DiffChangeKind, DiffMapItem } from '@/types/diff';
 import type { PaneSide } from '@/types/document';
 import { buildDiffElementIndex, type DiffElementIndex } from '@/utils/diffElementIndex';
-import { diffReviewId, firstReviewElement, resolveReviewKind } from '@/utils/diffReview';
+import { diffReviewId, diffReviewIndex, firstReviewElement, resolveReviewKind } from '@/utils/diffReview';
 import { resolveSyncScrollTop, type ScrollAnchor } from '@/utils/scrollSync';
+import { useLatestRef } from './useLatestRef';
 
 type ComparisonResultIndexOptions = {
   paneA: RefObject<HTMLDivElement | null>;
   paneB: RefObject<HTMLDivElement | null>;
   total: number;
+  /** Accessible name for a difference, e.g. "Difference 3: Added". */
+  labelDiff?: (index: number, kind: DiffChangeKind) => string;
 };
 
-export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResultIndexOptions) {
+/**
+ * Makes every difference reachable and announceable from the keyboard. The
+ * `ins`/`del` elements are focusable and respond to Enter/Space, but their
+ * native roles prohibit an author-supplied name and are not announced by most
+ * screen readers, so without this a keyboard user is told nothing about what
+ * they landed on and an insertion is told apart from a deletion by colour
+ * alone. A group keeps the changed text itself readable, which a button's
+ * label would replace.
+ */
+function labelDiffElements(index: DiffElementIndex, labelDiff: ComparisonResultIndexOptions['labelDiff']): void {
+  for (const [id, group] of index) {
+    const label = labelDiff?.(diffReviewIndex(id), resolveReviewKind(group));
+    for (const element of [...group.A, ...group.B]) {
+      element.tabIndex = 0;
+      if (!label) continue;
+      element.setAttribute('role', 'group');
+      element.setAttribute('aria-label', label);
+    }
+  }
+}
+
+export function useComparisonResultIndex({ paneA, paneB, total, labelDiff }: ComparisonResultIndexOptions) {
   const diffIndex = useRef<DiffElementIndex>(new Map());
   const alignmentAnchors = useRef<ScrollAnchor[]>([]);
   const [items, setItems] = useState<DiffMapItem[]>([]);
   const [version, setVersion] = useState(0);
+  // Read through a ref so a locale change does not change `rebuild`'s identity
+  // and re-run the content-change effects that depend on it.
+  const latestLabelDiff = useLatestRef(labelDiff);
+
+  // A locale switch mid-review relabels the elements already in the index.
+  useEffect(() => {
+    labelDiffElements(diffIndex.current, labelDiff);
+  }, [labelDiff]);
 
   // Recompute scroll anchors and diff-map positions from the current index.
   // Pure geometry: reads layout, writes no DOM, and never bumps the version so
@@ -62,13 +94,10 @@ export function useComparisonResultIndex({ paneA, paneB, total }: ComparisonResu
   const rebuild = useCallback(() => {
     const nextIndex = buildDiffElementIndex(paneA.current, paneB.current);
     diffIndex.current = nextIndex;
-    for (const group of nextIndex.values()) {
-      for (const element of group.A) element.tabIndex = 0;
-      for (const element of group.B) element.tabIndex = 0;
-    }
+    labelDiffElements(nextIndex, latestLabelDiff.current);
     measure();
     setVersion((value) => value + 1);
-  }, [measure, paneA, paneB]);
+  }, [latestLabelDiff, measure, paneA, paneB]);
 
   const syncPaneFrom = useCallback(
     (sourceKey: PaneSide, sourceTop?: number) => {

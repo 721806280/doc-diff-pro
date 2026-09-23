@@ -167,6 +167,39 @@ export function firstReviewElement(group: DiffElementGroup | undefined, side: 'A
   return group?.[side][0] ?? null;
 }
 
+/**
+ * Moves keyboard focus onto a difference so navigation carries the focus point
+ * and the screen-reader cursor with it, not just the viewport. Prefers a side
+ * that is actually on screen, since a narrow layout shows only one pane at a
+ * time; falls back to whichever side exists (a pure insertion or deletion has
+ * only one).
+ */
+export function focusReviewElement(group: DiffElementGroup | undefined, preferredSide: 'A' | 'B' = 'B'): void {
+  if (!group) return;
+
+  const otherSide = preferredSide === 'B' ? 'A' : 'B';
+  const candidates = [firstReviewElement(group, preferredSide), firstReviewElement(group, otherSide)].filter(
+    (element): element is HTMLElement => element !== null
+  );
+  candidates.sort((left, right) => Number(isOnScreen(right)) - Number(isOnScreen(left)));
+
+  for (const element of candidates) {
+    element.focus({ preventScroll: true });
+    // The browser refuses focus inside a hidden pane without saying so; move on
+    // to the other side rather than leave focus where it was.
+    if (document.activeElement === element) return;
+  }
+}
+
+function isOnScreen(element: HTMLElement): boolean {
+  // The inactive pane of a narrow layout is hidden with `visibility`, which
+  // keeps an offsetParent; `checkVisibility` sees through that where supported.
+  if (typeof element.checkVisibility === 'function') {
+    return element.checkVisibility({ visibilityProperty: true });
+  }
+  return element.offsetParent !== null;
+}
+
 export function selectReviewElement(
   group: DiffElementGroup | undefined,
   preferredElement: HTMLElement | null,
