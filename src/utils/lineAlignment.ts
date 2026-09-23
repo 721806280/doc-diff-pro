@@ -129,7 +129,10 @@ function alignRange(
     depth,
     entries
   );
-  entries.push(...suffix);
+  // Appended one at a time rather than spread: the common suffix of two nearly
+  // identical documents can be the whole document, and `push(...suffix)` on an
+  // array that large overflows the engine's argument limit (RangeError).
+  for (const entry of suffix) entries.push(entry);
 }
 
 function alignInterior(

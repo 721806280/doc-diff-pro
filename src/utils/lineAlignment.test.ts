@@ -176,13 +176,17 @@ describe('alignLines', () => {
     expectTotalCoverage(original, revised);
   });
 
-  it('falls back to position when one unanchored stretch is too wide to weigh', () => {
-    // Past the matrix ceiling the alignment pairs off in order rather than
-    // allocating for it. Reached only by a document with no distinctive line in
-    // it at all, and it still has to account for every line.
-    const original = Array.from({ length: 220 }, () => 'x');
-    const revised = Array.from({ length: 200 }, () => 'x');
+  it('aligns a one-line edit against a document-sized identical tail', () => {
+    // The everyday edit: insert a line near the top, leave the rest untouched.
+    // The common tail is then the whole document, and appending it must not
+    // overflow the engine's argument limit (a spread once did here).
+    const tail = Array.from({ length: 200_000 }, (_line, index) => `line ${index}`);
+    const original = ['开头', ...tail];
+    const revised = ['开头', '新增的一行', ...tail];
 
+    const entries = alignLines(original, revised);
+
+    expect(entries).toHaveLength(original.length + 1);
     expectTotalCoverage(original, revised);
   });
 });
