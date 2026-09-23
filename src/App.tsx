@@ -213,13 +213,17 @@ export default function App() {
       setNotice(i18n.app.notices.importCancelled);
     }
   }, [cancelCompare, cancelLoading, comparing, i18n]);
-  externalGetStateRef.current = () => ({
-    ready,
-    comparing,
-    hasDocuments,
-    hasResult: hasComparisonResult,
-    error
-  });
+  const getExternalState = useCallback(
+    () => ({
+      ready,
+      comparing,
+      hasDocuments,
+      hasResult: hasComparisonResult,
+      error
+    }),
+    [ready, comparing, hasDocuments, hasComparisonResult, error]
+  );
+  useBindLatest(externalGetStateRef, getExternalState);
   const labelDiff = useCallback(
     (index: number, kind: DiffChangeKind) =>
       i18n.diffNavigator.diffMapItem(index, i18n.diffNavigator.ignoredDiffKind[kind]),

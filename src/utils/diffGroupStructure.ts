@@ -559,7 +559,12 @@ function prepareCellText(cell: HTMLTableCellElement, options: DiffGroupRefinemen
   };
 }
 
-function createSingleSpanDiff(original: string, revised: string): DiffTuple[] {
+/**
+ * A minimal prefix/deleted/inserted/suffix diff for a cell too large to diff
+ * precisely on the main thread. Exported for direct testing of its surrogate
+ * handling.
+ */
+export function createSingleSpanDiff(original: string, revised: string): DiffTuple[] {
   let prefixLength = 0;
   const sharedLength = Math.min(original.length, revised.length);
   while (prefixLength < sharedLength && original[prefixLength] === revised[prefixLength]) prefixLength++;
@@ -572,6 +577,14 @@ function createSingleSpanDiff(original: string, revised: string): DiffTuple[] {
     suffixLength++;
   }
 
+  // The scan compares UTF-16 code units, so a boundary can land between the two
+  // halves of a surrogate pair whose second half differs (one emoji edited into
+  // another). Slicing there would leave a lone surrogate — a replacement glyph —
+  // in the equal run and its mate in the change. Step each boundary back off the
+  // seam so whole code points stay together.
+  if (prefixLength > 0 && isHighSurrogate(original.charCodeAt(prefixLength - 1))) prefixLength--;
+  if (suffixLength > 0 && isLowSurrogate(original.charCodeAt(original.length - suffixLength))) suffixLength--;
+
   const diffs: DiffTuple[] = [];
   const prefix = original.slice(0, prefixLength);
   const deleted = original.slice(prefixLength, original.length - suffixLength);
@@ -582,6 +595,14 @@ function createSingleSpanDiff(original: string, revised: string): DiffTuple[] {
   if (inserted) diffs.push([DIFF_INSERT, inserted]);
   if (suffix) diffs.push([DIFF_EQUAL, suffix]);
   return diffs;
+}
+
+function isHighSurrogate(code: number): boolean {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+function isLowSurrogate(code: number): boolean {
+  return code >= 0xdc00 && code <= 0xdfff;
 }
 
 function unwrapDiffElement(element: HTMLElement): void {
@@ -640,10 +661,15 @@ function renumberDiffGroups(
   const revisedGroups = collectDiffElements(revisedRoot);
   const ids = [...new Set([...originalGroups.keys(), ...revisedGroups.keys()])];
 
+  // Resolving a group's document order walks the DOM (`closest`), so compute it
+  // once per id rather than twice on every comparison the sort makes.
+  const orderById = new Map(
+    ids.map((id) => [id, normalizedGroupOrder(id, originalGroups, revisedGroups, originalIndex, revisedIndex)])
+  );
+
   ids.sort((left, right) => {
-    const leftOrder = normalizedGroupOrder(left, originalGroups, revisedGroups, originalIndex, revisedIndex);
-    const rightOrder = normalizedGroupOrder(right, originalGroups, revisedGroups, originalIndex, revisedIndex);
-    return leftOrder - rightOrder || compareDiffIds(left, right);
+    const order = (orderById.get(left) ?? 0) - (orderById.get(right) ?? 0);
+    return order || compareDiffIds(left, right);
   });
 
   const idMap = new Map(ids.map((id, index) => [id, `diff-${index + 1}`]));

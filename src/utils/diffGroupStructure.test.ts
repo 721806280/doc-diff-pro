@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { refineDiffGroups } from './diffGroupStructure';
+import { createSingleSpanDiff, refineDiffGroups } from './diffGroupStructure';
 import { alignDocumentTables, type TableAlignmentEntry } from './tableAlignment';
+import { DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT } from './textDiffCore';
 
 function bodyFromHtml(html: string): HTMLElement {
   return new DOMParser().parseFromString(html, 'text/html').body;
@@ -162,4 +163,45 @@ describe('diffGroupStructure', () => {
 
     expect(refineDiffGroups(original, revised).total).toBe(1000);
   }, 2000);
+});
+
+describe('createSingleSpanDiff', () => {
+  it('isolates a single changed span between shared prefix and suffix', () => {
+    expect(createSingleSpanDiff('the quick brown fox', 'the slow brown fox')).toEqual([
+      [DIFF_EQUAL, 'the '],
+      [DIFF_DELETE, 'quick'],
+      [DIFF_INSERT, 'slow'],
+      [DIFF_EQUAL, ' brown fox']
+    ]);
+  });
+
+  it('keeps whole code points together when an emoji is swapped', () => {
+    // "😀" (U+1F600) and "😁" (U+1F601) share their high surrogate (D83D), so a
+    // code-unit scan would place the prefix boundary between the two halves.
+    const diffs = createSingleSpanDiff('hi 😀 there', 'hi 😁 there');
+    // No slice may leave a lone surrogate behind.
+    for (const [, text] of diffs) {
+      expect(/[\ud800-\udbff](?![\udc00-\udfff])/.test(text)).toBe(false);
+      expect(/(?<![\ud800-\udbff])[\udc00-\udfff]/.test(text)).toBe(false);
+    }
+    expect(diffs).toEqual([
+      [DIFF_EQUAL, 'hi '],
+      [DIFF_DELETE, '😀'],
+      [DIFF_INSERT, '😁'],
+      [DIFF_EQUAL, ' there']
+    ]);
+  });
+
+  it('handles a pure insertion and a pure deletion', () => {
+    expect(createSingleSpanDiff('abc', 'abXc')).toEqual([
+      [DIFF_EQUAL, 'ab'],
+      [DIFF_INSERT, 'X'],
+      [DIFF_EQUAL, 'c']
+    ]);
+    expect(createSingleSpanDiff('abXc', 'abc')).toEqual([
+      [DIFF_EQUAL, 'ab'],
+      [DIFF_DELETE, 'X'],
+      [DIFF_EQUAL, 'c']
+    ]);
+  });
 });

@@ -4,14 +4,31 @@ type Equation = { element: Element; signature: string };
 type MathSignature = string | [string, Array<[string, string]>, MathSignature[]];
 const PRESENTATION_ATTRIBUTES = new Set(['xmlns', 'display', 'style', 'class', 'id']);
 
+/**
+ * Equations match all-or-nothing: two signatures are either identical or they
+ * are a different equation, so a partial score would be meaningless. Any score
+ * clears the floor.
+ */
+const EQUATION_MATCH_THRESHOLD = 0;
+
+/**
+ * What leaving an equation unpaired costs. Low enough that a genuinely changed
+ * equation is still reported as a deletion beside an insertion rather than
+ * force-paired with an unrelated neighbour.
+ */
+const EQUATION_GAP_PENALTY = 0.2;
+
+/** Above this many candidate pairs the alignment falls back to position. */
+const MAX_EQUATION_ALIGNMENT_PAIRS = 250_000;
+
 /** Compare complete equations and keep HTML difference markers outside MathML. */
 export function markMathDifferences(originalRoot: HTMLElement, revisedRoot: HTMLElement): void {
   const original = collectEquations(originalRoot);
   const revised = collectEquations(revisedRoot);
   const pairs = alignSequences(original, revised, (left, right) => (left.signature === right.signature ? 1 : 0), {
-    matchThreshold: 0,
-    gapPenalty: 0.2,
-    maxPairs: 250_000
+    matchThreshold: EQUATION_MATCH_THRESHOLD,
+    gapPenalty: EQUATION_GAP_PENALTY,
+    maxPairs: MAX_EQUATION_ALIGNMENT_PAIRS
   });
 
   pairs.forEach((pair, index) => {

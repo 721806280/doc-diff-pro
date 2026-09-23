@@ -117,6 +117,10 @@ export function useDocumentSession({
     if (!hasActiveSession) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
+      // Chromium and older Safari only raise the confirmation prompt when
+      // `returnValue` is also set; `preventDefault()` alone is enough only in
+      // recent browsers.
+      event.returnValue = '';
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
