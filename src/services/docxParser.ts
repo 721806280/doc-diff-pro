@@ -109,6 +109,9 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
     }
     const imageDescriptors = await fingerprintImages(adopted.entries, options.signal);
     throwIfAborted(options.signal);
+    // The dimensions the fingerprinter already read from each header are what
+    // lets the browser reserve the image's box before its bytes decode.
+    reserveImageLayout(body, imageDescriptors);
 
     return {
       html: body.innerHTML,
@@ -200,6 +203,39 @@ function adoptInlineImages(body: HTMLElement): { entries: ImageSourceEntry[]; ur
   });
 
   return { entries, urls };
+}
+
+/**
+ * Stamps each rendered image with the pixel dimensions read from its container
+ * header, so the browser reserves the box before the bytes decode.
+ *
+ * Object-URL images decode asynchronously. With no width/height the element is
+ * zero-tall until then, so every image the reader scrolls into grows from
+ * nothing as it decodes — reflowing everything below, shifting scroll position,
+ * and (through the pane's ResizeObserver and the viewport-fixed diff popover)
+ * jittering regions outside the pane. The attributes give the browser the
+ * aspect ratio up front; CSS (`max-width:100%; height:auto`) still scales the
+ * real size responsively, so the picture looks identical — it just no longer
+ * appears out of nowhere.
+ *
+ * Dimensions come from the fingerprinter's header read, which never decodes the
+ * image, so an image bomb declaring 30000x30000 costs only the reserved layout,
+ * never a decode.
+ */
+function reserveImageLayout(body: HTMLElement, descriptors: ImageDescriptorTable): void {
+  body.querySelectorAll<HTMLImageElement>(`img[${IMAGE_ID_ATTRIBUTE}]`).forEach((image) => {
+    // A figure nothing can draw kept no source; nothing will load or reflow.
+    if (!image.getAttribute('src')) return;
+    // Respect any dimensions the document itself authored.
+    if (image.hasAttribute('width') || image.hasAttribute('height')) return;
+
+    const id = image.getAttribute(IMAGE_ID_ATTRIBUTE);
+    const descriptor = id ? descriptors.get(id) : undefined;
+    if (!descriptor || descriptor.width <= 0 || descriptor.height <= 0) return;
+
+    image.setAttribute('width', String(descriptor.width));
+    image.setAttribute('height', String(descriptor.height));
+  });
 }
 
 function dataUrlToBlob(dataUrl: string): Blob | null {

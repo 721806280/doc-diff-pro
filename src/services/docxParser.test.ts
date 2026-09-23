@@ -122,6 +122,29 @@ describe('parseDocx', () => {
     expect((createObjectURL.mock.calls[0]![0] as Blob).type).toBe('image/png');
   });
 
+  it('reserves layout by stamping images with the dimensions read from their header', async () => {
+    // A minimal PNG: 8-byte signature then an IHDR chunk declaring 120x80. The
+    // header read never decodes it, so the bytes past IHDR need not be a real
+    // image for the dimensions to come through.
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // signature
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR length + type
+      0x00, 0x00, 0x00, 0x78, 0x00, 0x00, 0x00, 0x50, // width 120, height 80
+      0x08, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // bit depth, colour type, CRC
+    ]);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:doc-diff/sized');
+    convertToHtml.mockResolvedValueOnce({
+      value: `<p><img src="data:image/png;base64,${Buffer.from(png).toString('base64')}" alt="图"></p>`,
+      messages: []
+    });
+
+    const parsed = await parseDocx(new File(['docx'], 'review.docx'));
+
+    expect(parsed.html).toContain('width="120"');
+    expect(parsed.html).toContain('height="80"');
+    expect(parsed.imageDescriptors.get('figure-0')).toMatchObject({ width: 120, height: 80 });
+  });
+
   it.each([true, false])('reports only equations absent from the converted output (rendered: %s)', async (rendered) => {
     convertToHtml.mockResolvedValueOnce({
       value: rendered ? '<p style="text-align: center"><math display="block"><mi>x</mi></math></p>' : '<p>正文</p>',
