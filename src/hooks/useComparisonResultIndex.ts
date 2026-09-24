@@ -100,17 +100,21 @@ export function useComparisonResultIndex({ paneA, paneB, total, labelDiff }: Com
   }, [latestLabelDiff, measure, paneA, paneB]);
 
   const syncPaneFrom = useCallback(
-    (sourceKey: PaneSide, sourceTop?: number) => {
+    (sourceKey: PaneSide, sourceTop?: number, behavior: ScrollBehavior = 'instant') => {
       const source = sourceKey === 'A' ? paneA.current : paneB.current;
       const target = sourceKey === 'A' ? paneB.current : paneA.current;
       if (!source || !target) return;
-      target.scrollTop = resolveSyncScrollTop({
+      const top = resolveSyncScrollTop({
         sourceKey,
         sourceTop: sourceTop ?? source.scrollTop,
         maxSourceTop: Math.max(0, source.scrollHeight - source.clientHeight),
         maxTargetTop: Math.max(0, target.scrollHeight - target.clientHeight),
         anchors: alignmentAnchors.current
       });
+      // Following a scroll must land in the same frame as the source, so only a
+      // navigation jump asks to glide alongside the pane it follows.
+      if (behavior === 'smooth') target.scrollTo({ top, behavior });
+      else target.scrollTop = top;
     },
     [paneA, paneB]
   );

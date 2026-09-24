@@ -357,8 +357,8 @@ export default function App() {
       const alignedTopB = paneB.current && targetB ? alignElement(paneB.current, targetB, behavior) : null;
       activeDriver.current = null;
       if (targetA && targetB) return;
-      if (syncScroll && alignedTopA !== null) syncPaneFrom('A', alignedTopA);
-      else if (syncScroll && alignedTopB !== null) syncPaneFrom('B', alignedTopB);
+      if (syncScroll && alignedTopA !== null) syncPaneFrom('A', alignedTopA, behavior);
+      else if (syncScroll && alignedTopB !== null) syncPaneFrom('B', alignedTopB, behavior);
     },
     [
       clearDiffActionPosition,

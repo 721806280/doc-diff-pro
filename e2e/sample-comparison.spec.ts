@@ -120,3 +120,41 @@ test('keeps one active document pane on mobile', async ({ page, isMobile }) => {
   await expect(revised).toHaveAttribute('aria-checked', 'true');
   await expect(page.locator('.view-dock-panel.mobile-pane-active')).toHaveCount(1);
 });
+
+/**
+ * Scroll sync writes the follower's `scrollTop` on every frame. When the panes
+ * carried `scroll-behavior: smooth`, each write restarted an animation: the
+ * follower fired several scroll events per driver event, fell hundreds of
+ * pixels behind, and slid on for most of a second after the reader stopped.
+ */
+test('keeps the follower pane in step with the scrolled pane', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Only one pane is visible below the mobile breakpoint');
+  await page.goto('./');
+  await page.locator('.local-processing-strip button').click();
+  await expect(page.locator('.floating-navigator')).toBeVisible({ timeout: 30_000 });
+
+  const panes = page.locator('.render-viewport');
+  await panes.evaluateAll((elements) => {
+    const counts = [0, 0];
+    elements.forEach((element, index) => element.addEventListener('scroll', () => counts[index]!++));
+    (window as unknown as { scrollCounts: number[] }).scrollCounts = counts;
+  });
+
+  const box = await panes.first().boundingBox();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  for (let step = 0; step < 8; step++) {
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(50);
+  }
+  await page.waitForTimeout(150);
+
+  const followerTop = () => panes.last().evaluate((element) => element.scrollTop);
+  const settledTop = await followerTop();
+  expect(settledTop).toBeGreaterThan(0);
+  // Nothing left animating once the reader has stopped.
+  await page.waitForTimeout(500);
+  expect(await followerTop()).toBe(settledTop);
+
+  const [driver, follower] = await page.evaluate(() => (window as unknown as { scrollCounts: number[] }).scrollCounts);
+  expect(follower).toBeLessThanOrEqual(driver! + 2);
+});

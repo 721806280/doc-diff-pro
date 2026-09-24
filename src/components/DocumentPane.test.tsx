@@ -1,6 +1,6 @@
 import { createEmptyGraphicsReport } from '@/services/docxGraphics';
 import { act, createRef } from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '@/i18n';
 import { createRenderRegistry } from '@/test-utils/renderReact';
 import { createEmptyLayoutNoise } from '@/utils/layoutNoise';
@@ -151,6 +151,34 @@ describe('DocumentPane', () => {
 
     expect(scrolled).toEqual(['A']);
     expect(activated).toEqual(['A', 'A', 'A', 'A']);
+  });
+
+  it('flags the viewport while it scrolls so hover feedback waits for it to settle', () => {
+    vi.useFakeTimers();
+    try {
+      const { host } = mountPane(true, emptyDocument());
+      const viewport = host.querySelector<HTMLElement>('.render-viewport')!;
+
+      act(() => {
+        viewport.dispatchEvent(new Event('scroll', { bubbles: true }));
+      });
+      expect(viewport.hasAttribute('data-scrolling')).toBe(true);
+
+      // Every further scroll event restarts the settle delay.
+      act(() => {
+        vi.advanceTimersByTime(100);
+        viewport.dispatchEvent(new Event('scroll', { bubbles: true }));
+        vi.advanceTimersByTime(100);
+      });
+      expect(viewport.hasAttribute('data-scrolling')).toBe(true);
+
+      act(() => {
+        vi.advanceTimersByTime(60);
+      });
+      expect(viewport.hasAttribute('data-scrolling')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('keeps the drop highlight active while dragging over the viewport', () => {
