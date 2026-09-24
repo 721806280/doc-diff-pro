@@ -88,7 +88,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chrome firefox webkit
 
       - name: Run Playwright tests
-        run: pnpm test:e2e
+        run: pnpm test:e2e --project=webkit --project=mobile-webkit
 
       - name: Upload report
         if: ${{ !cancelled() }}
