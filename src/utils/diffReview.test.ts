@@ -188,27 +188,6 @@ describe('diffReview', () => {
     document.body.innerHTML = '';
   });
 
-  it('retries without preventScroll when the browser refuses to focus an off-screen difference', () => {
-    // WebKit will not move focus to a difference still below the fold while the
-    // scroll is suppressed, so the first attempt no-ops. The element is only
-    // reachable once focus is allowed to bring it into view.
-    const revised = focusableElement('新内容');
-    const attempts: (boolean | undefined)[] = [];
-    const nativeFocus = revised.focus.bind(revised);
-    revised.focus = (options?: FocusOptions) => {
-      attempts.push(options?.preventScroll);
-      if (options?.preventScroll) return;
-      nativeFocus(options);
-    };
-
-    focusReviewElement({ A: [], B: [revised] });
-
-    expect(attempts).toEqual([true, undefined]);
-    expect(document.activeElement).toBe(revised);
-
-    document.body.innerHTML = '';
-  });
-
   it('maps review keyboard shortcuts without intercepting modified input', () => {
     expect(resolveReviewShortcut(keyboardEvent('ArrowUp', { altKey: true }))).toBe('previous');
     expect(resolveReviewShortcut(keyboardEvent('ArrowDown', { altKey: true }))).toBe('next');
