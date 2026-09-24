@@ -30,7 +30,10 @@ describe('sampleDocuments', () => {
   });
 
   it('rejects a missing sample document', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(null, { status: 404 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async () => new Response(null, { status: 404 }))
+    );
 
     await expect(loadSampleDocuments('/', { A: 'a.docx', B: 'b.docx' })).rejects.toThrow(
       'Could not load sample document'
@@ -40,7 +43,10 @@ describe('sampleDocuments', () => {
   it('rejects a response that is not a ZIP archive', async () => {
     // A dev server answering a missing file with an HTML page still returns 200,
     // so the status check alone would wrap the page as a docx.
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response('<!doctype html>')));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async () => new Response('<!doctype html>'))
+    );
 
     await expect(loadSampleDocuments('/', { A: 'a.docx', B: 'b.docx' })).rejects.toThrow('not a valid .docx archive');
   });
