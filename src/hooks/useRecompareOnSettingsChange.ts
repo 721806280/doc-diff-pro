@@ -1,12 +1,7 @@
 import { useEffect, useRef } from 'react';
-import type { UserSettings } from '@/config/userSettings';
+import type { ComparisonRules } from '@/config/userSettings';
 import type { DocumentPair } from '@/types/document';
 import { useLatestRef } from './useLatestRef';
-
-type ComparisonRules = Pick<
-  UserSettings,
-  'diffGranularity' | 'filterLayoutNoise' | 'ignoreFullHalfWidth' | 'ignoreSpaces'
->;
 
 type RecompareOnSettingsChangeOptions = {
   documents: DocumentPair;

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { DiffActionPosition } from '@/types/diff';
+import type { PaneSide } from '@/types/document';
 import type { DiffElementIndex } from '@/utils/diffElementIndex';
 import { type PlacementSize, resolveDiffActionPlacement } from '@/utils/diffActionPlacement';
 import { diffReviewId, selectReviewElement } from '@/utils/diffReview';
+import { useAnimationFrameRef } from './useAnimationFrameRef';
 import { useLatestRef } from './useLatestRef';
 
 /** Stand-in until the popover has rendered once and reported its real box. */
@@ -17,7 +19,7 @@ type DiffActionPositionOptions = {
   enabled: boolean;
   hasComparisonResult: boolean;
   indexVersion: number;
-  mobilePane: 'A' | 'B';
+  mobilePane: PaneSide;
   settingsOpen: boolean;
   diffIndex: RefObject<DiffElementIndex>;
   preferredElement: RefObject<HTMLElement | null>;
@@ -34,7 +36,7 @@ export function useDiffActionPosition({
   preferredElement
 }: DiffActionPositionOptions) {
   const [position, setPosition] = useState<DiffActionPosition | null>(null);
-  const frame = useRef<number | null>(null);
+  const frame = useAnimationFrameRef();
   const size = useRef<PlacementSize>(DEFAULT_SIZE);
 
   const update = useCallback(() => {
@@ -63,14 +65,13 @@ export function useDiffActionPosition({
   // navigation and only real size changes trigger a new slot search.
   const latestUpdate = useLatestRef(update);
   const schedule = useCallback(() => {
-    if (frame.current !== null) cancelAnimationFrame(frame.current);
-    frame.current = requestAnimationFrame(() => {
-      frame.current = null;
-      latestUpdate.current();
-    });
-  }, [latestUpdate]);
+    frame.schedule(() => latestUpdate.current());
+  }, [frame, latestUpdate]);
 
-  const clear = useCallback(() => setPosition(null), []);
+  const clear = useCallback(() => {
+    frame.cancel();
+    setPosition(null);
+  }, [frame]);
 
   /** The popover reports its rendered box so the next slot search uses real geometry. */
   const measure = useCallback(
@@ -85,10 +86,8 @@ export function useDiffActionPosition({
 
   useEffect(() => {
     schedule();
-    return () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current);
-    };
-  }, [currentDiff, enabled, hasComparisonResult, indexVersion, mobilePane, schedule, settingsOpen]);
+    return frame.cancel;
+  }, [currentDiff, enabled, frame, hasComparisonResult, indexVersion, mobilePane, schedule, settingsOpen]);
 
   return { position, schedule, measure, clear };
 }

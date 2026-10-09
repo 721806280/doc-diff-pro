@@ -1,4 +1,4 @@
-export type ScrollPaneKey = 'A' | 'B';
+import type { PaneSide } from '@/types/document';
 
 export type ScrollAnchor = {
   topA: number;
@@ -8,7 +8,7 @@ export type ScrollAnchor = {
 type AnchorTopKey = keyof ScrollAnchor;
 
 type SyncScrollOptions = {
-  sourceKey: ScrollPaneKey;
+  sourceKey: PaneSide;
   sourceTop: number;
   maxSourceTop: number;
   maxTargetTop: number;
@@ -65,7 +65,7 @@ export function findNextAnchorIndex(anchors: readonly ScrollAnchor[], key: Ancho
 }
 
 function resolveAnchoredTop(
-  sourceKey: ScrollPaneKey,
+  sourceKey: PaneSide,
   currentTop: number,
   maxSourceTop: number,
   maxTargetTop: number,

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
-import type { PaneSide } from '@/types/document';
+import { useCallback, useEffect, useLayoutEffect, type RefObject } from 'react';
+import { useTimeoutRef } from './useTimeoutRef';
 
 type ComparisonLayoutOptions = {
   paneA: RefObject<HTMLDivElement | null>;
@@ -9,12 +9,7 @@ type ComparisonLayoutOptions = {
   revisedHtml: string;
   rebuildResultIndex: () => void;
   remeasureResultIndex: () => void;
-  scheduleDiffActionUpdate: () => void;
-  syncPaneFrom: (side: PaneSide) => void;
-  syncScroll: boolean;
-  activeDriver: RefObject<PaneSide | null>;
-  syncInProgress: RefObject<boolean>;
-  scheduleSyncRelease: () => void;
+  onLayoutChange: () => void;
 };
 
 export function useComparisonLayout({
@@ -25,14 +20,9 @@ export function useComparisonLayout({
   revisedHtml,
   rebuildResultIndex,
   remeasureResultIndex,
-  scheduleDiffActionUpdate,
-  syncPaneFrom,
-  syncScroll,
-  activeDriver,
-  syncInProgress,
-  scheduleSyncRelease
+  onLayoutChange
 }: ComparisonLayoutOptions) {
-  const layoutTimer = useRef<number | null>(null);
+  const layoutTimer = useTimeoutRef();
 
   const refresh = useCallback(() => {
     if (!hasComparisonResult) return;
@@ -40,31 +30,13 @@ export function useComparisonLayout({
     // positions without rebuilding the index or bumping the version — bumping it
     // would re-align the viewport onto the current diff and fight the user.
     remeasureResultIndex();
-    scheduleDiffActionUpdate();
-    if (syncScroll && activeDriver.current) {
-      syncInProgress.current = true;
-      syncPaneFrom(activeDriver.current);
-      scheduleSyncRelease();
-    }
-  }, [
-    activeDriver,
-    hasComparisonResult,
-    remeasureResultIndex,
-    scheduleDiffActionUpdate,
-    scheduleSyncRelease,
-    syncInProgress,
-    syncPaneFrom,
-    syncScroll
-  ]);
+    onLayoutChange();
+  }, [hasComparisonResult, onLayoutChange, remeasureResultIndex]);
 
   const scheduleRefresh = useCallback(() => {
     if (!hasComparisonResult) return;
-    if (layoutTimer.current !== null) window.clearTimeout(layoutTimer.current);
-    layoutTimer.current = window.setTimeout(() => {
-      layoutTimer.current = null;
-      refresh();
-    }, 120);
-  }, [hasComparisonResult, refresh]);
+    layoutTimer.set(refresh, 120);
+  }, [hasComparisonResult, layoutTimer, refresh]);
 
   // Navigation is visible as soon as the result renders. Index and label the
   // differences before paint so input cannot arrive before they are focusable.
@@ -81,21 +53,11 @@ export function useComparisonLayout({
       const content = pane.querySelector<HTMLElement>('.docx-render-content');
       if (content) observer.observe(content);
     });
-    const handleResize = () => scheduleRefresh();
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', scheduleRefresh);
     return () => {
       observer?.disconnect();
-      if (layoutTimer.current !== null) {
-        window.clearTimeout(layoutTimer.current);
-        layoutTimer.current = null;
-      }
-      window.removeEventListener('resize', handleResize);
+      layoutTimer.clear();
+      window.removeEventListener('resize', scheduleRefresh);
     };
-  }, [hasComparisonResult, originalHtml, paneA, paneB, revisedHtml, scheduleRefresh]);
-
-  useEffect(() => {
-    if (!syncScroll || !hasComparisonResult) return;
-    const frame = requestAnimationFrame(() => syncPaneFrom('A'));
-    return () => cancelAnimationFrame(frame);
-  }, [hasComparisonResult, syncPaneFrom, syncScroll]);
+  }, [hasComparisonResult, layoutTimer, originalHtml, paneA, paneB, revisedHtml, scheduleRefresh]);
 }

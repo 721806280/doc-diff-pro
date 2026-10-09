@@ -1,7 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PaneSide } from '@/types/document';
 import { useComparisonLayout } from './useComparisonLayout';
 
 type ObserverRecord = { targets: Element[]; disconnected: boolean; trigger: () => void };
@@ -39,24 +38,18 @@ function buildPane(): HTMLDivElement {
   return pane;
 }
 
-function mountLayout(
-  overrides: Partial<{ hasComparisonResult: boolean; syncScroll: boolean; driver: PaneSide | null }> = {}
-) {
+function mountLayout(overrides: Partial<{ hasComparisonResult: boolean }> = {}) {
   const paneA = createRef<HTMLDivElement>() as { current: HTMLDivElement | null };
   const paneB = createRef<HTMLDivElement>() as { current: HTMLDivElement | null };
   paneA.current = buildPane();
   paneB.current = buildPane();
 
-  const activeDriver = { current: overrides.driver ?? null };
-  const syncInProgress = { current: false };
   const rebuildResultIndex = vi.fn();
   const remeasureResultIndex = vi.fn();
-  const scheduleDiffActionUpdate = vi.fn();
-  const syncPaneFrom = vi.fn();
-  const scheduleSyncRelease = vi.fn();
+  const onLayoutChange = vi.fn();
 
   const view = renderHook(
-    (props: { hasComparisonResult: boolean; syncScroll: boolean; originalHtml: string; revisedHtml: string }) =>
+    (props: { hasComparisonResult: boolean; originalHtml: string; revisedHtml: string }) =>
       useComparisonLayout({
         paneA,
         paneB,
@@ -65,17 +58,11 @@ function mountLayout(
         revisedHtml: props.revisedHtml,
         rebuildResultIndex,
         remeasureResultIndex,
-        scheduleDiffActionUpdate,
-        syncPaneFrom,
-        syncScroll: props.syncScroll,
-        activeDriver,
-        syncInProgress,
-        scheduleSyncRelease
+        onLayoutChange
       }),
     {
       initialProps: {
         hasComparisonResult: overrides.hasComparisonResult ?? true,
-        syncScroll: overrides.syncScroll ?? true,
         originalHtml: '<p>a</p>',
         revisedHtml: '<p>b</p>'
       }
@@ -86,13 +73,9 @@ function mountLayout(
     ...view,
     paneA,
     paneB,
-    activeDriver,
-    syncInProgress,
     rebuildResultIndex,
     remeasureResultIndex,
-    scheduleDiffActionUpdate,
-    syncPaneFrom,
-    scheduleSyncRelease
+    onLayoutChange
   };
 }
 
@@ -151,22 +134,6 @@ describe('useComparisonLayout', () => {
     expect(view.rebuildResultIndex).not.toHaveBeenCalled();
   });
 
-  it('aligns pane B to pane A once a result is available', () => {
-    const view = mountLayout();
-
-    flushFrames();
-
-    expect(view.syncPaneFrom).toHaveBeenCalledWith('A');
-  });
-
-  it('skips the initial alignment when sync scrolling is off', () => {
-    const view = mountLayout({ syncScroll: false });
-
-    flushFrames();
-
-    expect(view.syncPaneFrom).not.toHaveBeenCalled();
-  });
-
   it('debounces a resize into a single geometry remeasure', () => {
     const view = mountLayout();
     flushFrames();
@@ -184,7 +151,10 @@ describe('useComparisonLayout', () => {
     });
 
     expect(view.remeasureResultIndex).toHaveBeenCalledTimes(1);
-    expect(view.scheduleDiffActionUpdate).toHaveBeenCalled();
+    expect(view.onLayoutChange).toHaveBeenCalledTimes(1);
+    expect(view.remeasureResultIndex.mock.invocationCallOrder[0]).toBeLessThan(
+      view.onLayoutChange.mock.invocationCallOrder[0]!
+    );
   });
 
   it('does not rebuild the index on a resize', () => {
@@ -217,37 +187,23 @@ describe('useComparisonLayout', () => {
     expect(view.remeasureResultIndex).toHaveBeenCalledTimes(1);
   });
 
-  it('re-aligns from the driving pane after a resize', () => {
-    const view = mountLayout({ driver: 'B' });
-    flushFrames();
-    view.syncPaneFrom.mockClear();
+  it('discards a pending resize when the comparison is cleared', () => {
+    const view = mountLayout();
 
     act(() => {
       observers[0]?.trigger();
+    });
+    view.rerender({
+      hasComparisonResult: false,
+      originalHtml: '',
+      revisedHtml: ''
     });
     act(() => {
       vi.advanceTimersByTime(120);
     });
 
-    expect(view.syncPaneFrom).toHaveBeenCalledWith('B');
-    expect(view.syncInProgress.current).toBe(true);
-    expect(view.scheduleSyncRelease).toHaveBeenCalled();
-  });
-
-  it('does not re-align after a resize when no pane is driving', () => {
-    const view = mountLayout({ driver: null });
-    flushFrames();
-    view.syncPaneFrom.mockClear();
-
-    act(() => {
-      observers[0]?.trigger();
-    });
-    act(() => {
-      vi.advanceTimersByTime(120);
-    });
-
-    expect(view.syncPaneFrom).not.toHaveBeenCalled();
-    expect(view.syncInProgress.current).toBe(false);
+    expect(view.remeasureResultIndex).not.toHaveBeenCalled();
+    expect(view.onLayoutChange).not.toHaveBeenCalled();
   });
 
   it('re-observes when the rendered markup changes', () => {
@@ -255,7 +211,6 @@ describe('useComparisonLayout', () => {
 
     view.rerender({
       hasComparisonResult: true,
-      syncScroll: true,
       originalHtml: '<p>changed</p>',
       revisedHtml: '<p>b</p>'
     });

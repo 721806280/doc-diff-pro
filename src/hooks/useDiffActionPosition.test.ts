@@ -205,14 +205,18 @@ describe('useDiffActionPosition', () => {
     expect(view.result.current.position).toEqual({ top: 377, left: 250, side: 'above', arrow: 95 });
   });
 
-  it('drops the position when cleared', () => {
+  it('keeps the popover cleared even when an update was already scheduled', () => {
     const { index } = buildScene({ top: 300, left: 200, width: 100, height: 20 });
     const view = mountPosition(index);
 
     flushFrames();
     expect(view.result.current.position).not.toBeNull();
 
-    act(() => view.result.current.clear());
+    act(() => {
+      view.result.current.schedule();
+      view.result.current.clear();
+    });
+    flushFrames();
 
     expect(view.result.current.position).toBeNull();
   });

@@ -21,6 +21,7 @@ import { useDiffActionPosition } from '@/hooks/useDiffActionPosition';
 import { useDocumentSession } from '@/hooks/useDocumentSession';
 import type { DocDiffProState, ExternalDocumentMeta } from '@/services/externalDocumentApi';
 import { useBindLatest, useLatestRef } from '@/hooks/useLatestRef';
+import { usePaneScrollSync } from '@/hooks/usePaneScrollSync';
 import { useRecompareOnSettingsChange } from '@/hooks/useRecompareOnSettingsChange';
 import { useReviewShortcuts } from '@/hooks/useReviewShortcuts';
 import { useReviewSummary } from '@/hooks/useReviewSummary';
@@ -40,8 +41,6 @@ import {
   setReviewClass
 } from '@/utils/diffReview';
 import { applyThemeVariables, clearThemeVariables, getThemeStyle } from '@/utils/themeColor';
-
-type Side = PaneSide;
 
 /** Fraction of the viewport height kept above a focused difference. */
 const FOCUS_VIEWPORT_OFFSET = 0.28;
@@ -65,17 +64,14 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [currentDiff, setCurrentDiff] = useState(0);
-  const [mobilePane, setMobilePane] = useState<Side>('A');
+  const [mobilePane, setMobilePane] = useState<PaneSide>('A');
   const [ignoredDiffs, setIgnoredDiffs] = useState<Map<string, IgnoredDiffItem>>(new Map());
   const [similarOpen, setSimilarOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
   const settingsResetNotice = useTimeoutRef();
-  const syncReleaseFrame = useAnimationFrameRef();
   const mobilePaneFrame = useAnimationFrameRef();
   const paneA = useRef<HTMLDivElement>(null);
   const paneB = useRef<HTMLDivElement>(null);
-  const syncInProgress = useRef(false);
-  const activeDriver = useRef<Side | null>(null);
   const preferredDiffActionElement = useRef<HTMLElement | null>(null);
   const latestCurrentDiff = useLatestRef(currentDiff);
   const latestImagePreview = useLatestRef(imagePreview);
@@ -96,12 +92,10 @@ export default function App() {
   const resetTableHintRef = useRef<() => void>(() => undefined);
 
   const {
-    diffGranularity: granularity,
     themeColor,
     appearanceMode: appearance,
     ignoreSpaces,
     ignoreFullHalfWidth: ignoreWidth,
-    filterLayoutNoise: filterLayout,
     syncScroll,
     showTableHints,
     showDiffMap,
@@ -121,12 +115,6 @@ export default function App() {
     resetTableHintRef.current();
     clearDiffActionPositionRef.current();
   }, []);
-
-  const scheduleSyncRelease = useCallback(() => {
-    syncReleaseFrame.schedule(() => {
-      syncInProgress.current = false;
-    });
-  }, [syncReleaseFrame]);
 
   useEffect(() => {
     document.title = i18n.app.documentTitle;
@@ -187,12 +175,7 @@ export default function App() {
       documents,
       i18n,
       ready,
-      rules: {
-        diffGranularity: granularity,
-        filterLayoutNoise: filterLayout,
-        ignoreFullHalfWidth: ignoreWidth,
-        ignoreSpaces
-      },
+      rules: settings,
       setDocuments,
       onClearReviewState: clearReviewState,
       onResult: handleComparisonResult,
@@ -239,6 +222,12 @@ export default function App() {
     clear: clearResultIndex
   } = useComparisonResultIndex({ paneA, paneB, total: summary.total, labelDiff });
   const {
+    activate: onPaneActivate,
+    onScroll: syncPaneScroll,
+    refresh: refreshPaneSync,
+    reset: resetPaneSync
+  } = usePaneScrollSync({ enabled: syncScroll && hasComparisonResult, syncPaneFrom });
+  const {
     position: diffActionPosition,
     schedule: scheduleDiffActionUpdate,
     measure: measureDiffAction,
@@ -273,12 +262,12 @@ export default function App() {
 
   const comparisonClear = useCallback(() => {
     clearResultIndex();
-    activeDriver.current = null;
+    resetPaneSync();
     clearComparison();
     setCurrentDiff(0);
     setMobilePane('A');
     externalEmit('cleared', { meta: externalMetaRef.current });
-  }, [clearComparison, clearResultIndex, externalEmit]);
+  }, [clearComparison, clearResultIndex, externalEmit, resetPaneSync]);
 
   useBindLatest(clearDiffActionPositionRef, clearDiffActionPosition);
   useBindLatest(comparisonClearRef, comparisonClear);
@@ -307,16 +296,16 @@ export default function App() {
   useRecompareOnSettingsChange({
     documents,
     ready,
-    rules: {
-      diffGranularity: granularity,
-      filterLayoutNoise: filterLayout,
-      ignoreFullHalfWidth: ignoreWidth,
-      ignoreSpaces
-    },
+    rules: settings,
     notice: i18n.app.notices.settingsUpdated,
     onCompare: runCompare,
     onNotice: setNotice
   });
+
+  const onComparisonLayoutChange = useCallback(() => {
+    scheduleDiffActionUpdate();
+    refreshPaneSync();
+  }, [refreshPaneSync, scheduleDiffActionUpdate]);
 
   useComparisonLayout({
     paneA,
@@ -326,12 +315,7 @@ export default function App() {
     revisedHtml: documents.B.highlightedHtml,
     rebuildResultIndex,
     remeasureResultIndex,
-    scheduleDiffActionUpdate,
-    syncPaneFrom,
-    syncScroll,
-    activeDriver,
-    syncInProgress,
-    scheduleSyncRelease
+    onLayoutChange: onComparisonLayoutChange
   });
 
   const focusDiff = useCallback(
@@ -352,10 +336,11 @@ export default function App() {
       const targetA = firstReviewElement(group, 'A');
       const targetB = firstReviewElement(group, 'B');
       resolveTableHintFor(index, group);
+      scheduleDiffActionUpdate();
       if (!scroll) return;
       const alignedTopA = paneA.current && targetA ? alignElement(paneA.current, targetA, behavior) : null;
       const alignedTopB = paneB.current && targetB ? alignElement(paneB.current, targetB, behavior) : null;
-      activeDriver.current = null;
+      resetPaneSync();
       if (targetA && targetB) return;
       if (syncScroll && alignedTopA !== null) syncPaneFrom('A', alignedTopA, behavior);
       else if (syncScroll && alignedTopB !== null) syncPaneFrom('B', alignedTopB, behavior);
@@ -366,6 +351,8 @@ export default function App() {
       diffIndex,
       latestImagePreview,
       resolveTableHintFor,
+      resetPaneSync,
+      scheduleDiffActionUpdate,
       syncPaneFrom,
       syncScroll
     ]
@@ -411,15 +398,14 @@ export default function App() {
       const index = diffReviewIndex(id);
       setCurrentDiff(index);
       focusDiff(index, 'smooth', target, !(event.target instanceof HTMLImageElement));
-      scheduleDiffActionUpdate();
       showTableHint();
     },
-    [focusDiff, scheduleDiffActionUpdate, showTableHint]
+    [focusDiff, showTableHint]
   );
 
   const onImagePreview = useCallback(
-    (side: Side, image: HTMLImageElement): void => {
-      activeDriver.current = null;
+    (side: PaneSide, image: HTMLImageElement): void => {
+      resetPaneSync();
       // Stop pending smooth scrolling before opening the viewer.
       for (const pane of [paneA.current, paneB.current]) {
         pane?.scrollTo({ top: pane.scrollTop, left: pane.scrollLeft, behavior: 'instant' });
@@ -433,24 +419,17 @@ export default function App() {
         )
       );
     },
-    [comparing, hasComparisonResult]
+    [comparing, hasComparisonResult, resetPaneSync]
   );
 
   const onPaneScroll = useCallback(
-    (side: Side): void => {
+    (side: PaneSide): void => {
       if (latestImagePreview.current) return;
       scheduleDiffActionUpdate();
-      if (!syncScroll || syncInProgress.current || !hasComparisonResult || activeDriver.current !== side) return;
-      syncInProgress.current = true;
-      syncPaneFrom(side);
-      scheduleSyncRelease();
+      syncPaneScroll(side);
     },
-    [hasComparisonResult, latestImagePreview, scheduleDiffActionUpdate, scheduleSyncRelease, syncPaneFrom, syncScroll]
+    [latestImagePreview, scheduleDiffActionUpdate, syncPaneScroll]
   );
-
-  const onPaneActivate = useCallback((side: Side): void => {
-    activeDriver.current = side;
-  }, []);
 
   useReviewShortcuts({
     enabled: !settingsOpen && !similarOpen,
@@ -465,14 +444,14 @@ export default function App() {
   });
 
   const changeMobilePane = useCallback(
-    (side: Side): void => {
+    (side: PaneSide): void => {
       setMobilePane(side);
-      activeDriver.current = side;
+      onPaneActivate(side);
       mobilePaneFrame.schedule(() => {
         if (latestCurrentDiff.current > 0) focusDiff(latestCurrentDiff.current, 'auto');
       });
     },
-    [focusDiff, latestCurrentDiff, mobilePaneFrame]
+    [focusDiff, latestCurrentDiff, mobilePaneFrame, onPaneActivate]
   );
 
   // Deferred so the notice lands after the settings panel has finished
