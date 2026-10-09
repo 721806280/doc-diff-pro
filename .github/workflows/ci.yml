@@ -67,6 +67,9 @@ jobs:
   e2e:
     name: End-to-end
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DEBUG: pw:webserver
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -88,14 +91,18 @@ jobs:
         run: pnpm exec playwright install --with-deps chrome firefox webkit
 
       - name: Run Playwright tests
+        timeout-minutes: 20
         run: pnpm test:e2e
 
       - name: Upload report
-        if: ${{ !cancelled() }}
+        if: ${{ always() }}
+        timeout-minutes: 3
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7
 
   deploy:
