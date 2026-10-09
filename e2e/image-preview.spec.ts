@@ -115,6 +115,9 @@ test('links zoom and pan between paired images', async ({ page }) => {
   const a = previewImage(page, 'A');
   const b = previewImage(page, 'B');
   const canvas = page.locator('.image-preview-canvas[data-side="A"]');
+  // Wait for the image controls and establish the fitted size before measuring
+  // the zoom baseline; a freshly mounted image can still be at its natural size.
+  await page.getByRole('button', { name: '适应窗口', exact: true }).click();
   const initial = (await a.boundingBox())!;
   for (let index = 0; index < 4; index++) await page.getByRole('button', { name: '放大', exact: true }).click();
   await expect.poll(async () => (await a.boundingBox())!.width).toBeGreaterThan(initial.width * 2);
