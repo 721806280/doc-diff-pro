@@ -6,6 +6,14 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+    inputs:
+      e2e_scope:
+        description: Browser test scope (diagnostics never deploys)
+        type: choice
+        default: full
+        options:
+          - full
+          - webkit-diagnostics
 
 permissions:
   contents: read
@@ -17,6 +25,7 @@ concurrency:
 jobs:
   verify:
     name: Format, lint, typecheck, test, build
+    if: github.event_name != 'workflow_dispatch' || inputs.e2e_scope != 'webkit-diagnostics'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -69,6 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
+      E2E_SCOPE: ${{ inputs.e2e_scope || 'full' }}
       DEBUG: pw:webserver
     steps:
       - name: Checkout
@@ -88,11 +98,28 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chrome firefox webkit
+        run: |
+          if [ "$E2E_SCOPE" = "webkit-diagnostics" ]; then
+            pnpm exec playwright install --with-deps webkit
+          else
+            pnpm exec playwright install --with-deps chrome firefox webkit
+          fi
+
+      - name: Check Playwright server shutdown
+        if: inputs.e2e_scope == 'webkit-diagnostics'
+        timeout-minutes: 2
+        run: pnpm test:e2e e2e/image-fingerprint.spec.ts --project=webkit
 
       - name: Run Playwright tests
-        timeout-minutes: 20
-        run: pnpm test:e2e
+        timeout-minutes: ${{ inputs.e2e_scope == 'webkit-diagnostics' && 5 || 20 }}
+        run: |
+          if [ "$E2E_SCOPE" = "webkit-diagnostics" ]; then
+            pnpm test:e2e e2e/difference-review.spec.ts e2e/sample-comparison.spec.ts \
+              --project=webkit --project=mobile-webkit \
+              --grep 'steps through differences|keeps the follower pane'
+          else
+            pnpm test:e2e
+          fi
 
       - name: Upload report
         if: ${{ always() }}
@@ -108,7 +135,7 @@ jobs:
   deploy:
     name: Deploy verified site
     needs: [verify, e2e]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && inputs.e2e_scope != 'webkit-diagnostics'
     permissions:
       contents: read
       pages: write
