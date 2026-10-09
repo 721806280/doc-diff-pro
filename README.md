@@ -201,6 +201,8 @@ Install the browser test engines with `pnpm exec playwright install chrome firef
 
 `pnpm format` rewrites files with Prettier. CI runs these checks on every pull request, with coverage thresholds for unit tests. Pushes to `main` and manual CI runs on `main` deploy only after both verification and browser tests pass. Pages publishes the build artifact from that same run; `build-info.json` records its version and commit.
 
+For a short Linux WebKit investigation, run the CI workflow manually with `e2e_scope=webkit-diagnostics`. This mode checks server shutdown with one small test, then runs the keyboard-focus and scroll-sync regressions on desktop and mobile WebKit. It skips the build and never deploys; pushes and pull requests still run the full suite. Reports and raw traces are uploaded even after a failure or cancellation, and time limits bound both tests and job cleanup.
+
 Formatting was applied to the whole repository in a single commit. Run this once so `git blame` skips it:
 
 ```bash

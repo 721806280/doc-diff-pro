@@ -201,6 +201,8 @@ pnpm build
 
 `pnpm format` 使用 Prettier 格式化文件。CI 在每个 PR 上执行这些检查，并校验单测覆盖率。推送到 `main` 或在 `main` 上手动执行 CI 时，只有验证和浏览器测试均通过后才部署；Pages 直接发布同一次运行的构建产物，`build-info.json` 记录对应版本和提交。
 
+排查 Linux WebKit 时，可手动运行 CI 并选择 `e2e_scope=webkit-diagnostics`：先用一个小用例检查服务器是否正常退出，再运行桌面和移动端 WebKit 的键盘焦点、滚动同步回归用例。该模式跳过构建且不会部署；推送和 PR 仍执行完整检查。失败或取消时也会上传报告和原始 trace，测试步骤与任务均设有执行时限。
+
 完成构建后可本地预览：
 
 ```bash

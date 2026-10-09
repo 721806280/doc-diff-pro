@@ -7,6 +7,7 @@ const webkitTimeout = process.platform === 'linux' ? 60_000 : 30_000;
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
+  globalTimeout: process.env.CI ? 15 * 60_000 : undefined,
   expect: { timeout: 10_000 },
   fullyParallel: true,
   // `list` keeps the console readable; `html` leaves behind playwright-report/
@@ -18,9 +19,11 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   webServer: {
-    command: 'pnpm dev --host 127.0.0.1',
+    // Launch Vite directly so its process and output streams are closed when
+    // Playwright terminates the server's process group during teardown.
+    command: 'node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort',
     url: 'http://127.0.0.1:5173/doc-diff-pro/',
-    reuseExistingServer: true
+    reuseExistingServer: !process.env.CI
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome' } },
