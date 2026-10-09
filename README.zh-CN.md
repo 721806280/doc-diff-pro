@@ -211,7 +211,7 @@ pnpm preview
 
 ## 🔧 技术说明
 
-- 📦 DOCX 转换使用 npm 别名 `mammoth@npm:@xm721806280/mammoth`，当前基于 `1.12.2-rc3`；生成的 HTML 会通过 DOMPurify 清洗。
+- 📦 DOCX 转换使用 npm 别名 `mammoth@npm:@xm721806280/mammoth`；生成的 HTML 会通过 DOMPurify 清洗。依赖版本以 `package.json` 和 `pnpm-lock.yaml` 为准。
 - 🧾 页眉页脚随文档解析，转换为版面线索，并从最终展示正文中排除。
 - 🧮 文本差异由 diff-match-patch 在 Web Worker 中计算；长时间未完成的请求会超时。
 - 🧯 不支持 Worker 时可回退到主线程，但会先检查文本长度，避免大文档长时间阻塞界面。
@@ -220,6 +220,9 @@ pnpm preview
 - 🧹 版面干扰识别集中在 `src/utils/layoutNoise.ts`。
 - 📋 表格结构诊断集中在 `src/utils/tableStructureHint.ts`。
 - 🙈 差异忽略和相似差异评分集中在 `src/utils/diffReview.ts`。
+- 🪟 `useComparisonLayout` 在首次绘制前构建差异索引，尺寸变化时只重新测量几何信息；`usePaneScrollSync` 统一管理主动滚动面板和同步循环保护，布局与导航通过方法调用协作，不共享可变的滚动状态。
+- 🖼️ 图片缩放、平移、旋转翻转及双图联动运算集中在 `src/utils/imageViewport.ts` 的纯函数中；`ImagePreviewModal` 负责 DOM 交互、图片加载和渲染。
+- ⏱️ 可取消的界面任务由 `useAnimationFrameRef` 和 `useTimeoutRef` 管理；清空视图时取消过期任务，导航时明确调度下一次测量。
 - 🎨 主题 token 集中在 `src/utils/themeColor.ts`，界面文案集中在 `src/i18n/`。
 
 ## 📜 开源许可

@@ -217,7 +217,7 @@ pnpm preview
 
 ## 🔧 How It Works
 
-- 📦 DOCX conversion uses the npm alias `mammoth@npm:@xm721806280/mammoth`, currently based on `1.12.2-rc3`; generated HTML is sanitized with DOMPurify.
+- 📦 DOCX conversion uses the npm alias `mammoth@npm:@xm721806280/mammoth`; generated HTML is sanitized with DOMPurify. Dependency versions are recorded in `package.json` and `pnpm-lock.yaml`.
 - 🧾 Headers and footers are parsed with the document, converted into layout hints, and excluded from the displayed body.
 - 🧮 Text differences are computed by diff-match-patch in a Web Worker; long-running requests time out.
 - 🧯 Environments without Worker support can fall back to the main thread after a text-size safety check.
@@ -226,6 +226,9 @@ pnpm preview
 - 🧹 Layout noise detection lives in `src/utils/layoutNoise.ts`.
 - 📋 Table structure diagnosis lives in `src/utils/tableStructureHint.ts`.
 - 🙈 Difference ignore behavior and similar-difference scoring live in `src/utils/diffReview.ts`.
+- 🪟 `useComparisonLayout` builds the difference index before paint and only remeasures geometry on resize. `usePaneScrollSync` owns the driving pane and scroll feedback guard; layout and navigation call its methods without sharing mutable scroll state.
+- 🖼️ Image zoom, pan, orientation, and linked-view calculations live in `src/utils/imageViewport.ts` as pure functions. `ImagePreviewModal` handles DOM input, image loading, and rendering.
+- ⏱️ `useAnimationFrameRef` and `useTimeoutRef` manage cancellable UI work. Clearing a view cancels obsolete work, and navigation explicitly schedules its next measurement.
 - 🎨 Theme tokens live in `src/utils/themeColor.ts`, and interface strings live in `src/i18n/`.
 
 ## 📜 License
