@@ -207,6 +207,31 @@ describe('React app workflow', () => {
     expect(host.querySelector('[data-diff-id="diff-2"]')?.classList).toContain('focus-diff');
   });
 
+  it('focuses keyboard navigation before the first animation frame after comparison', async () => {
+    // Linux WebKit can deliver keyboard input before the next animation frame.
+    // Navigation must already have indexed, focusable differences at that point.
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn(() => 1)
+    );
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    mocks.parseDocx.mockResolvedValueOnce(parsed('<p>baseline</p>')).mockResolvedValueOnce(parsed('<p>revised</p>'));
+    mocks.compareDocuments.mockResolvedValueOnce(comparisonWithDiffs());
+    renderApp();
+    await selectFile(0, new File(['a'], 'baseline.docx'));
+    await selectFile(1, new File(['b'], 'revised.docx'));
+    await act(async () => vi.dynamicImportSettled());
+    expect(host.querySelector('.floating-navigator')).not.toBeNull();
+
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, cancelable: true }))
+    );
+
+    expect(document.activeElement?.getAttribute('data-diff-id')).toBe('diff-2');
+    expect(document.activeElement?.classList).toContain('focus-diff');
+    expect(document.activeElement?.getAttribute('aria-label')).toContain('2');
+  });
+
   it('adds and removes the table structure marker used by the hint icon', async () => {
     mocks.parseDocx.mockResolvedValueOnce(parsed('<p>baseline</p>')).mockResolvedValueOnce(parsed('<p>revised</p>'));
     mocks.compareDocuments.mockResolvedValueOnce(tableComparison());

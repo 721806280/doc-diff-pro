@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import type { PaneSide } from '@/types/document';
 
 type ComparisonLayoutOptions = {
@@ -66,9 +66,14 @@ export function useComparisonLayout({
     }, 120);
   }, [hasComparisonResult, refresh]);
 
+  // Navigation is visible as soon as the result renders. Index and label the
+  // differences before paint so input cannot arrive before they are focusable.
+  useLayoutEffect(() => {
+    if (hasComparisonResult) rebuildResultIndex();
+  }, [hasComparisonResult, originalHtml, rebuildResultIndex, revisedHtml]);
+
   useEffect(() => {
     if (!hasComparisonResult) return;
-    const frame = requestAnimationFrame(rebuildResultIndex);
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleRefresh);
     [paneA.current, paneB.current].forEach((pane) => {
       if (!pane || !observer) return;
@@ -79,7 +84,6 @@ export function useComparisonLayout({
     const handleResize = () => scheduleRefresh();
     window.addEventListener('resize', handleResize);
     return () => {
-      cancelAnimationFrame(frame);
       observer?.disconnect();
       if (layoutTimer.current !== null) {
         window.clearTimeout(layoutTimer.current);
@@ -87,7 +91,7 @@ export function useComparisonLayout({
       }
       window.removeEventListener('resize', handleResize);
     };
-  }, [hasComparisonResult, originalHtml, paneA, paneB, rebuildResultIndex, revisedHtml, scheduleRefresh]);
+  }, [hasComparisonResult, originalHtml, paneA, paneB, revisedHtml, scheduleRefresh]);
 
   useEffect(() => {
     if (!syncScroll || !hasComparisonResult) return;
