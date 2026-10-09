@@ -189,17 +189,6 @@ export function focusReviewElement(group: DiffElementGroup | undefined, preferre
     // to the other side rather than leave focus where it was.
     if (document.activeElement === element) return;
   }
-
-  // WebKit refuses to move focus to a difference still below the fold when the
-  // scroll is suppressed, so every `preventScroll` attempt above quietly leaves
-  // focus on `<body>`. Navigation has already asked the panes to scroll the
-  // difference into view, so retry without suppressing it: the fallback only
-  // runs once the preferred path has failed, which keeps the aligned pane-sync
-  // scroll on the browsers that honour it.
-  for (const element of candidates) {
-    element.focus();
-    if (document.activeElement === element) return;
-  }
 }
 
 function isOnScreen(element: HTMLElement): boolean {

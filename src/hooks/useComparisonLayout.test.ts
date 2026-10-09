@@ -126,13 +126,13 @@ describe('useComparisonLayout', () => {
     });
   };
 
-  it('rebuilds the index on the first animation frame', () => {
+  it('indexes the result before animation frames are delivered', () => {
     const view = mountLayout();
 
-    expect(view.rebuildResultIndex).not.toHaveBeenCalled();
+    expect(view.rebuildResultIndex).toHaveBeenCalledTimes(1);
     flushFrames();
 
-    expect(view.rebuildResultIndex).toHaveBeenCalled();
+    expect(view.rebuildResultIndex).toHaveBeenCalledTimes(1);
   });
 
   it('observes both panes and their rendered content', () => {
