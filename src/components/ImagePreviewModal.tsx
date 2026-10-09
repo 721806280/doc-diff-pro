@@ -5,52 +5,29 @@ import { useLatestRef } from '@/hooks/useLatestRef';
 import { useI18n } from '@/i18n';
 import type { PaneSide } from '@/types/document';
 import type { ImagePreview, PreviewImage } from '@/utils/imagePreview';
+import {
+  EMPTY_IMAGE_SIZE,
+  FIT_IMAGE_VIEW,
+  MAX_IMAGE_SCALE,
+  fitScale,
+  linkImageViews,
+  orientedSize,
+  orientImageViews,
+  panImageViews,
+  resolveView,
+  zoomImageViews,
+  type ImagePoint,
+  type ImageSize,
+  type ImageViews,
+  type OrientationAction,
+  type ResolvedImageView
+} from '@/utils/imageViewport';
 
-type Size = { width: number; height: number };
-type Point = { x: number; y: number };
-type ImageView = Point & { scale: number | null; rotation: number; flipX: boolean; flipY: boolean };
-type ResolvedView = ImageView & { scale: number };
-type OrientationAction = 'left' | 'right' | 'horizontal' | 'vertical';
-
-const FIT: ImageView = { scale: null, x: 0.5, y: 0.5, rotation: 0, flipX: false, flipY: false };
-const EMPTY_SIZE: Size = { width: 0, height: 0 };
-const MAX_SCALE = 8;
-const CANVAS_PADDING = 24;
 const NARROW_QUERY = '(max-width: 760px)';
 const SIDES: PaneSide[] = ['A', 'B'];
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
-}
-
-function orientedSize(image: Size | null, rotation: number): Size {
-  if (!image) return EMPTY_SIZE;
-  return rotation % 180 === 0 ? image : { width: image.height, height: image.width };
-}
-
-function fitScale(image: Size | null, viewport: Size, rotation: number): number {
-  const { width, height } = orientedSize(image, rotation);
-  if (!width || !height || !viewport.width || !viewport.height) return 1;
-  return Math.max(
-    0.001,
-    Math.min(1, (viewport.width - CANVAS_PADDING * 2) / width, (viewport.height - CANVAS_PADDING * 2) / height)
-  );
-}
-
-function resolveView(view: ImageView, image: Size | null, viewport: Size): ResolvedView {
-  const fit = fitScale(image, viewport, view.rotation);
-  const scale = Math.max(fit, view.scale ?? fit);
-  const { width, height } = orientedSize(image, view.rotation);
-  const limit = (length: number, available: number) =>
-    length > 0 ? Math.max(0, (length - available + CANVAS_PADDING * 2) / (2 * length)) : 0;
-  const limitX = limit(width * scale, viewport.width);
-  const limitY = limit(height * scale, viewport.height);
-  return {
-    ...view,
-    scale,
-    x: clamp(view.x, 0.5 - limitX, 0.5 + limitX),
-    y: clamp(view.y, 0.5 - limitY, 0.5 + limitY)
-  };
 }
 
 export default function ImagePreviewModal({
@@ -66,14 +43,14 @@ export default function ImagePreviewModal({
   const copy = i18n.imagePreview;
   const panel = useRef<HTMLElement>(null);
   const canvases = useRef<Record<PaneSide, HTMLDivElement | null>>({ A: null, B: null });
-  const pointers = useRef(new Map<number, Point & { side: PaneSide }>());
+  const pointers = useRef(new Map<number, ImagePoint & { side: PaneSide }>());
   const [images, setImages] = useState(preview.images);
   const [loadState, setLoadState] = useState<Record<PaneSide, 'loading' | 'ready' | 'error'>>({
     A: 'loading',
     B: 'loading'
   });
-  const [sizes, setSizes] = useState<Record<PaneSide, Size>>({ A: EMPTY_SIZE, B: EMPTY_SIZE });
-  const [views, setViews] = useState<Record<PaneSide, ImageView>>({ A: FIT, B: FIT });
+  const [sizes, setSizes] = useState<Record<PaneSide, ImageSize>>({ A: EMPTY_IMAGE_SIZE, B: EMPTY_IMAGE_SIZE });
+  const [views, setViews] = useState<ImageViews>({ A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW });
   const [selectedSide, setActive] = useState(preview.side);
   const [linked, setLinked] = useState(true);
   const [dragging, setDragging] = useState<PaneSide | null>(null);
@@ -94,6 +71,7 @@ export default function ImagePreviewModal({
   const controlsSide = canCompare ? (narrow ? 'A' : 'B') : active;
   const canLink = canCompare && SIDES.every((side) => loadState[side] === 'ready');
   const canControl = Boolean(images[active]?.src) && loadState[active] === 'ready';
+  const viewportContext = { images, sizes, linked: linked && canLink };
   const activeView = resolveView(views[active], images[active], sizes[active]);
   const actualSize = canControl && views[active].scale !== null && Math.abs(activeView.scale - 1) < 0.001;
   const canRestore =
@@ -143,68 +121,20 @@ export default function ImagePreviewModal({
     };
   }, [canCompare, singleSide]);
 
-  function zoom(side: PaneSide, factor: number, anchor?: Point): void {
-    const image = images[side];
-    if (!image?.width || !image.height || loadState[side] !== 'ready') return;
+  function zoom(side: PaneSide, factor: number, anchor?: ImagePoint): void {
+    if (loadState[side] !== 'ready') return;
     setActive(side);
     const bounds = canvases.current[side]?.getBoundingClientRect();
-    setViews((previous) => {
-      const current = resolveView(previous[side], image, sizes[side]);
-      const frame = orientedSize(image, current.rotation);
-      const fit = fitScale(image, sizes[side], current.rotation);
-      const scale = clamp(current.scale * factor, fit, MAX_SCALE);
-      if (scale === current.scale) return previous;
-      const ratio = scale / current.scale;
-      const offsetX = anchor && bounds ? anchor.x - bounds.left - bounds.width / 2 : 0;
-      const offsetY = anchor && bounds ? anchor.y - bounds.top - bounds.height / 2 : 0;
-      const next = resolveView(
-        {
-          ...current,
-          scale,
-          x: current.x + (offsetX / frame.width) * (1 / current.scale - 1 / scale),
-          y: current.y + (offsetY / frame.height) * (1 / current.scale - 1 / scale)
-        },
-        image,
-        sizes[side]
-      );
-      const result = { ...previous, [side]: { ...next, scale: scale === fit ? null : scale } };
-      const other = side === 'A' ? 'B' : 'A';
-      if (linked && canLink) {
-        const peer = resolveView(previous[other], images[other], sizes[other]);
-        const peerFit = fitScale(images[other], sizes[other], peer.rotation);
-        const peerScale = clamp(peer.scale * ratio, peerFit, MAX_SCALE);
-        result[other] = {
-          ...previous[other],
-          x: next.x,
-          y: next.y,
-          scale: peerScale === peerFit ? null : peerScale
-        };
-      }
-      return result;
-    });
+    const offset = {
+      x: anchor && bounds ? anchor.x - bounds.left - bounds.width / 2 : 0,
+      y: anchor && bounds ? anchor.y - bounds.top - bounds.height / 2 : 0
+    };
+    setViews((previous) => zoomImageViews(previous, viewportContext, side, factor, offset));
   }
 
   function pan(side: PaneSide, dx: number, dy: number): void {
-    const image = images[side];
-    if (!image?.width || !image.height || loadState[side] !== 'ready') return;
-    setViews((previous) => {
-      const current = resolveView(previous[side], image, sizes[side]);
-      const frame = orientedSize(image, current.rotation);
-      const next = resolveView(
-        {
-          ...current,
-          x: current.x - dx / (frame.width * current.scale),
-          y: current.y - dy / (frame.height * current.scale)
-        },
-        image,
-        sizes[side]
-      );
-      if (next.x === current.x && next.y === current.y) return previous;
-      const result = { ...previous, [side]: next };
-      const other = side === 'A' ? 'B' : 'A';
-      if (linked && canLink) result[other] = { ...previous[other], x: next.x, y: next.y };
-      return result;
-    });
+    if (loadState[side] !== 'ready') return;
+    setViews((previous) => panImageViews(previous, viewportContext, side, { x: dx, y: dy }));
   }
 
   function resetView(scale: number | null, side = active): void {
@@ -220,62 +150,20 @@ export default function ImagePreviewModal({
 
   function restoreView(side = active): void {
     setActive(side);
-    setViews((previous) => (linked && canLink ? { A: FIT, B: FIT } : { ...previous, [side]: FIT }));
+    setViews((previous) =>
+      linked && canLink ? { A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW } : { ...previous, [side]: FIT_IMAGE_VIEW }
+    );
   }
 
   function orient(side: PaneSide, action: OrientationAction): void {
     if (loadState[side] !== 'ready') return;
     setActive(side);
-    setViews((previous) => {
-      const result = { ...previous };
-      for (const target of linked && canLink ? SIDES : [side]) {
-        const current = resolveView(previous[target], images[target], sizes[target]);
-        const next = { ...current, scale: previous[target].scale };
-        if (action === 'left' || action === 'right') {
-          const clockwise = action === 'right';
-          next.rotation = (current.rotation + (clockwise ? 90 : 270)) % 360;
-          // Flips use screen axes. Swap them while rotating so clockwise stays
-          // clockwise even for a mirrored image, and keep the viewed point centered.
-          next.flipX = current.flipY;
-          next.flipY = current.flipX;
-          next.x = clockwise ? 1 - current.y : current.y;
-          next.y = clockwise ? current.x : 1 - current.x;
-        } else if (action === 'horizontal') {
-          next.flipX = !current.flipX;
-          next.x = 1 - current.x;
-        } else {
-          next.flipY = !current.flipY;
-          next.y = 1 - current.y;
-        }
-        result[target] = next;
-      }
-      return result;
-    });
+    setViews((previous) => orientImageViews(previous, viewportContext, side, action));
   }
 
   function toggleLink(): void {
     if (!linked) {
-      setViews((previous) => {
-        const current = resolveView(previous[active], images[active], sizes[active]);
-        const other = active === 'A' ? 'B' : 'A';
-        return {
-          ...previous,
-          [other]: {
-            ...previous[other],
-            x: current.x,
-            y: current.y,
-            scale:
-              previous[active].scale === null
-                ? null
-                : clamp(
-                    (current.scale / fitScale(images[active], sizes[active], current.rotation)) *
-                      fitScale(images[other], sizes[other], previous[other].rotation),
-                    fitScale(images[other], sizes[other], previous[other].rotation),
-                    MAX_SCALE
-                  )
-          }
-        };
-      });
+      setViews((previous) => linkImageViews(previous, viewportContext, active));
     }
     setLinked(!linked);
   }
@@ -541,7 +429,7 @@ export default function ImagePreviewModal({
                 type="button"
                 aria-label={copy.zoomIn}
                 title={copy.zoomIn}
-                disabled={!canControl || activeView.scale >= MAX_SCALE}
+                disabled={!canControl || activeView.scale >= MAX_IMAGE_SCALE}
                 onClick={() => zoom(active, 1.25)}
               >
                 <PreviewIcon name="zoomIn" />
@@ -674,7 +562,7 @@ function canvasSide(target: EventTarget): PaneSide | null {
   return side === 'A' || side === 'B' ? side : null;
 }
 
-function imageStyle(image: PreviewImage, view: ResolvedView, ready: boolean): CSSProperties {
+function imageStyle(image: PreviewImage, view: ResolvedImageView, ready: boolean): CSSProperties {
   const frame = orientedSize(image, view.rotation);
   const x = (0.5 - view.x) * frame.width * view.scale;
   const y = (0.5 - view.y) * frame.height * view.scale;
