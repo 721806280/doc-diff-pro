@@ -10,10 +10,20 @@ import {
   type MouseEvent,
   type KeyboardEvent
 } from 'react';
+import { useTimeoutRef } from '@/hooks/useTimeoutRef';
 import { useI18n } from '@/i18n';
 import type { DocumentPaneState, PaneSide } from '@/types/document';
 import { documentCoverage } from '@/utils/documentCoverage';
 export type { DocumentPaneState, PaneSide } from '@/types/document';
+
+/**
+ * How long after its last scroll event a pane counts as settled again.
+ *
+ * Long enough to bridge the gaps between trackpad and momentum events, short
+ * enough that hover feedback is back by the time the reader reaches for a
+ * difference.
+ */
+const SCROLL_SETTLE_MS = 150;
 
 type DocumentPaneProps = {
   side: PaneSide;
@@ -55,6 +65,7 @@ export default memo(function DocumentPane({
 }: DocumentPaneProps) {
   const { locale, messages: i18n } = useI18n();
   const [dragging, setDragging] = useState(false);
+  const scrollSettle = useTimeoutRef();
   const copy = i18n.app.documents[side];
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const sideClass = side === 'A' ? 'side-original' : 'side-revision';
@@ -101,6 +112,16 @@ export default memo(function DocumentPane({
     if (!allowFileInput) return;
     const file = event.dataTransfer.files?.[0];
     if (file) void onFile(side, file);
+  }
+
+  /**
+   * Flags the viewport while it scrolls so the stylesheet can hold back hover
+   * feedback. Set as an attribute rather than state: it changes on every scroll
+   * event, and nothing about it needs a render.
+   */
+  function markScrolling(viewport: HTMLDivElement): void {
+    if (!viewport.hasAttribute('data-scrolling')) viewport.setAttribute('data-scrolling', '');
+    scrollSettle.set(() => viewport.removeAttribute('data-scrolling'), SCROLL_SETTLE_MS);
   }
 
   function leaveDropZone(event: React.DragEvent<HTMLDivElement>): void {
@@ -233,7 +254,10 @@ export default memo(function DocumentPane({
       <div
         ref={paneRef}
         className={`render-viewport ${!displayHtml ? 'is-empty' : ''} ${allowFileInput && dragging ? 'is-dragging' : ''}`}
-        onScroll={() => onScroll(side)}
+        onScroll={(event) => {
+          markScrolling(event.currentTarget);
+          onScroll(side);
+        }}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         onMouseEnter={() => onActivate(side)}
