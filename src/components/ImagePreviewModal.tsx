@@ -383,7 +383,7 @@ export default function ImagePreviewModal({
         style={panelStyle}
         role="dialog"
         aria-modal="true"
-        aria-label={canCompare ? copy.title : i18n.documentPane.imagePreviewTitle}
+        aria-label={overlay ? copy.difference : canCompare ? copy.title : i18n.documentPane.imagePreviewTitle}
         aria-describedby={unavailableNotice ? 'image-preview-notice' : undefined}
       >
         <div className="image-preview-panes">
@@ -406,7 +406,13 @@ export default function ImagePreviewModal({
                         'image-preview-source-label' + (canCompare ? '' : ' image-preview-status is-' + preview.kind)
                       }
                     >
-                      {canCompare ? (side === 'A' ? copy.original : copy.revised) : copy.status[preview.kind]}
+                      {canCompare
+                        ? overlay
+                          ? copy.difference
+                          : side === 'A'
+                            ? copy.original
+                            : copy.revised
+                        : copy.status[preview.kind]}
                     </span>
                   )}
                   <h2

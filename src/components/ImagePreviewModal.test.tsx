@@ -303,6 +303,8 @@ describe('ImagePreviewModal', () => {
     expect(differenceCanvas).toBeTruthy();
     expect(document.querySelector('.image-preview-link')).toBeNull();
     expect(document.querySelector('.image-preview-similarity')?.textContent).toContain('92.7%');
+    expect(getByRole(document.body, 'dialog', { name: 'Difference overlay' })).toBeTruthy();
+    expect(document.querySelector('.image-preview-source-label')?.textContent).toBe('Difference overlay');
 
     expect(differenceCanvas!.style.width).toBe('480px');
     expect(differenceCanvas!.style.height).toBe('300px');
@@ -310,7 +312,21 @@ describe('ImagePreviewModal', () => {
     clickControl('Difference overlay');
     expect(document.querySelectorAll('.image-preview-pane')).toHaveLength(2);
     expect(document.querySelectorAll('.image-preview-canvas.is-difference')).toHaveLength(0);
+    expect(getByRole(document.body, 'dialog', { name: 'Image comparison' })).toBeTruthy();
+    const sourceLabels = Array.from(
+      document.querySelectorAll('.image-preview-source-label'),
+      (label) => label.textContent
+    );
+    expect(sourceLabels).toEqual(expect.arrayContaining(['Original', 'Revised']));
     expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Link image controls' }).disabled).toBe(false);
+  });
+
+  it('names a difference view opened initially from the original side', () => {
+    renderReadyPreview({ ...preview, side: 'A' });
+    clickControl('Difference overlay');
+
+    expect(getByRole(document.body, 'dialog', { name: 'Difference overlay' })).toBeTruthy();
+    expect(document.querySelector('.image-preview-source-label')?.textContent).toBe('Difference overlay');
   });
 
   it('keeps a linked peer in place when the other image is already at its zoom or pan limit', () => {
