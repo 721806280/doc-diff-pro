@@ -537,6 +537,8 @@
 
 @media (max-width: 380px) {
   .image-preview-toolbar {
+    --image-preview-tool-size: 21px;
+    --image-preview-icon-size: 15px;
     --image-preview-group-gap: 2px;
   }
   .image-preview-zoom,

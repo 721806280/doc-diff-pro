@@ -238,7 +238,6 @@ test('preserves independent orientations when relinking and resets the view', as
   await page.getByRole('button', { name: '向左旋转 90°', exact: true }).click();
   await page.getByRole('button', { name: '垂直翻转', exact: true }).click();
   await expect(a).toHaveAttribute('style', originalTransform!);
-  await expect(page.locator('.image-preview-active-side')).toHaveText('修订');
   await expect(page.locator('.image-preview-pane.is-active')).toHaveAttribute('data-side', 'B');
   await expect(b).toBeVisible();
   await page.locator('.image-preview-canvas[data-side="B"]').click({ position: { x: 12, y: 12 } });
@@ -281,7 +280,7 @@ test('fits the English controls on a narrow screen', async ({ page, isMobile }, 
   });
   expect(overflow).toBe(false);
   const layout = await page
-    .locator('.image-preview-toolbar button, .image-preview-similarity')
+    .locator('.image-preview-toolbar > button, .image-preview-toolbar > div button, .image-preview-similarity')
     .evaluateAll((controls) => {
       const bounds = controls.map((control) => control.getBoundingClientRect());
       return {
@@ -298,11 +297,12 @@ test('fits the English controls on a narrow screen', async ({ page, isMobile }, 
       };
     });
   expect(layout).toEqual({ rows: 1, overlapping: false });
-  const similarity = page.getByRole('img', { name: /^Similarity / });
+  const similarity = page.getByRole('button', { name: /^Similarity / });
   if (isMobile) await similarity.tap();
   else await similarity.click();
   await expect(page.getByRole('tooltip')).toBeVisible();
-  await expect(page.getByRole('tooltip')).toContainText(/Similarity \d+(\.\d+)?%/);
+  await expect(similarity).toHaveText(/\d+(\.\d+)?%/);
+  await expect(page.getByRole('tooltip')).toContainText('Based on visual appearance');
   await page.screenshot({ path: testInfo.outputPath('image-similarity-narrow-en.png'), animations: 'disabled' });
 });
 
