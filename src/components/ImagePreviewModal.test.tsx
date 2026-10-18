@@ -96,6 +96,7 @@ beforeEach(() => setLocale('en'));
 afterEach(() => {
   renders.cleanup();
   vi.restoreAllMocks();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -188,7 +189,7 @@ describe('ImagePreviewModal', () => {
     act(() => {
       image.dispatchEvent(new Event('load'));
     });
-    expect(document.querySelector('.image-preview-scale')?.textContent).toBe('50%');
+    expect(document.querySelector('.image-preview-scale-overlay')).toBeNull();
     expect(document.querySelector('.image-preview-notice')?.textContent).toContain(
       'The corresponding revised image cannot be previewed'
     );
@@ -198,7 +199,7 @@ describe('ImagePreviewModal', () => {
     renderReadyPreview();
     expect(transform('A').scale).toBe(0.5);
     expect(transform('B').scale).toBe(0.5);
-    expect(document.querySelector('.image-preview-scale')?.textContent).toBe('50%');
+    expect(document.querySelector('.image-preview-scale-overlay')).toBeNull();
     expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Zoom out' }).disabled).toBe(true);
     clickControl('Zoom in');
     expect(transform('A').scale).toBe(0.625);
@@ -235,7 +236,7 @@ describe('ImagePreviewModal', () => {
     expect(transform('A').scale).toBe(0.5);
     expect(transform('B').scale).toBe(0.3125);
     act(() => canvas('A').focus());
-    expect(document.querySelector('.image-preview-active-side')?.textContent).toBe('Original');
+    expect(document.querySelector('.image-preview-scale-overlay')?.textContent).toBe('31%');
     clickControl('Actual size (100%)');
     clickControl('Link image controls');
     expect(transform('A').scale).toBe(1);
@@ -250,6 +251,18 @@ describe('ImagePreviewModal', () => {
     expect(transform('B').scale).toBe(0.25);
     clickControl('Link image controls');
     expect(transform('A').scale).toBe(0.5);
+  });
+
+  it('shows zoom feedback at the center and hides it again', () => {
+    vi.useFakeTimers();
+    renderReadyPreview();
+    clickControl('Zoom in');
+    expect(transform('A').scale).toBe(0.625);
+    expect(document.querySelector('.image-preview-scale-overlay')?.textContent).toBe('63%');
+    act(() => {
+      vi.advanceTimersByTime(700);
+    });
+    expect(document.querySelector('.image-preview-scale-overlay')).toBeNull();
   });
 
   it('fits rotated bounds, preserves orientation when resizing, and restores the original view', () => {
@@ -279,6 +292,25 @@ describe('ImagePreviewModal', () => {
     }
     expect(transform('A')).toEqual(initial);
     expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Reset view' }).disabled).toBe(true);
+  });
+
+  it('overlays both sources in a difference view and toggles back from the same control', () => {
+    renderReadyPreview();
+    clickControl('Difference overlay');
+
+    expect(document.querySelectorAll('.image-preview-pane')).toHaveLength(1);
+    const differenceCanvas = document.querySelector<HTMLCanvasElement>('.image-preview-difference-canvas');
+    expect(differenceCanvas).toBeTruthy();
+    expect(document.querySelector('.image-preview-link')).toBeNull();
+    expect(document.querySelector('.image-preview-similarity')?.textContent).toContain('92.7%');
+
+    expect(differenceCanvas!.style.width).toBe('480px');
+    expect(differenceCanvas!.style.height).toBe('300px');
+
+    clickControl('Difference overlay');
+    expect(document.querySelectorAll('.image-preview-pane')).toHaveLength(2);
+    expect(document.querySelectorAll('.image-preview-canvas.is-difference')).toHaveLength(0);
+    expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Link image controls' }).disabled).toBe(false);
   });
 
   it('keeps a linked peer in place when the other image is already at its zoom or pan limit', () => {

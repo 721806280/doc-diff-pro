@@ -1,10 +1,19 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useDialog } from '@/hooks/useDialog';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useI18n } from '@/i18n';
 import type { PaneSide } from '@/types/document';
-import type { ImagePreview, PreviewImage } from '@/utils/imagePreview';
+import type { ImagePreview } from '@/utils/imagePreview';
+import { renderImageDifference } from '@/utils/imageDifference';
 import {
   EMPTY_IMAGE_SIZE,
   FIT_IMAGE_VIEW,
@@ -43,7 +52,9 @@ export default function ImagePreviewModal({
   const copy = i18n.imagePreview;
   const panel = useRef<HTMLElement>(null);
   const canvases = useRef<Record<PaneSide, HTMLDivElement | null>>({ A: null, B: null });
+  const differenceCanvas = useRef<HTMLCanvasElement | null>(null);
   const pointers = useRef(new Map<number, ImagePoint & { side: PaneSide }>());
+  const zoomTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [images, setImages] = useState(preview.images);
   const [loadState, setLoadState] = useState<Record<PaneSide, 'loading' | 'ready' | 'error'>>({
     A: 'loading',
@@ -53,7 +64,9 @@ export default function ImagePreviewModal({
   const [views, setViews] = useState<ImageViews>({ A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW });
   const [selectedSide, setActive] = useState(preview.side);
   const [linked, setLinked] = useState(true);
+  const [differenceMode, setDifferenceMode] = useState(false);
   const [dragging, setDragging] = useState<PaneSide | null>(null);
+  const [zoomFeedback, setZoomFeedback] = useState<PaneSide | null>(null);
   const [narrow, setNarrow] = useState(() => window.matchMedia?.(NARROW_QUERY).matches ?? false);
   const canCompare =
     preview.compared &&
@@ -66,13 +79,23 @@ export default function ImagePreviewModal({
       : images[otherSide]?.src && loadState[otherSide] !== 'error'
         ? otherSide
         : selectedSide;
-  const active = canCompare ? selectedSide : singleSide;
-  const sides = canCompare ? SIDES : [singleSide];
-  const controlsSide = canCompare ? (narrow ? 'A' : 'B') : active;
-  const canLink = canCompare && SIDES.every((side) => loadState[side] === 'ready');
+  const overlay = canCompare && differenceMode;
+  const reference = useMemo(
+    () => ({
+      width: Math.max(images.A?.width ?? 0, images.B?.width ?? 0),
+      height: Math.max(images.A?.height ?? 0, images.B?.height ?? 0)
+    }),
+    [images.A?.width, images.A?.height, images.B?.width, images.B?.height]
+  );
+  const active = canCompare && !overlay ? selectedSide : singleSide;
+  const sides = canCompare && !overlay ? SIDES : [singleSide];
+  const controlsSide = canCompare && !overlay ? (narrow ? 'A' : 'B') : active;
+  const canLink = canCompare && !overlay && SIDES.every((side) => loadState[side] === 'ready');
   const canControl = Boolean(images[active]?.src) && loadState[active] === 'ready';
-  const viewportContext = { images, sizes, linked: linked && canLink };
-  const activeView = resolveView(views[active], images[active], sizes[active]);
+  const renderImage = (side: PaneSide): ImageSize => (overlay ? reference : (images[side] ?? EMPTY_IMAGE_SIZE));
+  const viewportImages: Record<PaneSide, ImageSize | null> = overlay ? { A: reference, B: reference } : images;
+  const viewportContext = { images: viewportImages, sizes, linked: linked && canLink };
+  const activeView = resolveView(views[active], renderImage(active), sizes[active]);
   const actualSize = canControl && views[active].scale !== null && Math.abs(activeView.scale - 1) < 0.001;
   const canRestore =
     canControl &&
@@ -90,6 +113,19 @@ export default function ImagePreviewModal({
     query.addEventListener('change', change);
     return () => query.removeEventListener('change', change);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (zoomTimer.current) clearTimeout(zoomTimer.current);
+    },
+    []
+  );
+
+  function showZoomFeedback(side: PaneSide): void {
+    if (zoomTimer.current) clearTimeout(zoomTimer.current);
+    setZoomFeedback(side);
+    zoomTimer.current = setTimeout(() => setZoomFeedback(null), 700);
+  }
 
   useEffect(() => {
     const measure = () => {
@@ -121,6 +157,20 @@ export default function ImagePreviewModal({
     };
   }, [canCompare, singleSide]);
 
+  useEffect(() => {
+    if (!overlay) return;
+    const canvas = differenceCanvas.current;
+    if (!canvas) return;
+    let cancelled = false;
+    void renderImageDifference(images.A?.src ?? '', images.B?.src ?? '', reference, canvas).then((rendered) => {
+      if (cancelled) return;
+      canvas.classList.toggle('is-failed', !rendered);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [images.A?.src, images.B?.src, overlay, reference]);
+
   function zoom(side: PaneSide, factor: number, anchor?: ImagePoint): void {
     if (loadState[side] !== 'ready') return;
     setActive(side);
@@ -129,7 +179,11 @@ export default function ImagePreviewModal({
       x: anchor && bounds ? anchor.x - bounds.left - bounds.width / 2 : 0,
       y: anchor && bounds ? anchor.y - bounds.top - bounds.height / 2 : 0
     };
-    setViews((previous) => zoomImageViews(previous, viewportContext, side, factor, offset));
+    setViews((previous) => {
+      const next = zoomImageViews(previous, viewportContext, side, factor, offset);
+      if (next[side].scale !== previous[side].scale) showZoomFeedback(side);
+      return next;
+    });
   }
 
   function pan(side: PaneSide, dx: number, dy: number): void {
@@ -144,6 +198,7 @@ export default function ImagePreviewModal({
       for (const target of linked && canLink ? SIDES : [side]) {
         next[target] = { ...previous[target], scale, x: 0.5, y: 0.5 };
       }
+      if (next[side].scale !== previous[side].scale) showZoomFeedback(side);
       return next;
     });
   }
@@ -249,7 +304,7 @@ export default function ImagePreviewModal({
       ? copy.counterpartUnavailable[counterpartSide]
       : null;
 
-  const visibleImages = sides.map((side) => images[side]);
+  const visibleImages = sides.map(renderImage);
   const imageWidth = Math.max(0, ...visibleImages.map((image) => image?.width ?? 0));
   const imageHeight = Math.max(0, ...visibleImages.map((image) => image?.height ?? 0));
   const panelStyle = {
@@ -261,19 +316,19 @@ export default function ImagePreviewModal({
     preview.similarity === undefined
       ? null
       : new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(preview.similarity);
+  const similarityHelpId = useId();
   const similarity =
     canCompare && similarityPercent !== null ? (
-      <span
-        className="image-preview-similarity"
-        role="img"
-        tabIndex={0}
-        aria-label={copy.similarity + ' ' + similarityPercent}
-        aria-describedby="image-preview-similarity-help"
-      >
-        <PreviewIcon name="similarity" />
-        <strong>{similarityPercent}</strong>
-        <span className="image-preview-tooltip" role="tooltip" id="image-preview-similarity-help">
-          <b>{copy.similarity + ' ' + similarityPercent}</b>
+      <span className="image-preview-similarity">
+        <button
+          type="button"
+          className="image-preview-similarity-trigger"
+          aria-label={copy.similarity + ' ' + similarityPercent}
+          aria-describedby={similarityHelpId}
+        >
+          <strong>{similarityPercent}</strong>
+        </button>
+        <span className="image-preview-tooltip" role="tooltip" id={similarityHelpId}>
           {copy.similarityHint}
         </span>
       </span>
@@ -323,7 +378,7 @@ export default function ImagePreviewModal({
         className={
           'image-preview-panel' +
           (canCompare ? ' is-comparison' : ' is-single') +
-          (canCompare && !linked ? ' is-independent' : '')
+          (canCompare && !overlay && !linked ? ' is-independent' : '')
         }
         style={panelStyle}
         role="dialog"
@@ -333,9 +388,10 @@ export default function ImagePreviewModal({
       >
         <div className="image-preview-panes">
           {sides.map((side) => {
-            const image = images[side];
+            const source = images[side];
+            const image = renderImage(side);
             const view = resolveView(views[side], image, sizes[side]);
-            const ready = Boolean(image?.src) && loadState[side] === 'ready';
+            const ready = Boolean(source?.src) && loadState[side] === 'ready';
             return (
               <section
                 className={'image-preview-pane' + (active === side ? ' is-active' : '')}
@@ -355,7 +411,7 @@ export default function ImagePreviewModal({
                   )}
                   <h2
                     className="image-preview-filename"
-                    title={fileNames[side] + (ready && image ? `\n${image.width} × ${image.height}` : '')}
+                    title={fileNames[side] + (ready && source ? `\n${source.width} × ${source.height}` : '')}
                   >
                     {fileNames[side]}
                   </h2>
@@ -382,7 +438,11 @@ export default function ImagePreviewModal({
                   ref={(node) => {
                     canvases.current[side] = node;
                   }}
-                  className={'image-preview-canvas' + (dragging === side ? ' is-dragging' : '')}
+                  className={
+                    'image-preview-canvas' +
+                    (dragging === side ? ' is-dragging' : '') +
+                    (overlay ? ' is-difference' : '')
+                  }
                   data-side={side}
                   role="group"
                   aria-label={i18n.app.documents[side].title + ' · ' + copy.canvas}
@@ -394,28 +454,45 @@ export default function ImagePreviewModal({
                   onPointerCancel={endPointer}
                   onLostPointerCapture={endPointer}
                 >
-                  {image?.src && loadState[side] !== 'error' ? (
+                  {source?.src && loadState[side] !== 'error' ? (
                     <>
                       {loadState[side] === 'loading' && (
                         <div className="image-preview-loading" role="status">
                           {copy.loading}
                         </div>
                       )}
-                      <img
-                        className="image-preview-image"
-                        src={image.src}
-                        alt={image.alt || i18n.documentPane.embeddedImageAlt}
-                        draggable={false}
-                        onLoad={(event) => loaded(side, event.currentTarget)}
-                        onError={() => setLoadState((previous) => ({ ...previous, [side]: 'error' }))}
-                        style={imageStyle(image, view, ready)}
-                      />
+                      {overlay ? (
+                        <>
+                          <canvas
+                            ref={(node) => {
+                              differenceCanvas.current = node;
+                            }}
+                            className="image-preview-image image-preview-difference-canvas"
+                            style={imageStyle(image, view, ready)}
+                          />
+                        </>
+                      ) : (
+                        <img
+                          className="image-preview-image"
+                          src={source.src}
+                          alt={source.alt || i18n.documentPane.embeddedImageAlt}
+                          draggable={false}
+                          onLoad={(event) => loaded(side, event.currentTarget)}
+                          onError={() => setLoadState((previous) => ({ ...previous, [side]: 'error' }))}
+                          style={imageStyle(image, view, ready)}
+                        />
+                      )}
                     </>
                   ) : (
                     <div className="image-preview-empty">
                       <PreviewIcon name="image" />
                       <strong>{emptyMessage(side)}</strong>
                     </div>
+                  )}
+                  {zoomFeedback === side && (
+                    <span className="image-preview-scale-overlay" role="status" aria-live="polite">
+                      {Math.round(view.scale * 100)}%
+                    </span>
                   )}
                 </div>
               </section>
@@ -512,25 +589,30 @@ export default function ImagePreviewModal({
                 <PreviewIcon name="reset" />
               </button>
             </div>
+            {canCompare && (
+              <button
+                type="button"
+                aria-label={copy.difference}
+                title={overlay ? copy.sideBySideHint : copy.differenceHint}
+                aria-pressed={overlay}
+                onClick={() => setDifferenceMode(!overlay)}
+              >
+                <PreviewIcon name={overlay ? 'columns' : 'difference'} />
+              </button>
+            )}
             <div className="image-preview-actions">
               <button
                 type="button"
                 className="image-preview-fit"
                 aria-label={copy.fit}
-                title={copy.fit + ' (0)'}
+                title={copy.fit}
                 aria-keyshortcuts="0"
                 disabled={!canControl}
                 onClick={() => resetView(null)}
               >
                 <PreviewIcon name="fit" />
-                <span className="image-preview-scale" aria-label={copy.zoom}>
-                  {!linked && canCompare && (
-                    <span className="image-preview-active-side">{active === 'A' ? copy.original : copy.revised}</span>
-                  )}
-                  {canControl ? Math.round(activeView.scale * 100) + '%' : '—'}
-                </span>
               </button>
-              {canCompare && (
+              {canCompare && !overlay && (
                 <button
                   type="button"
                   className="image-preview-link"
@@ -541,7 +623,6 @@ export default function ImagePreviewModal({
                   onClick={toggleLink}
                 >
                   <PreviewIcon name={linked ? 'link' : 'unlink'} />
-                  <span className="image-preview-control-label">{linked ? copy.linked : copy.unlinked}</span>
                 </button>
               )}
             </div>
@@ -562,7 +643,7 @@ function canvasSide(target: EventTarget): PaneSide | null {
   return side === 'A' || side === 'B' ? side : null;
 }
 
-function imageStyle(image: PreviewImage, view: ResolvedImageView, ready: boolean): CSSProperties {
+function imageStyle(image: ImageSize, view: ResolvedImageView, ready: boolean): CSSProperties {
   const frame = orientedSize(image, view.rotation);
   const x = (0.5 - view.x) * frame.width * view.scale;
   const y = (0.5 - view.y) * frame.height * view.scale;
@@ -593,6 +674,8 @@ const ICON_PATHS = {
   similarity: 'M14 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0Zm8 0a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z',
   link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
   unlink: 'M8 3v3M3 8h3M16 18v3M18 16h3M10 8l3-3a4 4 0 0 1 6 6l-3 3M14 16l-3 3a4 4 0 0 1-6-6l3-3',
+  columns: 'M3 4h18v16H3zM12 4v16',
+  difference: 'M4 8h12v12H4zM8 4h12v12h-4M8 4v4M20 12v4',
   image: 'M3 4h18v16H3z M3 16l5-5 5 5 3-3 5 5 M15 8h.01'
 };
 
