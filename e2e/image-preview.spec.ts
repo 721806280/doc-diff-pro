@@ -263,7 +263,10 @@ test('preserves independent orientations when relinking and resets the view', as
   await expect(reset).toBeDisabled();
 });
 
-test('fits the English controls on a narrow screen', async ({ page, isMobile }, testInfo) => {
+test('keeps narrow-screen controls tappable and the similarity explanation readable', async ({
+  page,
+  isMobile
+}, testInfo) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await loadComparison(page);
   await page.locator('.language-trigger').click();
@@ -285,6 +288,7 @@ test('fits the English controls on a narrow screen', async ({ page, isMobile }, 
       const bounds = controls.map((control) => control.getBoundingClientRect());
       return {
         rows: new Set(bounds.map((rect) => Math.round(rect.top))).size,
+        tappable: bounds.every((rect) => rect.width >= 43 && rect.height >= 44),
         overlapping: bounds.some((a, index) =>
           bounds
             .slice(index + 1)
@@ -296,14 +300,74 @@ test('fits the English controls on a narrow screen', async ({ page, isMobile }, 
         )
       };
     });
-  expect(layout).toEqual({ rows: 1, overlapping: false });
+  expect(layout).toEqual({ rows: 2, overlapping: false, tappable: true });
   const similarity = page.getByRole('button', { name: /^Similarity / });
   if (isMobile) await similarity.tap();
   else await similarity.click();
   await expect(page.getByRole('tooltip')).toBeVisible();
   await expect(similarity).toHaveText(/\d+(\.\d+)?%/);
   await expect(page.getByRole('tooltip')).toContainText('Based on visual appearance');
+  const tooltip = await page.getByRole('tooltip').boundingBox();
+  const panel = await page.locator('.image-preview-panel').boundingBox();
+  expect(tooltip!.x).toBeGreaterThanOrEqual(panel!.x);
+  expect(tooltip!.x + tooltip!.width).toBeLessThanOrEqual(panel!.x + panel!.width);
+  await page.mouse.move(1, 1);
+  // WebKit follows the system preference for tabbing to buttons. Direct focus
+  // exercises the tooltip's keyboard state independently of that preference.
+  await similarity.focus();
+  await expect(similarity).toBeFocused();
+  await expect(page.getByRole('tooltip')).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('image-similarity-narrow-en.png'), animations: 'disabled' });
+});
+
+test('renders changes over the revised source and preserves the side-by-side view', async ({ page }, testInfo) => {
+  await loadComparison(page);
+  await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
+  await page.getByRole('button', { name: '放大', exact: true }).click();
+  const before = [
+    await previewImage(page, 'A').getAttribute('style'),
+    await previewImage(page, 'B').getAttribute('style')
+  ];
+  await page.getByRole('button', { name: '差异叠加', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '差异叠加', exact: true });
+  await expect(dialog).toBeVisible();
+  const canvas = page.locator('.image-preview-difference-canvas');
+  await expect(canvas).toBeVisible();
+  await expect(page.locator('.image-preview-filename')).toHaveText('示例-修订文档.docx');
+  const redPixels = await canvas.evaluate((element: HTMLCanvasElement) => {
+    const data = element.getContext('2d')!.getImageData(0, 0, element.width, element.height).data;
+    let red = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      if (data[index]! > data[index + 1]! + 20 && data[index]! > data[index + 2]! + 20) red++;
+    }
+    return red;
+  });
+  expect(redPixels).toBeGreaterThan(100);
+  await page.screenshot({ path: testInfo.outputPath('image-difference-overlay.png'), animations: 'disabled' });
+  await page.getByRole('button', { name: '向右旋转 90°', exact: true }).click();
+  await page.getByRole('button', { name: '差异叠加', exact: true }).click();
+  await expect(previewImage(page, 'A')).toHaveAttribute('style', before[0]!);
+  await expect(previewImage(page, 'B')).toHaveAttribute('style', before[1]!);
+  await expect(page.locator('.image-preview-pane.is-active')).toHaveAttribute('data-side', 'A');
+});
+
+test('explains a failed difference render and returns to usable source images', async ({ page }) => {
+  await loadComparison(page);
+  await page.evaluate(() => {
+    // The native method is called with its original receiver below.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) {
+      return this.classList.contains('image-preview-difference-canvas') ? null : original.apply(this, args);
+    } as typeof original;
+  });
+  await page.locator('del[data-diff-image] img[data-ddv-image-change="revised"]').first().click();
+  await page.getByRole('button', { name: '差异叠加', exact: true }).click();
+  await expect(page.locator('.image-preview-empty')).toContainText('暂时无法生成差异叠加');
+  await page.getByRole('button', { name: '返回并排对比', exact: true }).click();
+  await expect(previewImage(page, 'A')).toBeVisible();
+  await expect(previewImage(page, 'B')).toBeVisible();
+  await expect(page.getByRole('button', { name: '放大', exact: true })).toBeEnabled();
 });
 
 test('previews a single document before comparison', async ({ page }, testInfo) => {

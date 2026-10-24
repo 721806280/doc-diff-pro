@@ -13,7 +13,7 @@ import { useLatestRef } from '@/hooks/useLatestRef';
 import { useI18n } from '@/i18n';
 import type { PaneSide } from '@/types/document';
 import type { ImagePreview } from '@/utils/imagePreview';
-import { renderImageDifference } from '@/utils/imageDifference';
+import { imageAspectMatches, imageDifferenceRenderSize, renderImageDifference } from '@/utils/imageDifference';
 import {
   EMPTY_IMAGE_SIZE,
   FIT_IMAGE_VIEW,
@@ -62,9 +62,11 @@ export default function ImagePreviewModal({
   });
   const [sizes, setSizes] = useState<Record<PaneSide, ImageSize>>({ A: EMPTY_IMAGE_SIZE, B: EMPTY_IMAGE_SIZE });
   const [views, setViews] = useState<ImageViews>({ A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW });
+  const [differenceViews, setDifferenceViews] = useState<ImageViews>({ A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW });
   const [selectedSide, setActive] = useState(preview.side);
   const [linked, setLinked] = useState(true);
   const [differenceMode, setDifferenceMode] = useState(false);
+  const [differenceState, setDifferenceState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dragging, setDragging] = useState<PaneSide | null>(null);
   const [zoomFeedback, setZoomFeedback] = useState<PaneSide | null>(null);
   const [narrow, setNarrow] = useState(() => window.matchMedia?.(NARROW_QUERY).matches ?? false);
@@ -87,22 +89,39 @@ export default function ImagePreviewModal({
     }),
     [images.A?.width, images.A?.height, images.B?.width, images.B?.height]
   );
-  const active = canCompare && !overlay ? selectedSide : singleSide;
-  const sides = canCompare && !overlay ? SIDES : [singleSide];
+  const active = overlay ? 'B' : canCompare ? selectedSide : singleSide;
+  const sides: PaneSide[] = overlay ? ['B'] : canCompare ? SIDES : [singleSide];
   const controlsSide = canCompare && !overlay ? (narrow ? 'A' : 'B') : active;
   const canLink = canCompare && !overlay && SIDES.every((side) => loadState[side] === 'ready');
-  const canControl = Boolean(images[active]?.src) && loadState[active] === 'ready';
+  const canControl = Boolean(images[active]?.src) && imageReady(active);
   const renderImage = (side: PaneSide): ImageSize => (overlay ? reference : (images[side] ?? EMPTY_IMAGE_SIZE));
   const viewportImages: Record<PaneSide, ImageSize | null> = overlay ? { A: reference, B: reference } : images;
   const viewportContext = { images: viewportImages, sizes, linked: linked && canLink };
-  const activeView = resolveView(views[active], renderImage(active), sizes[active]);
-  const actualSize = canControl && views[active].scale !== null && Math.abs(activeView.scale - 1) < 0.001;
+  const currentViews = overlay ? differenceViews : views;
+  const updateViews = overlay ? setDifferenceViews : setViews;
+  const activeView = resolveView(currentViews[active], renderImage(active), sizes[active]);
+  const actualSize = canControl && currentViews[active].scale !== null && Math.abs(activeView.scale - 1) < 0.001;
   const canRestore =
     canControl &&
     (linked && canLink ? SIDES : [active]).some((side) => {
-      const view = views[side];
+      const view = currentViews[side];
       return view.scale !== null || view.x !== 0.5 || view.y !== 0.5 || view.rotation !== 0 || view.flipX || view.flipY;
     });
+
+  function imageReady(side: PaneSide): boolean {
+    return loadState[side] === 'ready' && (!overlay || differenceState === 'ready');
+  }
+
+  function toggleDifference(): void {
+    pointers.current.clear();
+    setDragging(null);
+    setZoomFeedback(null);
+    if (!overlay) {
+      setDifferenceState('loading');
+      setDifferenceViews({ A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW });
+    }
+    setDifferenceMode(!overlay);
+  }
 
   useDialog(true, panel, onClose);
 
@@ -155,31 +174,30 @@ export default function ImagePreviewModal({
       observer?.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [canCompare, singleSide]);
+  }, [canCompare, singleSide, overlay]);
 
   useEffect(() => {
     if (!overlay) return;
     const canvas = differenceCanvas.current;
     if (!canvas) return;
-    let cancelled = false;
-    void renderImageDifference(images.A?.src ?? '', images.B?.src ?? '', reference, canvas).then((rendered) => {
-      if (cancelled) return;
-      canvas.classList.toggle('is-failed', !rendered);
-    });
-    return () => {
-      cancelled = true;
-    };
+    const controller = new AbortController();
+    void renderImageDifference(images.A?.src ?? '', images.B?.src ?? '', reference, canvas, controller.signal).then(
+      (rendered) => {
+        if (!controller.signal.aborted) setDifferenceState(rendered ? 'ready' : 'error');
+      }
+    );
+    return () => controller.abort();
   }, [images.A?.src, images.B?.src, overlay, reference]);
 
   function zoom(side: PaneSide, factor: number, anchor?: ImagePoint): void {
-    if (loadState[side] !== 'ready') return;
-    setActive(side);
+    if (!imageReady(side)) return;
+    if (!overlay) setActive(side);
     const bounds = canvases.current[side]?.getBoundingClientRect();
     const offset = {
       x: anchor && bounds ? anchor.x - bounds.left - bounds.width / 2 : 0,
       y: anchor && bounds ? anchor.y - bounds.top - bounds.height / 2 : 0
     };
-    setViews((previous) => {
+    updateViews((previous) => {
       const next = zoomImageViews(previous, viewportContext, side, factor, offset);
       if (next[side].scale !== previous[side].scale) showZoomFeedback(side);
       return next;
@@ -187,13 +205,13 @@ export default function ImagePreviewModal({
   }
 
   function pan(side: PaneSide, dx: number, dy: number): void {
-    if (loadState[side] !== 'ready') return;
-    setViews((previous) => panImageViews(previous, viewportContext, side, { x: dx, y: dy }));
+    if (!imageReady(side)) return;
+    updateViews((previous) => panImageViews(previous, viewportContext, side, { x: dx, y: dy }));
   }
 
   function resetView(scale: number | null, side = active): void {
-    setActive(side);
-    setViews((previous) => {
+    if (!overlay) setActive(side);
+    updateViews((previous) => {
       const next = { ...previous };
       for (const target of linked && canLink ? SIDES : [side]) {
         next[target] = { ...previous[target], scale, x: 0.5, y: 0.5 };
@@ -204,16 +222,16 @@ export default function ImagePreviewModal({
   }
 
   function restoreView(side = active): void {
-    setActive(side);
-    setViews((previous) =>
+    if (!overlay) setActive(side);
+    updateViews((previous) =>
       linked && canLink ? { A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW } : { ...previous, [side]: FIT_IMAGE_VIEW }
     );
   }
 
   function orient(side: PaneSide, action: OrientationAction): void {
-    if (loadState[side] !== 'ready') return;
-    setActive(side);
-    setViews((previous) => orientImageViews(previous, viewportContext, side, action));
+    if (!imageReady(side)) return;
+    if (!overlay) setActive(side);
+    updateViews((previous) => orientImageViews(previous, viewportContext, side, action));
   }
 
   function toggleLink(): void {
@@ -245,12 +263,12 @@ export default function ImagePreviewModal({
   }, [zoomRef]);
 
   function startPointer(event: ReactPointerEvent<HTMLDivElement>, side: PaneSide): void {
-    if (event.button !== 0 || loadState[side] !== 'ready') return;
+    if (event.button !== 0 || !imageReady(side)) return;
     event.preventDefault();
     event.currentTarget.focus({ preventScroll: true });
     event.currentTarget.setPointerCapture(event.pointerId);
     pointers.current.set(event.pointerId, { side, x: event.clientX, y: event.clientY });
-    setActive(side);
+    if (!overlay) setActive(side);
     setDragging(side);
   }
 
@@ -304,6 +322,23 @@ export default function ImagePreviewModal({
       ? copy.counterpartUnavailable[counterpartSide]
       : null;
 
+  const output = imageDifferenceRenderSize(reference);
+  const differentDimensions =
+    images.A && images.B && (images.A.width !== images.B.width || images.A.height !== images.B.height);
+  const differenceNotice = overlay
+    ? [
+        differentDimensions
+          ? imageAspectMatches(images.A!, images.B!)
+            ? copy.scaledComparison
+            : copy.differentDimensions
+          : null,
+        output.width < reference.width || output.height < reference.height ? copy.reducedResolution : null
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : null;
+  const notice = unavailableNotice || differenceNotice;
+
   const visibleImages = sides.map(renderImage);
   const imageWidth = Math.max(0, ...visibleImages.map((image) => image?.width ?? 0));
   const imageHeight = Math.max(0, ...visibleImages.map((image) => image?.height ?? 0));
@@ -339,20 +374,20 @@ export default function ImagePreviewModal({
       className="image-preview-overlay"
       onFocus={(event) => {
         const side = canvasSide(event.target);
-        if (side) setActive(side);
+        if (side && !overlay) setActive(side);
       }}
       onDoubleClick={(event) => {
         const side = canvasSide(event.target);
-        if (!side || loadState[side] !== 'ready') return;
-        const fit = fitScale(images[side], sizes[side], views[side].rotation);
-        const view = resolveView(views[side], images[side], sizes[side]);
+        if (!side || !imageReady(side)) return;
+        const fit = fitScale(renderImage(side), sizes[side], currentViews[side].rotation);
+        const view = resolveView(currentViews[side], renderImage(side), sizes[side]);
         if (Math.abs(view.scale - fit) < 0.001)
           zoom(side, (fit < 1 ? 1 : 2) / view.scale, { x: event.clientX, y: event.clientY });
         else resetView(null, side);
       }}
       onKeyDown={(event) => {
         const side = canvasSide(event.target);
-        if (!side || event.altKey || event.ctrlKey || event.metaKey || loadState[side] !== 'ready') return;
+        if (!side || event.altKey || event.ctrlKey || event.metaKey || !imageReady(side)) return;
         if (event.key === '+' || event.key === '=') zoom(side, 1.25);
         else if (event.key === '-') zoom(side, 0.8);
         else if (event.key === '0') resetView(null, side);
@@ -384,26 +419,27 @@ export default function ImagePreviewModal({
         role="dialog"
         aria-modal="true"
         aria-label={overlay ? copy.difference : canCompare ? copy.title : i18n.documentPane.imagePreviewTitle}
-        aria-describedby={unavailableNotice ? 'image-preview-notice' : undefined}
+        aria-describedby={notice ? 'image-preview-notice' : undefined}
       >
         <div className="image-preview-panes">
           {sides.map((side) => {
             const source = images[side];
             const image = renderImage(side);
-            const view = resolveView(views[side], image, sizes[side]);
-            const ready = Boolean(source?.src) && loadState[side] === 'ready';
+            const view = resolveView(currentViews[side], image, sizes[side]);
+            const ready = Boolean(source?.src) && imageReady(side);
             return (
               <section
                 className={'image-preview-pane' + (active === side ? ' is-active' : '')}
                 data-side={side}
                 key={side}
-                aria-label={i18n.app.documents[side].title}
+                aria-label={overlay ? copy.difference : i18n.app.documents[side].title}
               >
                 <header className="image-preview-source">
                   {(canCompare || preview.compared) && (
                     <span
                       className={
-                        'image-preview-source-label' + (canCompare ? '' : ' image-preview-status is-' + preview.kind)
+                        'image-preview-source-label' +
+                        (overlay ? ' is-difference' : canCompare ? '' : ' image-preview-status is-' + preview.kind)
                       }
                     >
                       {canCompare
@@ -435,9 +471,9 @@ export default function ImagePreviewModal({
                     </div>
                   )}
                 </header>
-                {unavailableNotice && (
+                {notice && (
                   <p className="image-preview-notice" id="image-preview-notice" role="status">
-                    {unavailableNotice}
+                    {notice}
                   </p>
                 )}
                 <div
@@ -451,7 +487,8 @@ export default function ImagePreviewModal({
                   }
                   data-side={side}
                   role="group"
-                  aria-label={i18n.app.documents[side].title + ' · ' + copy.canvas}
+                  aria-label={(overlay ? copy.difference : i18n.app.documents[side].title) + ' · ' + copy.canvas}
+                  aria-busy={overlay && differenceState === 'loading' ? true : undefined}
                   aria-describedby="image-preview-keyboard-help"
                   tabIndex={ready ? 0 : -1}
                   onPointerDown={(event) => startPointer(event, side)}
@@ -460,11 +497,19 @@ export default function ImagePreviewModal({
                   onPointerCancel={endPointer}
                   onLostPointerCapture={endPointer}
                 >
-                  {source?.src && loadState[side] !== 'error' ? (
+                  {overlay && differenceState === 'error' ? (
+                    <div className="image-preview-empty" role="status">
+                      <PreviewIcon name="image" />
+                      <strong>{copy.differenceError}</strong>
+                      <button type="button" onClick={toggleDifference}>
+                        {copy.sideBySideHint}
+                      </button>
+                    </div>
+                  ) : source?.src && loadState[side] !== 'error' ? (
                     <>
-                      {loadState[side] === 'loading' && (
+                      {(overlay ? differenceState === 'loading' : loadState[side] === 'loading') && (
                         <div className="image-preview-loading" role="status">
-                          {copy.loading}
+                          {overlay ? copy.differenceLoading : copy.loading}
                         </div>
                       )}
                       {overlay ? (
@@ -474,6 +519,8 @@ export default function ImagePreviewModal({
                               differenceCanvas.current = node;
                             }}
                             className="image-preview-image image-preview-difference-canvas"
+                            role="img"
+                            aria-label={copy.differenceHint}
                             style={imageStyle(image, view, ready)}
                           />
                         </>
@@ -522,7 +569,7 @@ export default function ImagePreviewModal({
                 aria-label={copy.zoomOut}
                 title={copy.zoomOut}
                 disabled={
-                  !canControl || activeView.scale <= fitScale(images[active], sizes[active], activeView.rotation)
+                  !canControl || activeView.scale <= fitScale(renderImage(active), sizes[active], activeView.rotation)
                 }
                 onClick={() => zoom(active, 0.8)}
               >
@@ -601,7 +648,8 @@ export default function ImagePreviewModal({
                 aria-label={copy.difference}
                 title={overlay ? copy.sideBySideHint : copy.differenceHint}
                 aria-pressed={overlay}
-                onClick={() => setDifferenceMode(!overlay)}
+                disabled={!overlay && !SIDES.every((side) => loadState[side] === 'ready')}
+                onClick={toggleDifference}
               >
                 <PreviewIcon name={overlay ? 'columns' : 'difference'} />
               </button>

@@ -12,6 +12,7 @@ import { expect, test } from '@playwright/test';
 
 type FingerprintModule = typeof import('../src/services/imageFingerprint');
 type DescriptorModule = typeof import('../src/utils/imageDescriptor');
+type AlignmentModule = typeof import('../src/utils/imageAlignment');
 
 type FingerprintResult = {
   decoded: boolean;
@@ -20,6 +21,8 @@ type FingerprintResult = {
   unrelatedScore: number;
   pairThreshold: number;
   cosmeticThreshold: number;
+  swappedKinds: string[];
+  insertRemoveKinds: string[];
 };
 
 test('fingerprints real images through the browser decoder', async ({ page }) => {
@@ -66,10 +69,11 @@ test('fingerprints real images through the browser decoder', async ({ page }) =>
     // page rather than written out. A computed specifier gives back `any`, so
     // the module shapes are restated here.
     const sourceBase = new URL('.', location.href).href;
-    const [fingerprint, descriptor] = (await Promise.all([
+    const [fingerprint, descriptor, alignment] = (await Promise.all([
       import(`${sourceBase}src/services/imageFingerprint.ts`),
-      import(`${sourceBase}src/utils/imageDescriptor.ts`)
-    ])) as [FingerprintModule, DescriptorModule];
+      import(`${sourceBase}src/utils/imageDescriptor.ts`),
+      import(`${sourceBase}src/utils/imageAlignment.ts`)
+    ])) as [FingerprintModule, DescriptorModule, AlignmentModule];
 
     const original = await canvasBlob(barChart([0.3, 0.55, 0.4, 0.7, 0.5]));
     const edited = await canvasBlob(barChart([0.3, 0.55, 0.4, 0.25, 0.5]));
@@ -77,12 +81,14 @@ test('fingerprints real images through the browser decoder', async ({ page }) =>
     // Re-encoding the same drawing in the same browser reproduces the same
     // bytes, which is the shape an untouched image arrives in.
     const untouched = await canvasBlob(barChart([0.3, 0.55, 0.4, 0.7, 0.5]));
+    const inserted = await canvasBlob(barChart([0.3, 0.55, 0.4, 0.8, 0.5]));
 
     const table = await fingerprint.fingerprintDocumentImages([
       { id: 'blob:original', blob: original },
       { id: 'blob:edited', blob: edited },
       { id: 'blob:unrelated', blob: unrelated },
-      { id: 'blob:untouched', blob: untouched }
+      { id: 'blob:untouched', blob: untouched },
+      { id: 'blob:inserted', blob: inserted }
     ]);
 
     const get = (key: string) => {
@@ -91,13 +97,32 @@ test('fingerprints real images through the browser decoder', async ({ page }) =>
       return value;
     };
 
+    const root = (ids: string[]) => {
+      const element = document.createElement('div');
+      for (const id of ids) {
+        const image = document.createElement('img');
+        image.setAttribute('data-ddv-image-id', id);
+        element.append(image);
+      }
+      return element;
+    };
+    const kinds = (left: string[], right: string[]) =>
+      alignment
+        .alignDocumentImages(root(left), root(right), {
+          original: table,
+          revised: table
+        })
+        .map((entry) => entry.kind);
+
     return {
       decoded: Boolean(get('blob:original').visual && get('blob:edited').visual),
       sameHash: get('blob:original').hash === get('blob:untouched').hash,
       editedScore: descriptor.compareImageDescriptors(get('blob:original'), get('blob:edited')),
       unrelatedScore: descriptor.compareImageDescriptors(get('blob:original'), get('blob:unrelated')),
       pairThreshold: descriptor.IMAGE_PAIR_THRESHOLD,
-      cosmeticThreshold: descriptor.IMAGE_COSMETIC_THRESHOLD
+      cosmeticThreshold: descriptor.IMAGE_COSMETIC_THRESHOLD,
+      swappedKinds: kinds(['blob:original', 'blob:edited'], ['blob:edited', 'blob:original']),
+      insertRemoveKinds: kinds(['blob:original', 'blob:edited'], ['blob:inserted', 'blob:untouched'])
     };
   });
 
@@ -111,4 +136,6 @@ test('fingerprints real images through the browser decoder', async ({ page }) =>
 
   // An unrelated figure is not a revision of it.
   expect(result.unrelatedScore).toBeLessThan(result.pairThreshold);
+  expect(result.swappedKinds.sort()).toEqual(['moved', 'unchanged']);
+  expect(result.insertRemoveKinds).toEqual(['inserted', 'unchanged', 'deleted']);
 });

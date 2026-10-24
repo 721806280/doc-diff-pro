@@ -17,7 +17,7 @@ export type ImageComparisonSummary = {
   moved: number;
   inserted: number;
   deleted: number;
-  /** Of the revised, how many look like a re-export rather than an edit. */
+  /** High visual similarity among revisions; may still include important local edits. */
   cosmetic: number;
 };
 

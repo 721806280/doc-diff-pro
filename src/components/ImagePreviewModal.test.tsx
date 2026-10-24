@@ -5,6 +5,12 @@ import { setLocale } from '@/i18n';
 import { createRenderRegistry } from '@/test-utils/renderReact';
 import type { ImagePreview } from '@/utils/imagePreview';
 import ImagePreviewModal from './ImagePreviewModal';
+import { renderImageDifference } from '@/utils/imageDifference';
+
+vi.mock('@/utils/imageDifference', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/imageDifference')>()),
+  renderImageDifference: vi.fn()
+}));
 
 const renders = createRenderRegistry();
 const fileNames = { A: 'original.docx', B: 'revised.docx' };
@@ -92,7 +98,12 @@ function pointer(side: 'A' | 'B', type: string, options: PointerEventInit = {}):
   return event;
 }
 
-beforeEach(() => setLocale('en'));
+beforeEach(() => {
+  setLocale('en');
+  vi.mocked(renderImageDifference)
+    .mockReset()
+    .mockImplementation(() => new Promise(() => {}));
+});
 afterEach(() => {
   renders.cleanup();
   vi.restoreAllMocks();
@@ -327,6 +338,101 @@ describe('ImagePreviewModal', () => {
 
     expect(getByRole(document.body, 'dialog', { name: 'Difference overlay' })).toBeTruthy();
     expect(document.querySelector('.image-preview-source-label')?.textContent).toBe('Difference overlay');
+    expect(document.querySelector('.image-preview-filename')?.textContent).toBe('revised.docx');
+    expect(document.querySelector('.image-preview-pane')?.getAttribute('aria-label')).toBe('Difference overlay');
+  });
+
+  it('waits for both source images before allowing a difference view', () => {
+    renders.render(<ImagePreviewModal preview={preview} fileNames={fileNames} onClose={vi.fn()} />);
+    const toggle = getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Difference overlay' });
+    expect(toggle.disabled).toBe(true);
+    loadImage('A');
+    expect(toggle.disabled).toBe(true);
+    loadImage('B');
+    expect(toggle.disabled).toBe(false);
+  });
+
+  it('shows loading and failure feedback with a way back to the original images', async () => {
+    let complete!: (rendered: boolean) => void;
+    vi.mocked(renderImageDifference).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        })
+    );
+    renderReadyPreview();
+    clickControl('Difference overlay');
+    expect(document.querySelector('.image-preview-loading')?.textContent).toBe('Preparing difference overlay…');
+    await act(async () => complete(false));
+    expect(document.querySelector('.image-preview-empty')?.textContent).toContain('could not be generated');
+    expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Zoom in' }).disabled).toBe(true);
+    clickControl('Return to side-by-side comparison');
+    expect(document.querySelectorAll('.image-preview-pane')).toHaveLength(2);
+    expect(document.querySelector('.image-preview-empty')).toBeNull();
+  });
+
+  it('keeps the side-by-side views and selection when adjusting an overlay', async () => {
+    vi.mocked(renderImageDifference).mockResolvedValue(true);
+    renderReadyPreview({ ...preview, side: 'A' });
+    clickControl('Zoom in');
+    clickControl('Rotate right 90°');
+    const beforeA = transform('A');
+    const beforeB = transform('B');
+    await act(async () => clickControl('Difference overlay'));
+    const overlay = document.querySelector<HTMLCanvasElement>('.image-preview-difference-canvas')!;
+    expect(overlay.style.visibility).toBe('visible');
+    clickControl('Zoom in');
+    clickControl('Flip horizontally');
+    clickControl('Difference overlay');
+    expect(transform('A')).toEqual(beforeA);
+    expect(transform('B')).toEqual(beforeB);
+    expect(document.querySelector('.image-preview-pane.is-active')?.getAttribute('data-side')).toBe('A');
+  });
+
+  it('aborts an overlay on return and ignores a stale completion', async () => {
+    let complete!: (rendered: boolean) => void;
+    vi.mocked(renderImageDifference).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        })
+    );
+    renderReadyPreview();
+    clickControl('Difference overlay');
+    const signal = vi.mocked(renderImageDifference).mock.calls.at(-1)![4]!;
+    clickControl('Difference overlay');
+    expect(signal.aborted).toBe(true);
+    await act(async () => complete(false));
+    expect(document.querySelector('.image-preview-empty')).toBeNull();
+    clickControl('Difference overlay');
+    const pending = vi.mocked(renderImageDifference).mock.calls.at(-1)![4]!;
+    renders.cleanup();
+    expect(pending.aborted).toBe(true);
+  });
+
+  it('explains size alignment and reduced overlay resolution', () => {
+    renderReadyPreview({
+      ...preview,
+      images: {
+        A: { ...preview.images.A!, width: 8000, height: 4000 },
+        B: { ...preview.images.B!, width: 4000, height: 4000 }
+      }
+    });
+    clickControl('Difference overlay');
+    expect(document.querySelector('.image-preview-notice')?.textContent).toContain('top-left corners');
+    expect(document.querySelector('.image-preview-notice')?.textContent).toContain('reduced resolution');
+  });
+
+  it('explains proportional re-exports', () => {
+    renderReadyPreview({
+      ...preview,
+      images: {
+        A: preview.images.A,
+        B: { ...preview.images.B!, width: 960, height: 600 }
+      }
+    });
+    clickControl('Difference overlay');
+    expect(document.querySelector('.image-preview-notice')?.textContent).toContain('scaled proportionally');
   });
 
   it('keeps a linked peer in place when the other image is already at its zoom or pan limit', () => {

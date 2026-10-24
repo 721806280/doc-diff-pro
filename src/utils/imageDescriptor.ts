@@ -8,7 +8,7 @@
  * package into the next. The score here answers a different question — whether
  * two images are the same figure, so that a revised chart is reported as one
  * changed figure rather than as a deletion beside an unrelated insertion, and
- * how much the change is likely to matter to a reader.
+ * how similar their overall appearance is.
  *
  * Deliberately free of canvas and of any decoding: everything here works on
  * plain float arrays. That seam is what lets the thresholds be calibrated in
@@ -77,12 +77,13 @@ const MAX_VISUAL_SIMILARITY = 0.99;
 export const IMAGE_PAIR_THRESHOLD = 0.6;
 
 /**
- * Above this, two images differ in their bytes but not in what they show — a
- * figure re-exported or recompressed rather than redrawn.
+ * Heuristic for high overall visual similarity, including many re-exports.
+ * This is not proof of an unchanged picture: a small number edit can preserve
+ * almost all of the sampled features and still be an important change.
  *
  * Used only to label a difference, never to hide one. Whether an image changed
- * is decided by its hash, which is exact; this only says how much the change is
- * likely to matter to a reader.
+ * is decided by its hash, which is exact. The summary's legacy `cosmetic` count
+ * must not be interpreted as a count of verified recompressions.
  */
 export const IMAGE_COSMETIC_THRESHOLD = 0.97;
 

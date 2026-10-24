@@ -51,9 +51,8 @@ import {
 const IMAGE_GAP_PENALTY = IMAGE_PAIR_THRESHOLD / 2;
 
 /**
- * Above this many candidate pairs the alignment falls back to position. Lower
- * than the table ceiling because the per-pair comparison here reads a few
- * hundred bytes of descriptor rather than two integers.
+ * Bound similarity work in each gap between exact matches. Long documents
+ * normally leave only a handful of changed figures after anchoring by hash.
  */
 const MAX_IMAGE_ALIGNMENT_PAIRS = 250_000;
 
@@ -100,76 +99,135 @@ export function alignDocumentImages(
   revisedRoot: HTMLElement,
   descriptors: ImageDescriptorsBySide
 ): ImageAlignmentEntry[] {
-  const original = collectDocumentImages(originalRoot);
-  const revised = collectDocumentImages(revisedRoot);
+  const occurrences = (root: HTMLElement, table: ImageDescriptorTable): ImageOccurrence[] =>
+    collectDocumentImages(root).map((image, index) => ({
+      image,
+      index,
+      descriptor: table.get(image.getAttribute(IMAGE_ID_ATTRIBUTE) ?? '')
+    }));
+  const original = occurrences(originalRoot, descriptors.original);
+  const revised = occurrences(revisedRoot, descriptors.revised);
   if (original.length === 0 && revised.length === 0) return [];
 
-  const descriptorOf = (image: HTMLImageElement, side: keyof ImageDescriptorsBySide) =>
-    descriptors[side].get(image.getAttribute(IMAGE_ID_ATTRIBUTE) ?? '');
+  const { anchors, moved, candidates } = exactImagePairs(original, revised);
+  const movedOriginal = new Set(moved.map((pair) => pair.original));
+  const movedRevised = new Set(moved.map((pair) => pair.revised));
+  const exactOriginal = new Set(candidates.map((pair) => pair.original));
+  const exactRevised = new Set(candidates.map((pair) => pair.revised));
+  const similarity = (left: ImageOccurrence, right: ImageOccurrence) => {
+    // Repeated exact figures can cross anchors without proving which copy
+    // moved. They may pair by identity inside a gap, but cannot become a
+    // revision of another figure just because that looks similar.
+    if (left.descriptor?.hash !== right.descriptor?.hash && (exactOriginal.has(left) || exactRevised.has(right)))
+      return 0;
+    return pairScore(left.descriptor, right.descriptor);
+  };
+  const entries: ImageAlignmentEntry[] = [];
+  let originalStart = 0;
+  let revisedStart = 0;
 
-  const aligned = alignSequences(
-    original,
-    revised,
-    (left, right) => pairScore(descriptorOf(left, 'original'), descriptorOf(right, 'revised')),
-    { matchThreshold: IMAGE_PAIR_THRESHOLD, gapPenalty: IMAGE_GAP_PENALTY, maxPairs: MAX_IMAGE_ALIGNMENT_PAIRS }
-  ).map((pair) => {
-    const originalDescriptor = pair.original ? descriptorOf(pair.original, 'original') : undefined;
-    const revisedDescriptor = pair.revised ? descriptorOf(pair.revised, 'revised') : undefined;
-
-    return {
-      ...pair,
-      originalDescriptor,
-      revisedDescriptor,
-      kind: classifyPair(pair.original, pair.revised, originalDescriptor, revisedDescriptor),
-      similarity: pair.original && pair.revised ? pairScore(originalDescriptor, revisedDescriptor) : 1
-    };
-  });
-
-  return mergeMovedImages(aligned);
-}
-
-/**
- * Rejoins a figure that moved past another one.
- *
- * The alignment preserves order, which is what stops one inserted figure from
- * cascading — and is also why it cannot see a move: a figure that crossed its
- * neighbours can only be reported as gone from one place and arrived in another.
- * A second pass over what stayed unpaired recovers it, exactly as
- * `mergeMovedTableGroups` recovers a table row that moved.
- *
- * Only where the bytes are identical and unique on both sides. Two copies of the
- * same figure give no evidence about which became which, and this pass would
- * rather report a removal beside an addition than guess.
- */
-function mergeMovedImages(entries: ImageAlignmentEntry[]): ImageAlignmentEntry[] {
-  const byHash = (kind: ImageDifferenceKind, side: 'originalDescriptor' | 'revisedDescriptor') => {
-    const found = new Map<string, number[]>();
-    entries.forEach((entry, index) => {
-      const hash = entry.kind === kind ? entry[side]?.hash : undefined;
-      if (hash) found.set(hash, [...(found.get(hash) ?? []), index]);
+  const appendGap = (originalEnd: number, revisedEnd: number) => {
+    const left = original.slice(originalStart, originalEnd).filter((image) => !movedOriginal.has(image));
+    const right = revised.slice(revisedStart, revisedEnd).filter((image) => !movedRevised.has(image));
+    const pairs = alignSequences(left, right, similarity, {
+      matchThreshold: IMAGE_PAIR_THRESHOLD,
+      gapPenalty: IMAGE_GAP_PENALTY,
+      maxPairs: MAX_IMAGE_ALIGNMENT_PAIRS
     });
-    return found;
+    for (const pair of pairs) {
+      // The bounded positional fallback still has to meet the visual threshold.
+      if (pair.original && pair.revised && similarity(pair.original, pair.revised) < IMAGE_PAIR_THRESHOLD) {
+        entries.push(imageEntry(pair.original), imageEntry(undefined, pair.revised));
+      } else entries.push(imageEntry(pair.original, pair.revised));
+    }
   };
 
-  const removed = byHash('deleted', 'originalDescriptor');
-  const added = byHash('inserted', 'revisedDescriptor');
-  const merged = new Set<number>();
+  for (const anchor of anchors) {
+    appendGap(anchor.original.index, anchor.revised.index);
+    entries.push(imageEntry(anchor.original, anchor.revised));
+    originalStart = anchor.original.index + 1;
+    revisedStart = anchor.revised.index + 1;
+  }
+  appendGap(original.length, revised.length);
+  // Moved figures are reserved before similarity matching so another figure
+  // cannot steal either endpoint. Markup refinement restores document order.
+  for (const pair of moved) entries.push({ ...imageEntry(pair.original, pair.revised), kind: 'moved' });
+  return entries;
+}
 
-  for (const [hash, removedIndices] of removed) {
-    const addedIndices = added.get(hash);
-    if (removedIndices.length !== 1 || addedIndices?.length !== 1) continue;
+type ImageOccurrence = { image: HTMLImageElement; index: number; descriptor?: ImageDescriptor };
+type ExactImagePair = { original: ImageOccurrence; revised: ImageOccurrence; unique: boolean };
 
-    const from = entries[removedIndices[0] ?? -1];
-    const to = entries[addedIndices[0] ?? -1];
-    if (!from?.original || !to?.revised) continue;
-
-    from.revised = to.revised;
-    from.revisedDescriptor = to.revisedDescriptor;
-    from.kind = 'moved';
-    merged.add(addedIndices[0] ?? -1);
+/** Exact identity takes precedence over any number of approximate matches. */
+function exactImagePairs(original: ImageOccurrence[], revised: ImageOccurrence[]) {
+  const byHash = (images: ImageOccurrence[]) => {
+    const groups = new Map<string, ImageOccurrence[]>();
+    for (const image of images) {
+      if (!image.descriptor) continue;
+      const hash = image.descriptor.hash;
+      const group = groups.get(hash);
+      if (group) group.push(image);
+      else groups.set(hash, [image]);
+    }
+    return groups;
+  };
+  const left = byHash(original);
+  const right = byHash(revised);
+  const offsets = new Map<string, number>();
+  const candidates: ExactImagePair[] = [];
+  for (const image of original) {
+    const hash = image.descriptor?.hash;
+    if (hash === undefined) continue;
+    const index = offsets.get(hash) ?? 0;
+    const peer = right.get(hash)?.[index];
+    if (!peer) continue;
+    offsets.set(hash, index + 1);
+    candidates.push({
+      original: image,
+      revised: peer,
+      unique: left.get(hash)?.length === 1 && right.get(hash)?.length === 1
+    });
   }
 
-  return merged.size === 0 ? entries : entries.filter((_entry, index) => !merged.has(index));
+  // Length of the increasing run starting at each candidate, in O(n log n).
+  // Recovering forwards preserves the earliest occurrence when runs tie.
+  const lengths = new Uint32Array(candidates.length);
+  const tails: number[] = [];
+  for (let index = candidates.length - 1; index >= 0; index--) {
+    const value = -candidates[index]!.revised.index;
+    let low = 0;
+    let high = tails.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (tails[middle]! < value) low = middle + 1;
+      else high = middle;
+    }
+    tails[low] = value;
+    lengths[index] = low + 1;
+  }
+  const anchors: ExactImagePair[] = [];
+  const moved: ExactImagePair[] = [];
+  let remaining = tails.length;
+  let previous = -1;
+  candidates.forEach((pair, index) => {
+    if (remaining > 0 && pair.revised.index > previous && lengths[index]! >= remaining) {
+      anchors.push(pair);
+      previous = pair.revised.index;
+      remaining--;
+    } else if (pair.unique) moved.push(pair);
+  });
+  return { anchors, moved, candidates };
+}
+
+function imageEntry(original?: ImageOccurrence, revised?: ImageOccurrence): ImageAlignmentEntry {
+  return {
+    original: original?.image,
+    revised: revised?.image,
+    originalDescriptor: original?.descriptor,
+    revisedDescriptor: revised?.descriptor,
+    kind: classifyPair(original?.image, revised?.image, original?.descriptor, revised?.descriptor),
+    similarity: original && revised ? pairScore(original.descriptor, revised.descriptor) : 1
+  };
 }
 
 function pairScore(left: ImageDescriptor | undefined, right: ImageDescriptor | undefined): number {
@@ -291,11 +349,9 @@ function describeImage(
 }
 
 /**
- * Whether a revision only re-encoded the image rather than redrawing it.
- *
- * Never used to hide a difference — a figure whose bytes changed did change,
- * and saying so is the job. It marks the ones a reader can most likely pass
- * over quickly.
+ * Legacy summary heuristic for high visual similarity. It cannot establish
+ * that an image was only re-encoded, and must never hide a difference or imply
+ * that a small edit is unimportant.
  */
 export function isCosmeticImageChange(entry: ImageAlignmentEntry): boolean {
   return entry.kind === 'revised' && entry.similarity >= IMAGE_COSMETIC_THRESHOLD;

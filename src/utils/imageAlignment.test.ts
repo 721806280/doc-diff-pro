@@ -137,6 +137,55 @@ describe('alignDocumentImages', () => {
     expect(entries[0]?.revised).toBeUndefined();
   });
 
+  it('keeps exact identities when a similar figure is inserted and another removed', () => {
+    const entries = alignDocumentImages(
+      documentWith('a', 'b'),
+      documentWith('new', 'a2'),
+      sides(
+        { a: descriptor('a', 0.4), b: descriptor('b', 0.42) },
+        {
+          new: descriptor('new', 0.41),
+          a2: descriptor('a', 0.4)
+        }
+      )
+    );
+    expect(entries.map((entry) => entry.kind)).toEqual(['inserted', 'unchanged', 'deleted']);
+    expect(entries[1]?.revised?.getAttribute('src')).toBe('a2');
+  });
+
+  it('anchors unchanged images before applying the large-document limit', () => {
+    const ids = Array.from({ length: 501 }, (_, index) => String(index));
+    // Repeated figures exercise occurrence matching as well as unique hashes.
+    const table = Object.fromEntries(
+      ids.map((id, index) => [
+        id,
+        {
+          hash: index === 500 ? 'new' : String(Math.floor(index / 2)),
+          width: 400,
+          height: 400,
+          byteLength: 10
+        }
+      ])
+    );
+    const entries = alignDocumentImages(
+      documentWith(...ids.slice(0, 500)),
+      documentWith('500', ...ids.slice(0, 500)),
+      sides(table, table)
+    );
+    expect(entries.filter((entry) => entry.kind === 'unchanged')).toHaveLength(500);
+    expect(entries.filter((entry) => entry.kind === 'inserted')).toHaveLength(1);
+    expect(entries.some((entry) => entry.kind === 'revised' || entry.kind === 'moved')).toBe(false);
+  });
+
+  it('rejects unrelated positional pairs when a large gap has no exact anchors', () => {
+    const ids = Array.from({ length: 501 }, (_, index) => String(index));
+    const original = Object.fromEntries(ids.map((id) => [id, descriptor('left-' + id, 0.08)]));
+    const revised = Object.fromEntries(ids.map((id) => [id, descriptor('right-' + id, 0.92)]));
+    const entries = alignDocumentImages(documentWith(...ids), documentWith(...ids), sides(original, revised));
+    expect(entries.filter((entry) => entry.kind === 'deleted')).toHaveLength(501);
+    expect(entries.filter((entry) => entry.kind === 'inserted')).toHaveLength(501);
+  });
+
   // Every candidate pairing here scores exactly 1, so the answer rests entirely
   // on how the alignment settles a tie. It has to keep the figure where the
   // reader left it and call the later copies the additions: pairing with the
@@ -287,6 +336,58 @@ describe('markImageDifferences', () => {
 });
 
 describe('moved figures', () => {
+  it('never invents content revisions when repeated unchanged figures are reordered', () => {
+    const permutations = (values: string[]): string[][] => {
+      if (values.length === 0) return [[]];
+      return [...new Set(values)].flatMap((value) => {
+        const rest = values.slice();
+        rest.splice(rest.indexOf(value), 1);
+        return permutations(rest).map((suffix) => [value, ...suffix]);
+      });
+    };
+    const descriptors = {
+      a: descriptor('a', 0.4),
+      b: descriptor('b', 0.41),
+      c: descriptor('c', 0.42)
+    };
+    for (const revised of permutations(['a', 'a', 'b', 'b', 'c', 'c'])) {
+      const entries = alignDocumentImages(
+        documentWith('a', 'b', 'a', 'c', 'b', 'c'),
+        documentWith(...revised),
+        sides(descriptors, descriptors)
+      );
+      expect(
+        entries.filter((entry) => entry.kind === 'revised'),
+        revised.join(',')
+      ).toHaveLength(0);
+    }
+  });
+
+  it('recognizes a swap even when both figures look almost identical', () => {
+    const original = { a: descriptor('a', 0.4), b: descriptor('b', 0.42) };
+    const entries = alignDocumentImages(documentWith('a', 'b'), documentWith('b', 'a'), sides(original, original));
+    expect(entries.map((entry) => entry.kind).sort()).toEqual(['moved', 'unchanged']);
+    for (const entry of entries) expect(entry.originalDescriptor?.hash).toBe(entry.revisedDescriptor?.hash);
+  });
+
+  it('reserves a moved figure while matching a nearby revision', () => {
+    const entries = alignDocumentImages(
+      documentWith('a', 'b', 'c'),
+      documentWith('c', 'a2', 'b'),
+      sides(
+        {
+          a: descriptor('a', 0.4),
+          b: descriptor('b', 0.42),
+          c: descriptor('c', 0.41)
+        },
+        { c: descriptor('c', 0.41), a2: descriptor('a-new', 0.405), b: descriptor('b', 0.42) }
+      )
+    );
+    expect(entries.find((entry) => entry.original?.getAttribute('src') === 'a')?.kind).toBe('revised');
+    expect(entries.find((entry) => entry.original?.getAttribute('src') === 'c')?.kind).toBe('moved');
+    expect(entries.some((entry) => entry.kind === 'deleted' || entry.kind === 'inserted')).toBe(false);
+  });
+
   it('rejoins a figure that moved past its neighbours', () => {
     // The alignment preserves order, so a figure that crossed another can only
     // come out of it as gone from one place and arrived in another. This is the
