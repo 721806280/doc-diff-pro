@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
+    "@noble/hashes": "^2.4.0",
     "diff-match-patch": "^1.0.5",
     "dompurify": "^3.4.10",
     "mammoth": "npm:@xm721806280/mammoth@1.13.0-rc1",

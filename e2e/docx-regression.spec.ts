@@ -87,6 +87,33 @@ test('preserves merged cells and distinguishes repeated, re-encoded and edited f
   await expect(page.locator('.image-preview-status').filter({ hasText: '内容相同' })).toHaveCount(0);
 });
 
+test('detects different PNGs with the same legacy short hash without Web Crypto', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window.crypto, 'subtle', { configurable: true, value: undefined });
+  });
+  const panes = await compareFixture(page, 'hash-collision');
+  await expect(page.locator('.diff-progress')).toHaveAttribute('aria-valuemax', '1');
+  const colors = [];
+  for (const pane of panes) {
+    const image = pane.locator('img');
+    await expect(image).toHaveAttribute('data-ddv-image-change', 'revised');
+    colors.push(
+      await image.evaluate(async (element: HTMLImageElement) => {
+        await element.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext('2d')!;
+        context.drawImage(element, 0, 0, 1, 1);
+        return Array.from(context.getImageData(0, 0, 1, 1).data.slice(0, 3));
+      })
+    );
+  }
+  expect(colors).toEqual([
+    [255, 0, 0],
+    [0, 0, 255]
+  ]);
+});
+
 for (const fixture of ['tracked', 'tracked-aliased']) {
   test(`explains accepted tracked changes from the document notice (${fixture})`, async ({
     page,

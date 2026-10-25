@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import { fingerprintDocumentImages, sampleFromPixels, type ImageSourceEntry } from './imageFingerprint';
-import { IMAGE_COLOR_SIZE, IMAGE_SAMPLE_SIZE } from '@/utils/imageDescriptor';
+import { compareImageDescriptors, IMAGE_COLOR_SIZE, IMAGE_SAMPLE_SIZE } from '@/utils/imageDescriptor';
 
 function ascii(text: string): number[] {
   return Array.from(text, (character) => character.charCodeAt(0));
@@ -239,9 +240,8 @@ describe('fingerprintDocumentImages', () => {
   });
 
   it('still tells images apart where Web Crypto is unavailable', async () => {
-    // An insecure context has no `crypto.subtle`. Nothing here defends against a
-    // chosen collision — the question is only "are these the same bytes" — so a
-    // content hash keeps the comparison working rather than failing it.
+    // An insecure context has no `crypto.subtle`; image identity must still use
+    // the same digest as in a secure context.
     vi.stubGlobal('crypto', {});
 
     const table = await fingerprintDocumentImages([
@@ -252,7 +252,47 @@ describe('fingerprintDocumentImages', () => {
 
     expect(table.get('blob:a')?.hash).not.toBe(table.get('blob:b')?.hash);
     expect(table.get('blob:a')?.hash).toBe(table.get('blob:same')?.hash);
-    expect(table.get('blob:a')?.hash).toMatch(/^len-\d+-[0-9a-f]+$/);
+    expect(table.get('blob:a')?.hash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it.each([0, 1, 55, 56, 63, 64, 65, 127, 128, 4096])(
+    'matches the native SHA-256 digest without Web Crypto for %i bytes',
+    async (length) => {
+      vi.stubGlobal('crypto', undefined);
+      const bytes = Uint8Array.from({ length }, (_value, index) => index % 251);
+      const expected = createHash('sha256').update(bytes).digest('hex');
+      const table = await fingerprintDocumentImages([entry('image', bytes)]);
+
+      expect(table.get('image')?.hash).toBe(expected);
+    }
+  );
+
+  it('keeps hashing when the platform crypto provider rejects the digest', async () => {
+    const digest = vi.fn().mockRejectedValue(new Error('Crypto provider unavailable'));
+    vi.stubGlobal('crypto', { subtle: { digest } });
+    const bytes = pngOf(64, 64);
+    const table = await fingerprintDocumentImages([entry('image', bytes)]);
+
+    expect(digest).toHaveBeenCalledOnce();
+    expect(table.get('image')?.hash).toBe(createHash('sha256').update(bytes).digest('hex'));
+  });
+
+  it('does not merge different image payloads that collide under the former 32-bit fallback', async () => {
+    vi.stubGlobal('crypto', {});
+    // Equal lengths and the same FNV-1a value (a5160301), but different bytes.
+    const first = Uint8Array.from(
+      Buffer.from('89504e470d0a1a0a0000000d4948445200000040000000400802000000557c58f712382f06', 'hex')
+    );
+    const second = Uint8Array.from(
+      Buffer.from('89504e470d0a1a0a0000000d4948445200000040000000400802000000bee657a3f653b8ea', 'hex')
+    );
+    const table = await fingerprintDocumentImages([entry('first', first), entry('second', second)]);
+    const left = table.get('first')!;
+    const right = table.get('second')!;
+
+    expect(left.hash).not.toBe(right.hash);
+    expect(left).not.toBe(right);
+    expect(compareImageDescriptors(left, right)).toBeLessThan(1);
   });
 });
 

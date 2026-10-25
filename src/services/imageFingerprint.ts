@@ -283,27 +283,19 @@ export function sampleFromPixels(pixels: Uint8ClampedArray, width: number, heigh
 }
 
 /**
- * SHA-256 where it is available, which is everywhere the app runs.
- *
- * The fallback is not a security boundary — nothing here defends against a
- * chosen collision, it only answers "are these the same bytes" — so a content
- * hash salted with the length is enough to keep two different images from
- * being reported as one.
+ * Use SHA-256 in every context. A short fallback hash can merge different
+ * images and hide their differences. Load the software implementation only
+ * when Web Crypto is unavailable or refuses the operation.
  */
-async function contentHash(bytes: Uint8Array): Promise<string> {
-  const subtle = globalThis.crypto?.subtle;
-  if (!subtle) return `len-${bytes.byteLength}-${fnv1a(bytes).toString(16)}`;
-
-  const digest = await subtle.digest('SHA-256', bytes as unknown as ArrayBuffer);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function fnv1a(bytes: Uint8Array): number {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < bytes.length; index++) {
-    hash ^= bytes[index] ?? 0;
-    hash = Math.imul(hash, 0x01000193) >>> 0;
+async function contentHash(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
+  let digest: ArrayBuffer | undefined;
+  try {
+    digest = await globalThis.crypto?.subtle?.digest('SHA-256', bytes);
+  } catch {
+    // An exposed API can still reject a digest. The software path must produce
+    // the same identity so this cannot turn a readable image into a parse error.
   }
 
-  return hash;
+  const hash = digest ? new Uint8Array(digest) : (await import('@noble/hashes/sha2.js')).sha256(bytes);
+  return Array.from(hash, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }

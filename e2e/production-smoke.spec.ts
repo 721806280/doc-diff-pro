@@ -71,3 +71,18 @@ test('loads the bundled samples from the deployed base path', async ({ page }) =
   await expect(panes.first().locator('[data-diff-id]').first()).toBeVisible();
   expect(failures).toEqual([]);
 });
+
+test('loads the SHA-256 fallback under the production CSP without missing image changes', async ({ page }) => {
+  const failures = observeFailures(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(window.crypto, 'subtle', { configurable: true, value: undefined });
+  });
+  await page.goto('./');
+  await page.locator('input[type="file"]').nth(0).setInputFiles('e2e/fixtures/hash-collision-original.docx');
+  await page.locator('input[type="file"]').nth(1).setInputFiles('e2e/fixtures/hash-collision-revised.docx');
+  await expect(page.locator('.diff-progress')).toHaveAttribute('aria-valuemax', '1');
+  const images = page.locator('.docx-render-content img');
+  await expect(images).toHaveCount(2);
+  for (const image of await images.all()) await expect(image).toHaveAttribute('data-ddv-image-change', 'revised');
+  expect(failures).toEqual([]);
+});

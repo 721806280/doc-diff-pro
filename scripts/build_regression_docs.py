@@ -36,6 +36,10 @@ def picture(index, relationship):
     </wp:inline></w:drawing></w:r></w:p>'''
 
 
+def png_chunk(kind, data):
+    return pack('!I', len(data)) + kind + data + pack('!I', zlib.crc32(kind + data))
+
+
 def png_chart(heights=(0.3, 0.55, 0.4, 0.7, 0.5), compression=6):
     size = 256
     pixels = bytearray()
@@ -48,11 +52,23 @@ def png_chart(heights=(0.3, 0.55, 0.4, 0.7, 0.5), compression=6):
             )
             pixels.extend((31, 41, 55) if ink else (255, 255, 255))
 
-    def chunk(kind, data):
-        return pack('!I', len(data)) + kind + data + pack('!I', zlib.crc32(kind + data))
+    return (b'\x89PNG\r\n\x1a\n' + png_chunk(b'IHDR', pack('!2I5B', size, size, 8, 2, 0, 0, 0))
+            + png_chunk(b'IDAT', zlib.compress(bytes(pixels), compression)) + png_chunk(b'IEND', b''))
 
-    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', pack('!2I5B', size, size, 8, 2, 0, 0, 0))
-            + chunk(b'IDAT', zlib.compress(bytes(pixels), compression)) + chunk(b'IEND', b''))
+
+def png_hash_collision(revised):
+    """Valid red/blue PNGs: 293 bytes each, both FNV-1a 0x4693c6ec.
+
+    The fixed text annotations reproduce a collision in the former image hash
+    fallback while the decoded pixels visibly differ. SHA-256 distinguishes them.
+    """
+    size = 8
+    color = bytes((0, 0, 255) if revised else (255, 0, 0))
+    pixels = (b'\0' + color * size) * size
+    nonce = 70575 if revised else 32376
+    return (b'\x89PNG\r\n\x1a\n' + png_chunk(b'IHDR', pack('!2I5B', size, size, 8, 2, 0, 0, 0))
+            + png_chunk(b'IDAT', zlib.compress(pixels, 0))
+            + png_chunk(b'tEXt', b'Case\0' + f'{nonce:08x}'.encode('ascii')) + png_chunk(b'IEND', b''))
 
 
 def write_docx(path, body, images=None, chart=None, word_prefix='w'):
@@ -154,6 +170,9 @@ def build_regressions():
                  + '</c:v></c:pt></c:numLit></c:val></c:ser></c:barChart></c:plotArea></c:chart></c:chartSpace>')
         write_docx(target / f'native-chart-{suffix}.docx', chart_body, chart=chart)
         write_docx(target / f'native-chart-aliased-{suffix}.docx', chart_body, chart=chart, word_prefix='word')
+
+        write_docx(target / f'hash-collision-{suffix}.docx', paragraph('图片身份校验') + picture(1, 'figure'),
+                   images={'figure': png_hash_collision(revised)})
 
 
 if __name__ == '__main__':
