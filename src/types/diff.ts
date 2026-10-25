@@ -137,8 +137,6 @@ export type DiffWorkerRequest = {
   granularity: DiffGranularity;
 };
 
-export type DiffWorkerResponse = {
-  id: number;
-  diffs?: DiffTuple[];
-  error?: string;
-};
+export type DiffWorkerResponse = { id: number } & (
+  { diffs: DiffTuple[]; error?: never } | { error: string; diffs?: never }
+);
