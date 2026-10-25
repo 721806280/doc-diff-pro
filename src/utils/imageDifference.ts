@@ -1,10 +1,26 @@
-import { throwIfAborted, yieldToBrowser } from './comparisonScheduling';
+import { ComparisonAbortedError, throwIfAborted, yieldToBrowser } from './comparisonScheduling';
 import type { ImageSize } from './imageViewport';
 
 const NOISE_THRESHOLD = 16;
 const MAX_PIXELS = 4_000_000;
 const MAX_EDGE = 4096;
 const PIXELS_PER_TASK = 65_536;
+
+type ImageDifferenceFailure = 'invalid-size' | 'image-load' | 'canvas-unavailable' | 'render-failed';
+
+export class ImageDifferenceError extends Error {
+  constructor(
+    readonly reason: ImageDifferenceFailure,
+    message: string,
+    options?: ErrorOptions
+  ) {
+    super(message, options);
+    this.name = 'ImageDifferenceError';
+  }
+}
+
+export type ImageDifferenceResult =
+  { status: 'ready' } | { status: 'cancelled' } | { status: 'error'; error: ImageDifferenceError };
 
 /** Bound working buffers and canvas dimensions, including very long diagrams. */
 export function imageDifferenceRenderSize(size: ImageSize): ImageSize {
@@ -38,16 +54,22 @@ export async function renderImageDifference(
   size: ImageSize,
   canvas: HTMLCanvasElement,
   signal?: AbortSignal
-): Promise<boolean> {
+): Promise<ImageDifferenceResult> {
   const output = imageDifferenceRenderSize(size);
-  if (!output.width || !output.height) return false;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  let maskCanvas: HTMLCanvasElement | undefined;
 
   try {
     throwIfAborted(signal);
-    const context = canvas.getContext('2d', { willReadFrequently: true });
-    if (!context) return false;
-    const [leftImage, rightImage] = await Promise.all([loadImage(left, signal), loadImage(right, signal)]);
-    throwIfAborted(signal);
+    if (!output.width || !output.height) throw new ImageDifferenceError('invalid-size', 'Invalid overlay dimensions');
+    const context = getContext(canvas, true);
+    const [leftImage, rightImage] = await Promise.all([
+      loadImage(left, controller.signal),
+      loadImage(right, controller.signal)
+    ]);
+    throwIfAborted(controller.signal);
     const normalize = imageAspectMatches(
       { width: leftImage.naturalWidth, height: leftImage.naturalHeight },
       { width: rightImage.naturalWidth, height: rightImage.naturalHeight }
@@ -61,15 +83,13 @@ export async function renderImageDifference(
         })
       : output;
     const leftPixels = readPixels(leftImage, size, raster, normalize);
-    await yieldToBrowser(signal);
+    await yieldToBrowser(controller.signal);
     const rightPixels = readPixels(rightImage, size, raster, normalize);
-    if (!leftPixels || !rightPixels) return false;
 
-    const maskCanvas = document.createElement('canvas');
+    maskCanvas = document.createElement('canvas');
     maskCanvas.width = raster.width;
     maskCanvas.height = raster.height;
-    const maskContext = maskCanvas.getContext('2d');
-    if (!maskContext) return false;
+    const maskContext = getContext(maskCanvas);
     const mask = maskContext.createImageData(raster.width, raster.height);
     const { data } = mask;
     const batchSize = PIXELS_PER_TASK * 4;
@@ -89,21 +109,38 @@ export async function renderImageDifference(
         data[index + 2] = data[index + 1]!;
         data[index + 3] = Math.round(38 + intensity * 96);
       }
-      await yieldToBrowser(signal);
+      await yieldToBrowser(controller.signal);
     }
     maskContext.putImageData(mask, 0, 0);
-    throwIfAborted(signal);
+    throwIfAborted(controller.signal);
     canvas.width = output.width;
     canvas.height = output.height;
     drawOnPage(context, rightImage, size, output, normalize);
     context.filter = 'blur(0.7px)';
     context.drawImage(maskCanvas, 0, 0, output.width, output.height);
     context.filter = 'none';
-    maskCanvas.width = maskCanvas.height = 0;
-    return true;
-  } catch {
-    return false;
+    return { status: 'ready' };
+  } catch (error) {
+    if (signal?.aborted || error instanceof ComparisonAbortedError) return { status: 'cancelled' };
+    return {
+      status: 'error',
+      error:
+        error instanceof ImageDifferenceError
+          ? error
+          : new ImageDifferenceError('render-failed', 'Could not render image difference', { cause: error })
+    };
+  } finally {
+    signal?.removeEventListener('abort', abort);
+    // A failed source must also release its still-loading peer.
+    controller.abort();
+    if (maskCanvas) maskCanvas.width = maskCanvas.height = 0;
   }
+}
+
+function getContext(canvas: HTMLCanvasElement, willReadFrequently = false): CanvasRenderingContext2D {
+  const context = canvas.getContext('2d', { willReadFrequently });
+  if (!context) throw new ImageDifferenceError('canvas-unavailable', 'Canvas 2D context is unavailable');
+  return context;
 }
 
 function drawOnPage(
@@ -125,17 +162,17 @@ function drawOnPage(
   );
 }
 
-function readPixels(image: HTMLImageElement, size: ImageSize, output: ImageSize, normalize: boolean): ImageData | null {
+function readPixels(image: HTMLImageElement, size: ImageSize, output: ImageSize, normalize: boolean): ImageData {
   const canvas = document.createElement('canvas');
   canvas.width = output.width;
   canvas.height = output.height;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) return null;
-
-  drawOnPage(context, image, size, output, normalize);
-  const pixels = context.getImageData(0, 0, output.width, output.height);
-  canvas.width = canvas.height = 0;
-  return pixels;
+  try {
+    const context = getContext(canvas, true);
+    drawOnPage(context, image, size, output, normalize);
+    return context.getImageData(0, 0, output.width, output.height);
+  } finally {
+    canvas.width = canvas.height = 0;
+  }
 }
 
 function loadImage(src: string, signal?: AbortSignal): Promise<HTMLImageElement> {
@@ -152,12 +189,12 @@ function loadImage(src: string, signal?: AbortSignal): Promise<HTMLImageElement>
     };
     const failed = () => {
       cleanup();
-      reject(new Error('Image could not load'));
+      reject(new ImageDifferenceError('image-load', 'Image could not load'));
     };
     const aborted = () => {
       cleanup();
       image.src = '';
-      reject(new Error('Image loading cancelled'));
+      reject(new ComparisonAbortedError());
     };
     image.addEventListener('load', loaded, { once: true });
     image.addEventListener('error', failed, { once: true });

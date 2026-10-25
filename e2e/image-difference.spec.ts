@@ -40,7 +40,7 @@ test('keeps crop coordinates, normalizes proportional sizes and bounds large ove
         if (data[index]! > data[index + 1]! + 12 && data[index]! > data[index + 2]! + 12) red++;
         if (data[index + 3] !== 255) transparent++;
       }
-      return { rendered, red, transparent };
+      return { rendered: rendered.status, red, transparent };
     };
     const original = drawing(120, 100);
     const cropped = await compare(original, drawing(100, 100));
@@ -73,23 +73,23 @@ test('keeps crop coordinates, normalizes proportional sizes and bounds large ove
       reexported,
       transparent,
       changed,
-      largeRendered,
+      largeRendered: largeRendered.status,
       largeOutput: { width: largeCanvas.width, height: largeCanvas.height },
-      aborted,
+      aborted: aborted.status,
       unchangedTarget: Array.from(context.getImageData(0, 0, 1, 1).data),
       large: imageDifferenceRenderSize({ width: 8000, height: 8000 }),
       panoramic: imageDifferenceRenderSize({ width: 80_000, height: 200 })
     };
   });
-  expect(result.cropped).toEqual({ rendered: true, red: 0, transparent: 0 });
-  expect(result.reexported).toEqual({ rendered: true, red: 0, transparent: 0 });
-  expect(result.transparent).toEqual({ rendered: true, red: 0, transparent: 0 });
-  expect(result.changed.rendered).toBe(true);
+  expect(result.cropped).toEqual({ rendered: 'ready', red: 0, transparent: 0 });
+  expect(result.reexported).toEqual({ rendered: 'ready', red: 0, transparent: 0 });
+  expect(result.transparent).toEqual({ rendered: 'ready', red: 0, transparent: 0 });
+  expect(result.changed.rendered).toBe('ready');
   expect(result.changed.red).toBeGreaterThan(50);
-  expect(result.largeRendered).toBe(true);
+  expect(result.largeRendered).toBe('ready');
   expect(result.largeOutput.width * result.largeOutput.height).toBeLessThanOrEqual(4_000_000);
   expect(result.largeOutput.width).toBeLessThan(4096);
-  expect(result.aborted).toBe(false);
+  expect(result.aborted).toBe('cancelled');
   expect(result.unchangedTarget).toEqual([0, 255, 0, 255]);
   expect(result.large.width * result.large.height).toBeLessThanOrEqual(4_000_000);
   expect(Math.max(result.panoramic.width, result.panoramic.height)).toBeLessThanOrEqual(4096);

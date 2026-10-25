@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { imageAspectMatches, imageDifferenceRenderSize, renderImageDifference } from './imageDifference';
+import {
+  ImageDifferenceError,
+  imageAspectMatches,
+  imageDifferenceRenderSize,
+  renderImageDifference
+} from './imageDifference';
 import { yieldToBrowser } from './comparisonScheduling';
 
 vi.mock('./comparisonScheduling', async (importOriginal) => {
@@ -10,9 +15,15 @@ vi.mock('./comparisonScheduling', async (importOriginal) => {
 type Listener = (event?: Event) => void;
 
 class FakeImage {
+  static instances: FakeImage[] = [];
   naturalWidth = 1;
   naturalHeight = 1;
   private listeners: Partial<Record<'error' | 'load', Listener>> = {};
+  source = '';
+
+  constructor() {
+    FakeImage.instances.push(this);
+  }
 
   addEventListener(type: 'error' | 'load', listener: Listener): void {
     this.listeners[type] = listener;
@@ -23,6 +34,7 @@ class FakeImage {
   }
 
   set src(value: string) {
+    this.source = value;
     if (value === 'slow') return;
     const dimensions = /:(\d+)x(\d+)/.exec(value);
     if (dimensions) {
@@ -69,6 +81,7 @@ function createReadCanvas(data: number[]) {
 
 describe('renderImageDifference', () => {
   beforeEach(() => {
+    FakeImage.instances = [];
     vi.stubGlobal('Image', FakeImage);
     vi.mocked(yieldToBrowser).mockClear();
   });
@@ -82,22 +95,24 @@ describe('renderImageDifference', () => {
     const canvas = createCanvas(createContext());
     await expect(
       renderImageDifference('a', 'b', { width: 0, height: 10 }, canvas as unknown as HTMLCanvasElement)
-    ).resolves.toBe(false);
+    ).resolves.toMatchObject({ status: 'error', error: { reason: 'invalid-size' } });
     expect(canvas.getContext).not.toHaveBeenCalled();
   });
 
-  it('returns false when the target canvas has no context', async () => {
+  it('reports an unavailable canvas context', async () => {
     const canvas = createCanvas(null);
     await expect(
       renderImageDifference('a', 'b', { width: 1, height: 1 }, canvas as unknown as HTMLCanvasElement)
-    ).resolves.toBe(false);
+    ).resolves.toMatchObject({ status: 'error', error: { reason: 'canvas-unavailable' } });
   });
 
-  it('returns false when a source image cannot load', async () => {
+  it('reports image-load failures and cancels the still-loading peer', async () => {
     const canvas = createCanvas(createContext());
     await expect(
-      renderImageDifference('left', 'error', { width: 1, height: 1 }, canvas as unknown as HTMLCanvasElement)
-    ).resolves.toBe(false);
+      renderImageDifference('slow', 'error', { width: 1, height: 1 }, canvas as unknown as HTMLCanvasElement)
+    ).resolves.toMatchObject({ status: 'error', error: { reason: 'image-load' } });
+    expect(FakeImage.instances[0]!.source).toBe('');
+    expect(canvas.width).toBe(0);
   });
 
   it('draws the revised image with a blended red change mask', async () => {
@@ -137,7 +152,7 @@ describe('renderImageDifference', () => {
     expect(targetContext.drawImage.mock.calls[0]![0]).toBeInstanceOf(FakeImage);
     expect(targetContext.drawImage).toHaveBeenNthCalledWith(2, mask, 0, 0, 1, 1);
     expect(targetContext.filter).toBe('none');
-    expect(rendered).toBe(true);
+    expect(rendered).toEqual({ status: 'ready' });
   });
 
   it('preserves crop coordinates instead of stretching unchanged content', async () => {
@@ -153,7 +168,7 @@ describe('renderImageDifference', () => {
         { width: 120, height: 100 },
         createCanvas(createContext()) as unknown as HTMLCanvasElement
       )
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ status: 'ready' });
     expect(left.getContext()!.drawImage).toHaveBeenCalledWith(expect.any(FakeImage), 0, 0, 120, 100);
     expect(right.getContext()!.drawImage).toHaveBeenCalledWith(expect.any(FakeImage), 0, 0, 100, 100);
   });
@@ -187,7 +202,7 @@ describe('renderImageDifference', () => {
       controller.signal
     );
     controller.abort();
-    await expect(pending).resolves.toBe(false);
+    await expect(pending).resolves.toEqual({ status: 'cancelled' });
     expect(target.width).toBe(0);
     expect(context.drawImage).not.toHaveBeenCalled();
     await expect(
@@ -198,7 +213,7 @@ describe('renderImageDifference', () => {
         target as unknown as HTMLCanvasElement,
         controller.signal
       )
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ status: 'cancelled' });
   });
 
   it('stops a cancelled mask before committing pixels', async () => {
@@ -223,7 +238,33 @@ describe('renderImageDifference', () => {
         target as unknown as HTMLCanvasElement,
         controller.signal
       )
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ status: 'cancelled' });
+    expect(target.width).toBe(0);
+    expect(canvases).toHaveLength(0);
+  });
+
+  it('preserves unexpected rendering errors and releases the temporary canvas', async () => {
+    const cause = new DOMException('Cannot read pixels', 'SecurityError');
+    const read = createReadCanvas([255, 255, 255, 255]);
+    read.getContext()!.getImageData.mockImplementation(() => {
+      throw cause;
+    });
+    vi.spyOn(document, 'createElement').mockReturnValue(read as unknown as HTMLElement);
+    const target = createCanvas(createContext());
+
+    const result = await renderImageDifference(
+      'left',
+      'right',
+      { width: 1, height: 1 },
+      target as unknown as HTMLCanvasElement
+    );
+
+    expect(result.status).toBe('error');
+    if (result.status !== 'error') throw new Error('Expected a render error');
+    expect(result.error).toBeInstanceOf(ImageDifferenceError);
+    expect(result.error.reason).toBe('render-failed');
+    expect(result.error.cause).toBe(cause);
+    expect(read.width).toBe(0);
     expect(target.width).toBe(0);
   });
 

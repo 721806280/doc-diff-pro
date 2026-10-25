@@ -6,6 +6,7 @@ const webkitTimeout = process.platform === 'linux' ? 60_000 : 30_000;
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: '**/production-smoke.spec.ts',
   timeout: 30_000,
   globalTimeout: process.env.CI ? 15 * 60_000 : undefined,
   expect: { timeout: 10_000 },

@@ -5,7 +5,7 @@ import { setLocale } from '@/i18n';
 import { createRenderRegistry } from '@/test-utils/renderReact';
 import type { ImagePreview } from '@/utils/imagePreview';
 import ImagePreviewModal from './ImagePreviewModal';
-import { renderImageDifference } from '@/utils/imageDifference';
+import { ImageDifferenceError, renderImageDifference, type ImageDifferenceResult } from '@/utils/imageDifference';
 
 vi.mock('@/utils/imageDifference', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/utils/imageDifference')>()),
@@ -353,7 +353,9 @@ describe('ImagePreviewModal', () => {
   });
 
   it('shows loading and failure feedback with a way back to the original images', async () => {
-    let complete!: (rendered: boolean) => void;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = new ImageDifferenceError('canvas-unavailable', 'Canvas 2D context is unavailable');
+    let complete!: (result: ImageDifferenceResult) => void;
     vi.mocked(renderImageDifference).mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -363,16 +365,22 @@ describe('ImagePreviewModal', () => {
     renderReadyPreview();
     clickControl('Difference overlay');
     expect(document.querySelector('.image-preview-loading')?.textContent).toBe('Preparing difference overlay…');
-    await act(async () => complete(false));
+    await act(async () => complete({ status: 'error', error }));
+    expect(warn).toHaveBeenCalledWith('[Image difference overlay]', error);
     expect(document.querySelector('.image-preview-empty')?.textContent).toContain('could not be generated');
     expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Zoom in' }).disabled).toBe(true);
     clickControl('Return to side-by-side comparison');
     expect(document.querySelectorAll('.image-preview-pane')).toHaveLength(2);
     expect(document.querySelector('.image-preview-empty')).toBeNull();
+    clickControl('Difference overlay');
+    expect(document.querySelector('.image-preview-loading')?.textContent).toBe('Preparing difference overlay…');
+    await act(async () => complete({ status: 'ready' }));
+    expect(document.querySelector('.image-preview-difference-canvas')).toBeTruthy();
+    expect(getByRole<HTMLButtonElement>(document.body, 'button', { name: 'Zoom in' }).disabled).toBe(false);
   });
 
   it('keeps the side-by-side views and selection when adjusting an overlay', async () => {
-    vi.mocked(renderImageDifference).mockResolvedValue(true);
+    vi.mocked(renderImageDifference).mockResolvedValue({ status: 'ready' });
     renderReadyPreview({ ...preview, side: 'A' });
     clickControl('Zoom in');
     clickControl('Rotate right 90°');
@@ -390,7 +398,8 @@ describe('ImagePreviewModal', () => {
   });
 
   it('aborts an overlay on return and ignores a stale completion', async () => {
-    let complete!: (rendered: boolean) => void;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let complete!: (result: ImageDifferenceResult) => void;
     vi.mocked(renderImageDifference).mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -402,8 +411,11 @@ describe('ImagePreviewModal', () => {
     const signal = vi.mocked(renderImageDifference).mock.calls.at(-1)![4]!;
     clickControl('Difference overlay');
     expect(signal.aborted).toBe(true);
-    await act(async () => complete(false));
+    await act(async () =>
+      complete({ status: 'error', error: new ImageDifferenceError('render-failed', 'Stale error') })
+    );
     expect(document.querySelector('.image-preview-empty')).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
     clickControl('Difference overlay');
     const pending = vi.mocked(renderImageDifference).mock.calls.at(-1)![4]!;
     renders.cleanup();

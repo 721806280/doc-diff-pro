@@ -121,6 +121,15 @@ jobs:
             pnpm test:e2e
           fi
 
+      - name: Build production site
+        if: inputs.e2e_scope != 'webkit-diagnostics'
+        run: pnpm build
+
+      - name: Smoke test production site
+        if: inputs.e2e_scope != 'webkit-diagnostics'
+        timeout-minutes: 5
+        run: pnpm test:e2e:production
+
       - name: Upload report
         if: ${{ always() }}
         timeout-minutes: 3

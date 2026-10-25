@@ -9,11 +9,13 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useDialog } from '@/hooks/useDialog';
+import { useImageDifference } from '@/hooks/useImageDifference';
+import { useImagePreviewViews } from '@/hooks/useImagePreviewViews';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useI18n } from '@/i18n';
 import type { PaneSide } from '@/types/document';
 import type { ImagePreview } from '@/utils/imagePreview';
-import { imageAspectMatches, imageDifferenceRenderSize, renderImageDifference } from '@/utils/imageDifference';
+import { imageAspectMatches, imageDifferenceRenderSize } from '@/utils/imageDifference';
 import {
   EMPTY_IMAGE_SIZE,
   FIT_IMAGE_VIEW,
@@ -27,7 +29,6 @@ import {
   zoomImageViews,
   type ImagePoint,
   type ImageSize,
-  type ImageViews,
   type OrientationAction,
   type ResolvedImageView
 } from '@/utils/imageViewport';
@@ -54,21 +55,25 @@ export default function ImagePreviewModal({
   const canvases = useRef<Record<PaneSide, HTMLDivElement | null>>({ A: null, B: null });
   const differenceCanvas = useRef<HTMLCanvasElement | null>(null);
   const pointers = useRef(new Map<number, ImagePoint & { side: PaneSide }>());
-  const zoomTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [images, setImages] = useState(preview.images);
   const [loadState, setLoadState] = useState<Record<PaneSide, 'loading' | 'ready' | 'error'>>({
     A: 'loading',
     B: 'loading'
   });
   const [sizes, setSizes] = useState<Record<PaneSide, ImageSize>>({ A: EMPTY_IMAGE_SIZE, B: EMPTY_IMAGE_SIZE });
-  const [views, setViews] = useState<ImageViews>({ A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW });
-  const [differenceViews, setDifferenceViews] = useState<ImageViews>({ A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW });
+  const {
+    views,
+    setViews,
+    differenceViews,
+    setDifferenceViews,
+    resetDifferenceViews,
+    zoomFeedback,
+    clearZoomFeedback
+  } = useImagePreviewViews();
   const [selectedSide, setActive] = useState(preview.side);
   const [linked, setLinked] = useState(true);
   const [differenceMode, setDifferenceMode] = useState(false);
-  const [differenceState, setDifferenceState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dragging, setDragging] = useState<PaneSide | null>(null);
-  const [zoomFeedback, setZoomFeedback] = useState<PaneSide | null>(null);
   const [narrow, setNarrow] = useState(() => window.matchMedia?.(NARROW_QUERY).matches ?? false);
   const canCompare =
     preview.compared &&
@@ -88,6 +93,13 @@ export default function ImagePreviewModal({
       height: Math.max(images.A?.height ?? 0, images.B?.height ?? 0)
     }),
     [images.A?.width, images.A?.height, images.B?.width, images.B?.height]
+  );
+  const differenceState = useImageDifference(
+    overlay,
+    differenceCanvas,
+    images.A?.src ?? '',
+    images.B?.src ?? '',
+    reference
   );
   const active = overlay ? 'B' : canCompare ? selectedSide : singleSide;
   const sides: PaneSide[] = overlay ? ['B'] : canCompare ? SIDES : [singleSide];
@@ -115,10 +127,9 @@ export default function ImagePreviewModal({
   function toggleDifference(): void {
     pointers.current.clear();
     setDragging(null);
-    setZoomFeedback(null);
+    clearZoomFeedback();
     if (!overlay) {
-      setDifferenceState('loading');
-      setDifferenceViews({ A: FIT_IMAGE_VIEW, B: FIT_IMAGE_VIEW });
+      resetDifferenceViews();
     }
     setDifferenceMode(!overlay);
   }
@@ -132,19 +143,6 @@ export default function ImagePreviewModal({
     query.addEventListener('change', change);
     return () => query.removeEventListener('change', change);
   }, []);
-
-  useEffect(
-    () => () => {
-      if (zoomTimer.current) clearTimeout(zoomTimer.current);
-    },
-    []
-  );
-
-  function showZoomFeedback(side: PaneSide): void {
-    if (zoomTimer.current) clearTimeout(zoomTimer.current);
-    setZoomFeedback(side);
-    zoomTimer.current = setTimeout(() => setZoomFeedback(null), 700);
-  }
 
   useEffect(() => {
     const measure = () => {
@@ -176,19 +174,6 @@ export default function ImagePreviewModal({
     };
   }, [canCompare, singleSide, overlay]);
 
-  useEffect(() => {
-    if (!overlay) return;
-    const canvas = differenceCanvas.current;
-    if (!canvas) return;
-    const controller = new AbortController();
-    void renderImageDifference(images.A?.src ?? '', images.B?.src ?? '', reference, canvas, controller.signal).then(
-      (rendered) => {
-        if (!controller.signal.aborted) setDifferenceState(rendered ? 'ready' : 'error');
-      }
-    );
-    return () => controller.abort();
-  }, [images.A?.src, images.B?.src, overlay, reference]);
-
   function zoom(side: PaneSide, factor: number, anchor?: ImagePoint): void {
     if (!imageReady(side)) return;
     if (!overlay) setActive(side);
@@ -197,11 +182,7 @@ export default function ImagePreviewModal({
       x: anchor && bounds ? anchor.x - bounds.left - bounds.width / 2 : 0,
       y: anchor && bounds ? anchor.y - bounds.top - bounds.height / 2 : 0
     };
-    updateViews((previous) => {
-      const next = zoomImageViews(previous, viewportContext, side, factor, offset);
-      if (next[side].scale !== previous[side].scale) showZoomFeedback(side);
-      return next;
-    });
+    updateViews((previous) => zoomImageViews(previous, viewportContext, side, factor, offset), side);
   }
 
   function pan(side: PaneSide, dx: number, dy: number): void {
@@ -216,9 +197,8 @@ export default function ImagePreviewModal({
       for (const target of linked && canLink ? SIDES : [side]) {
         next[target] = { ...previous[target], scale, x: 0.5, y: 0.5 };
       }
-      if (next[side].scale !== previous[side].scale) showZoomFeedback(side);
       return next;
-    });
+    }, side);
   }
 
   function restoreView(side = active): void {

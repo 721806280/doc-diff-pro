@@ -195,9 +195,12 @@ pnpm typecheck
 pnpm test
 pnpm test:e2e
 pnpm build
+pnpm test:e2e:production
 ```
 
 Install the browser test engines with `pnpm exec playwright install chrome firefox webkit` (add `--with-deps` on Linux). E2E runs cover Chrome, Firefox, WebKit and mobile layouts in Chrome/WebKit; use `--project=desktop` for a quick Chrome run. The [regression fixtures](./e2e/fixtures/README.md) document their source and expected changes. They are generated OOXML packages; real editor exports and physical phones still require separate validation.
+
+After `pnpm build`, `pnpm test:e2e:production` serves `dist` on port 4173 and checks imports, the bundled Worker, sample paths, and image overlays under the production CSP in Chrome and WebKit. It uses a separate configuration and report folder; the development suite still exercises source modules on port 5173. CI requires both suites before deployment.
 
 `pnpm format` rewrites files with Prettier. CI runs these checks on every pull request, with coverage thresholds for unit tests. Pushes to `main` and manual CI runs on `main` deploy only after both verification and browser tests pass. Pages publishes the build artifact from that same run; `build-info.json` records its version and commit.
 
@@ -227,7 +230,7 @@ pnpm preview
 - 📋 Table structure diagnosis lives in `src/utils/tableStructureHint.ts`.
 - 🙈 Difference ignore behavior and similar-difference scoring live in `src/utils/diffReview.ts`.
 - 🪟 `useComparisonLayout` builds the difference index before paint and only remeasures geometry on resize. `usePaneScrollSync` owns the driving pane and scroll feedback guard; layout and navigation call its methods without sharing mutable scroll state.
-- 🖼️ Image zoom, pan, orientation, and linked-view calculations live in `src/utils/imageViewport.ts` as pure functions. `ImagePreviewModal` handles DOM input, image loading, and rendering.
+- 🖼️ Image zoom, pan, orientation, and linked-view calculations live in `src/utils/imageViewport.ts` as pure functions. `useImagePreviewViews` owns viewport state and transient zoom feedback; `useImageDifference` owns overlay cancellation and error diagnostics. `ImagePreviewModal` handles DOM input, image loading, and rendering.
 - ⏱️ `useAnimationFrameRef` and `useTimeoutRef` manage cancellable UI work. Clearing a view cancels obsolete work, and navigation explicitly schedules its next measurement.
 - 🎨 Theme tokens live in `src/utils/themeColor.ts`, and interface strings live in `src/i18n/`.
 
