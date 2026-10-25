@@ -6,6 +6,7 @@ import { useLatestRef } from './useLatestRef';
 type RecompareOnSettingsChangeOptions = {
   documents: DocumentPair;
   ready: boolean;
+  cancelled: boolean;
   rules: ComparisonRules;
   notice: string;
   onCompare: (documents: DocumentPair, showDoneNotice: boolean) => Promise<void>;
@@ -15,6 +16,7 @@ type RecompareOnSettingsChangeOptions = {
 export function useRecompareOnSettingsChange({
   documents,
   ready,
+  cancelled,
   rules,
   notice,
   onCompare,
@@ -29,6 +31,8 @@ export function useRecompareOnSettingsChange({
   const latestNotice = useLatestRef(notice);
   const latestOnNotice = useLatestRef(onNotice);
 
+  // Cancellation also clears a queued refresh. A later explicit rules change
+  // may still retry, so cancellation does not suppress new changes.
   useEffect(() => {
     const currentRules = { diffGranularity, filterLayoutNoise, ignoreFullHalfWidth, ignoreSpaces };
     const changed = !sameRules(previousRules.current, currentRules);
@@ -41,6 +45,7 @@ export function useRecompareOnSettingsChange({
     }, 180);
     return () => window.clearTimeout(timer);
   }, [
+    cancelled,
     diffGranularity,
     filterLayoutNoise,
     ignoreFullHalfWidth,

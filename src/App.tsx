@@ -296,6 +296,7 @@ export default function App() {
   useRecompareOnSettingsChange({
     documents,
     ready,
+    cancelled,
     rules: settings,
     notice: i18n.app.notices.settingsUpdated,
     onCompare: runCompare,

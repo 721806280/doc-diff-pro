@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { I18nMessages } from '@/i18n/messages';
+import { useLatestRef } from './useLatestRef';
 import {
   createExternalDocumentApi,
   type DocDiffProState,
@@ -242,6 +243,10 @@ export function useDocumentSession({
     [adoptImageUrls, i18n, maxSizeMb, onBeforeDocumentChange, onNotice, replaceDocument]
   );
 
+  // The installed API and its subscriptions belong to the mounted session.
+  // Locale and callback updates must reach it without replacing the host.
+  const latestHandleFile = useLatestRef(handleFile);
+  const latestOnMeta = useLatestRef(onMeta);
   const externalApiHost = useMemo(
     () =>
       createExternalDocumentApi(
@@ -251,15 +256,15 @@ export function useDocumentSession({
             throw new TypeError('Baseline must be a browser File object.');
           if (input.revised && !isFileLike(input.revised))
             throw new TypeError('Revised must be a browser File object.');
-          onMeta(input.meta);
+          latestOnMeta.current(input.meta);
           const loads: Promise<void>[] = [];
-          if (input.baseline) loads.push(handleFile('A', input.baseline));
-          if (input.revised) loads.push(handleFile('B', input.revised));
+          if (input.baseline) loads.push(latestHandleFile.current('A', input.baseline));
+          if (input.revised) loads.push(latestHandleFile.current('B', input.revised));
           await Promise.all(loads);
         },
         () => getStateRef.current()
       ),
-    [getStateRef, handleFile, onMeta]
+    [getStateRef, latestHandleFile, latestOnMeta]
   );
 
   const externalEmit = externalApiHost.emit;

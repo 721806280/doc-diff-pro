@@ -93,6 +93,33 @@ test('keeps the previous result when a settings refresh is canceled', async ({ p
   }
 });
 
+test('does not restart a canceled comparison when a queued settings refresh expires', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+  await page.goto('./');
+  const worker = await holdWorker(page);
+  try {
+    await loadPair(page);
+    await worker.requested;
+    await page.locator('.settings-trigger').click();
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
+    // Keep the 180 ms debounce pending while exercising the cancellation race.
+    await page.locator('.granularity-segmented__option').first().dispatchEvent('click');
+    await expect(page.locator('.granularity-segmented__option').first()).toHaveAttribute('aria-checked', 'true');
+    await page.locator('.compare-toast').getByRole('button', { name: '取消', exact: true }).dispatchEvent('click');
+    await expect(page.locator('.app-task-banner')).toContainText('比对已取消');
+    await worker.release();
+    await page.clock.runFor(1_000);
+
+    await expect(page.locator('.app-task-banner')).toContainText('比对已取消');
+    await expect(page.locator('.floating-navigator, .app-error-banner')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: '重新比对', exact: true }).dispatchEvent('click');
+    await expect(page.locator('.diff-progress')).toHaveAttribute('aria-valuemax', '5');
+  } finally {
+    await worker.release();
+  }
+});
+
 test('cancels a pending sample download and accepts a manual document', async ({ page }) => {
   let release!: () => void;
   let started!: () => void;

@@ -102,6 +102,7 @@ export function createExternalDocumentApi(
       return readyFired;
     },
     loadDocuments: async (documents) => {
+      if (!installed) throw new Error('Document API is not installed.');
       const sequence = ++sequenceCounter;
       await loadDocuments(documents);
       return { sequence };

@@ -6,6 +6,7 @@ import { createEmptyDocument } from '@/services/documentFile';
 import { useRecompareOnSettingsChange } from './useRecompareOnSettingsChange';
 
 type Rules = Pick<UserSettings, 'diffGranularity' | 'filterLayoutNoise' | 'ignoreFullHalfWidth' | 'ignoreSpaces'>;
+type RecompareProps = { rules: Rules; ready: boolean; documents: DocumentPair; cancelled?: boolean };
 
 const BASE_RULES: Rules = {
   diffGranularity: 'semantic',
@@ -24,22 +25,24 @@ function documentsWith(name: string): DocumentPair {
 function mountRecompare(initial: { rules?: Rules; ready?: boolean; documents?: DocumentPair } = {}) {
   const onCompare = vi.fn().mockResolvedValue(undefined);
   const onNotice = vi.fn();
+  const initialProps: RecompareProps = {
+    rules: initial.rules ?? BASE_RULES,
+    ready: initial.ready ?? true,
+    documents: initial.documents ?? documentsWith('a.docx')
+  };
   const view = renderHook(
-    (props: { rules: Rules; ready: boolean; documents: DocumentPair }) =>
+    (props: RecompareProps) =>
       useRecompareOnSettingsChange({
         documents: props.documents,
         ready: props.ready,
+        cancelled: props.cancelled ?? false,
         rules: props.rules,
         notice: 'settings updated',
         onCompare,
         onNotice
       }),
     {
-      initialProps: {
-        rules: initial.rules ?? BASE_RULES,
-        ready: initial.ready ?? true,
-        documents: initial.documents ?? documentsWith('a.docx')
-      }
+      initialProps
     }
   );
   return { ...view, onCompare, onNotice };
@@ -218,5 +221,37 @@ describe('useRecompareOnSettingsChange', () => {
     });
 
     expect(view.onCompare).not.toHaveBeenCalled();
+  });
+
+  it('does not restart a canceled comparison when an earlier settings debounce expires', () => {
+    const view = mountRecompare();
+    const changed = { ...BASE_RULES, ignoreSpaces: false };
+    view.rerender({ rules: changed, ready: true, documents: documentsWith('a.docx') });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    view.rerender({ rules: changed, ready: true, documents: documentsWith('a.docx'), cancelled: true });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(view.onCompare).not.toHaveBeenCalled();
+  });
+
+  it('allows a new rules change to restart a previously canceled comparison', () => {
+    const view = mountRecompare();
+    view.rerender({ rules: BASE_RULES, ready: true, documents: documentsWith('a.docx'), cancelled: true });
+    view.rerender({
+      rules: { ...BASE_RULES, ignoreSpaces: false },
+      ready: true,
+      documents: documentsWith('a.docx'),
+      cancelled: true
+    });
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+
+    expect(view.onCompare).toHaveBeenCalledTimes(1);
   });
 });

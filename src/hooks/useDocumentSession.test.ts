@@ -532,4 +532,49 @@ describe('useDocumentSession', () => {
     embedded.unmount();
     expect(window.DocDiffPro).toBeUndefined();
   });
+
+  it('keeps the external API and its subscriptions when language and callbacks change', async () => {
+    const getStateRef = {
+      current: () => ({ ready: false, comparing: false, hasDocuments: false, hasResult: false, error: '' })
+    };
+    const before = { onNotice: vi.fn(), onMeta: vi.fn() };
+    const after = { onNotice: vi.fn(), onMeta: vi.fn() };
+    const view = renderHook(
+      (props) =>
+        useDocumentSession({
+          allowsExternalApi: true,
+          maxSizeMb: 10,
+          getStateRef,
+          onBeforeDocumentChange: () => undefined,
+          ...props
+        }),
+      { initialProps: { i18n: messages.en, ...before } }
+    );
+    const api = window.DocDiffPro!;
+    const ready = vi.fn();
+    const cleared = vi.fn();
+    api.on('ready', ready);
+    api.on('cleared', cleared);
+    await act(async () => {
+      await expect(api.loadDocuments({ baseline: docxFile('first.docx') })).resolves.toEqual({ sequence: 1 });
+    });
+
+    view.rerender({ i18n: messages['zh-CN'], ...after });
+    await act(async () => {
+      await expect(
+        api.loadDocuments({ revised: new File(['text'], 'invalid.txt'), meta: { bizId: 'next' } })
+      ).resolves.toEqual({
+        sequence: 2
+      });
+    });
+    act(() => view.result.current.externalEmit('cleared', {}));
+
+    expect(window.DocDiffPro).toBe(api);
+    expect(api.ready).toBe(true);
+    expect(ready).toHaveBeenCalledTimes(1);
+    expect(cleared).toHaveBeenCalledTimes(1);
+    expect(after.onMeta).toHaveBeenCalledWith({ bizId: 'next' });
+    expect(after.onNotice).toHaveBeenCalledWith(messages['zh-CN'].app.errors.invalidType);
+    expect(view.result.current.documents.B.error).toBe(messages['zh-CN'].app.errors.invalidType);
+  });
 });

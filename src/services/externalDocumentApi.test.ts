@@ -47,6 +47,20 @@ describe('externalDocumentApi', () => {
     expect(window.DocDiffPro).toBe(replacement);
   });
 
+  it('rejects a retained API reference after uninstall without starting another import', async () => {
+    const loadDocuments = vi.fn();
+    const host = createExternalDocumentApi(loadDocuments, () => idleState);
+    const uninstall = host.install();
+    const api = window.DocDiffPro!;
+    await Promise.resolve();
+    uninstall();
+
+    await expect(api.loadDocuments({ baseline: new File(['content'], 'baseline.docx') })).rejects.toThrow(
+      'not installed'
+    );
+    expect(loadDocuments).not.toHaveBeenCalled();
+  });
+
   it('forwards loadDocuments to the host and supports a single side', async () => {
     const loadDocuments = vi.fn().mockImplementation(async () => ({ sequence: 0 }));
     const host = createExternalDocumentApi(loadDocuments, () => idleState);
