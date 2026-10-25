@@ -66,7 +66,7 @@ export type ParseDocxOptions = {
 };
 
 export async function parseDocx(file: File, options: ParseDocxOptions = {}): Promise<ParsedDocx> {
-  let imageUrls: string[] = [];
+  const imageUrls: string[] = [];
 
   try {
     throwIfAborted(options.signal);
@@ -97,17 +97,16 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
     throwIfAborted(options.signal);
     const renderedFormulas = body.querySelectorAll('math').length;
     const layoutNoise = extractLayoutNoise(body);
-    const adopted = adoptInlineImages(body);
-    imageUrls = adopted.urls;
+    const images = adoptInlineImages(body, imageUrls);
     const scan = await scanParts(arrayBuffer);
     throwIfAborted(options.signal);
     // Source equations retained by the sanitizer are no longer missing figures.
     scan.graphics.formulas = Math.max(0, scan.graphics.formulas - renderedFormulas);
-    if (adopted.entries.length > 0) {
+    if (images.length > 0) {
       options.onProgress?.('images');
       await yieldToBrowser(options.signal);
     }
-    const imageDescriptors = await fingerprintImages(adopted.entries, options.signal);
+    const imageDescriptors = await fingerprintImages(images, options.signal);
     throwIfAborted(options.signal);
     // The dimensions the fingerprinter already read from each header are what
     // lets the browser reserve the image's box before its bytes decode.
@@ -177,9 +176,8 @@ async function fingerprintImages(entries: ImageSourceEntry[], signal?: AbortSign
  * fail exactly then; holding the blob keeps the bytes alive for as long as it
  * needs them and no longer.
  */
-function adoptInlineImages(body: HTMLElement): { entries: ImageSourceEntry[]; urls: string[] } {
+function adoptInlineImages(body: HTMLElement, urls: string[]): ImageSourceEntry[] {
   const entries: ImageSourceEntry[] = [];
-  const urls: string[] = [];
 
   body.querySelectorAll<HTMLImageElement>('img[src^="data:"]').forEach((image, index) => {
     const blob = dataUrlToBlob(image.getAttribute('src') ?? '');
@@ -198,11 +196,13 @@ function adoptInlineImages(body: HTMLElement): { entries: ImageSourceEntry[]; ur
     }
 
     const url = URL.createObjectURL(blob);
+    // Register ownership before another image or DOM mutation can fail. The
+    // parser's catch block must also see URLs from a partially completed pass.
     urls.push(url);
     image.setAttribute('src', url);
   });
 
-  return { entries, urls };
+  return entries;
 }
 
 /**

@@ -23,10 +23,32 @@
  * names are counted, so this stays a scan over a few hundred kilobytes of XML.
  */
 
-import type { DocxGraphicsReport, DocxRevisionReport, DocxScanReport, EmbeddedObjectKind } from '@/types/document';
+import type { DocxGraphicsReport, DocxRevisionReport, DocxScanReport } from '@/types/document';
 
 /** Body parts worth scanning; headers and footers are converted too. */
 const BODY_PART_PATTERN = /^word\/(document|header\d*|footer\d*)\.xml$/;
+
+// Match the same transitional and strict namespaces as the converter. XML
+// prefixes are aliases: `w:drawing` and `word:drawing` can be the same element.
+const WORD_NAMESPACES = [
+  'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+  'http://purl.oclc.org/ooxml/wordprocessingml/main'
+];
+const MATH_NAMESPACES = [
+  'http://schemas.openxmlformats.org/officeDocument/2006/math',
+  'http://purl.oclc.org/ooxml/officeDocument/math'
+];
+const PICTURE_NAMESPACES = [
+  'http://schemas.openxmlformats.org/drawingml/2006/picture',
+  'http://purl.oclc.org/ooxml/drawingml/picture'
+];
+const RELATIONSHIP_NAMESPACES = [
+  'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+  'http://purl.oclc.org/ooxml/officeDocument/relationships'
+];
+const MARKUP_COMPATIBILITY_NAMESPACE = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
+const VML_NAMESPACE = 'urn:schemas-microsoft-com:vml';
+const OFFICE_NAMESPACE = 'urn:schemas-microsoft-com:office:office';
 
 const END_OF_CENTRAL_DIRECTORY = 0x06054b50;
 const CENTRAL_DIRECTORY_ENTRY = 0x02014b50;
@@ -80,13 +102,14 @@ export async function scanDocxParts(archive: ArrayBuffer): Promise<DocxScanRepor
       const xml = await readEntry(archive, entry);
       if (!xml) continue;
 
-      const content = selectAlternateContent(xml);
+      const content = readContent(xml);
       countRevisions(content, report.revisions);
       // Counted against the document as the converter renders it, which is the
       // accepted state. A figure sitting inside a tracked deletion is not in the
       // text that was compared, and reporting it as something the comparison
       // could not look at would be reporting a figure that is not there.
-      countGraphics(withoutRejectedContent(content), report.graphics);
+      removeRejectedContent(content);
+      countGraphics(content, report.graphics);
     } catch {
       continue;
     }
@@ -100,23 +123,24 @@ export async function scanDocxParts(archive: ArrayBuffer): Promise<DocxScanRepor
  * the same figure in several choices plus a fallback, so scanning every branch
  * reports duplicates and even counts text boxes the fallback renders as text.
  */
-function selectAlternateContent(xml: string): string {
-  if (!xml.includes(':AlternateContent')) return xml;
-
-  const namespace = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
+function readContent(xml: string): Document {
   const document = new DOMParser().parseFromString(xml, 'application/xml');
   if (document.querySelector('parsererror')) throw new Error('Invalid document XML');
 
   // Resolve inner alternatives first so a nested choice cannot leak into a
   // retained fallback. With no usable fallback, keep one choice for the scan
   // so a native graphic or formula dropped entirely is still reported.
-  for (const alternate of Array.from(document.getElementsByTagNameNS(namespace, 'AlternateContent')).reverse()) {
-    const branches = Array.from(alternate.children).filter((child) => child.namespaceURI === namespace);
+  for (const alternate of Array.from(
+    document.getElementsByTagNameNS(MARKUP_COMPATIBILITY_NAMESPACE, 'AlternateContent')
+  ).reverse()) {
+    const branches = Array.from(alternate.children).filter(
+      (child) => child.namespaceURI === MARKUP_COMPATIBILITY_NAMESPACE
+    );
     const fallback = branches.find((child) => child.localName === 'Fallback');
     const selected = fallback?.children.length ? fallback : branches.find((child) => child.localName === 'Choice');
     alternate.replaceWith(...(selected?.childNodes ?? []));
   }
-  return new XMLSerializer().serializeToString(document);
+  return document;
 }
 
 /**
@@ -124,39 +148,39 @@ function selectAlternateContent(xml: string): string {
  * as edits: one reworded sentence can carry several of either, so the numbers say
  * "this document still holds revisions", not "this many things changed".
  */
-function countRevisions(xml: string, revisions: DocxRevisionReport): void {
-  revisions.insertions += countTag(xml, 'w:ins');
-  revisions.deletions += countTag(xml, 'w:del');
+function countRevisions(document: Document, revisions: DocxRevisionReport): void {
+  revisions.insertions += elements(document, WORD_NAMESPACES, 'ins').length;
+  revisions.deletions += elements(document, WORD_NAMESPACES, 'del').length;
 }
 
 /**
- * The document with the content a revision took out removed.
- *
- * Only the container forms are stripped. `w:del` also appears self-closing inside
- * run and paragraph properties as the mark that says "this run is a deletion",
- * and consuming from there to the next `</w:del>` would swallow content that is
- * still in the document — hence the lookbehind for a tag that does not close
- * itself.
+ * Remove rejected subtrees without consuming adjacent content. A deletion mark
+ * in run properties has no children, so removing that element leaves the rest
+ * of its run intact. Nested deletions are removed with their outer container.
  */
-function withoutRejectedContent(xml: string): string {
-  return xml.replace(/<w:(?:del|moveFrom)\b[^>]*(?<!\/)>[\s\S]*?<\/w:(?:del|moveFrom)>/g, '');
+function removeRejectedContent(document: Document): void {
+  for (const name of ['del', 'moveFrom']) {
+    for (const element of elements(document, WORD_NAMESPACES, name)) element.remove();
+  }
 }
 
-function countGraphics(xml: string, report: DocxGraphicsReport): void {
-  // Drawings do not nest, so a non-greedy span is the whole of one.
-  for (const drawing of xml.matchAll(/<w:drawing[\s>][\s\S]*?<\/w:drawing>/g)) {
+function countGraphics(document: Document, report: DocxGraphicsReport): void {
+  for (const drawing of elements(document, WORD_NAMESPACES, 'drawing')) {
     // A drawing carrying a picture became an `<img>` and is compared already;
     // one without is a figure Word rendered itself.
-    if (!drawing[0].includes('<pic:pic')) report.nativeGraphics++;
+    if (drawing.children.length > 0 && elements(drawing, PICTURE_NAMESPACES, 'pic').length === 0) {
+      report.nativeGraphics++;
+    }
   }
 
-  report.embeddedObjects += countEmbeddedObjects(xml);
-  collectEmbeddedObjectKinds(xml, report.embeddedObjectKinds);
+  countEmbeddedObjects(document, report);
   // Mammoth emits one MathML root per display paragraph, even when it holds
   // several equations. Count those groups and the remaining inline equations
   // in the same units as the rendered output the parser subtracts.
-  const inlineEquations = xml.replace(/<m:oMathPara\b[^>]*(?<!\/)>[\s\S]*?<\/m:oMathPara>/g, '');
-  report.formulas += countTag(xml, 'm:oMathPara') + countTag(inlineEquations, 'm:oMath');
+  report.formulas += elements(document, MATH_NAMESPACES, 'oMathPara').length;
+  for (const equation of elements(document, MATH_NAMESPACES, 'oMath')) {
+    if (!hasAncestor(equation, MATH_NAMESPACES, 'oMathPara')) report.formulas++;
+  }
 }
 
 /**
@@ -167,53 +191,41 @@ function countGraphics(xml: string, report: DocxGraphicsReport): void {
  * Counting both reported a document's three embedded equations as six. Only a
  * `v:imagedata` standing outside any object is a figure in its own right.
  */
-function countEmbeddedObjects(xml: string): number {
-  const nestedImages = nestedImageCount(xml);
-  const objects = countTag(xml, 'w:object');
-  return objects + Math.max(0, countVmlImages(xml) - nestedImages);
-}
-
-/**
- * The type and caption of each OLE object, read off the same markup the count
- * came from. The ProgID and the preview's `o:title` both sit on the `w:object`
- * XML, so the package's relationship parts do not have to be walked to name
- * what was embedded. A bare VML image outside any object has no ProgID and is
- * listed only as a picture.
- */
-function collectEmbeddedObjectKinds(xml: string, kinds: EmbeddedObjectKind[]): void {
-  for (const object of xml.matchAll(/<w:object[\s>][\s\S]*?<\/w:object>/g)) {
-    const progId = object[0].match(/ProgID="([^"]*)"/)?.[1] ?? '';
-    const title = object[0].match(/o:title="([^"]*)"/)?.[1] ?? '';
-    kinds.push({ progId, title });
+function countEmbeddedObjects(document: Document, report: DocxGraphicsReport): void {
+  const objects = elements(document, WORD_NAMESPACES, 'object');
+  report.embeddedObjects += objects.length;
+  for (const object of objects) {
+    const ole = object.getElementsByTagNameNS(OFFICE_NAMESPACE, 'OLEObject')[0];
+    const preview = Array.from(object.getElementsByTagName('*')).find((element) =>
+      element.hasAttributeNS(OFFICE_NAMESPACE, 'title')
+    );
+    report.embeddedObjectKinds.push({
+      progId: ole?.getAttribute('ProgID') ?? '',
+      title: preview?.getAttributeNS(OFFICE_NAMESPACE, 'title') ?? ''
+    });
   }
 
-  const standalone = Math.max(0, countVmlImages(xml) - nestedImageCount(xml));
-  for (let i = 0; i < standalone; i++) {
-    kinds.push({ progId: VML_IMAGE, title: '' });
+  // WPS text boxes can carry empty markers with no image relationship. A real
+  // VML image is a separate figure only when it is outside an object's preview.
+  for (const image of Array.from(document.getElementsByTagNameNS(VML_NAMESPACE, 'imagedata'))) {
+    if (!RELATIONSHIP_NAMESPACES.some((namespace) => image.getAttributeNS(namespace, 'id'))) continue;
+    if (hasAncestor(image, WORD_NAMESPACES, 'object')) continue;
+    report.embeddedObjects++;
+    report.embeddedObjectKinds.push({ progId: VML_IMAGE, title: '' });
   }
 }
 
-/** `v:imagedata` elements nested inside a `w:object`, i.e. previews, not figures. */
-function nestedImageCount(xml: string): number {
-  let nested = 0;
-  for (const object of xml.matchAll(/<w:object[\s>][\s\S]*?<\/w:object>/g)) {
-    nested += countVmlImages(object[0]);
-  }
-  return nested;
+function elements(root: Document | Element, namespaces: readonly string[], localName: string): Element[] {
+  return Array.from(root.getElementsByTagNameNS('*', localName)).filter((element) =>
+    namespaces.includes(element.namespaceURI ?? '')
+  );
 }
 
-/** WPS text boxes can carry empty image markers with no image relationship. */
-function countVmlImages(xml: string): number {
-  let count = 0;
-  for (const [image] of xml.matchAll(/<v:imagedata\b[^>]*>/g)) {
-    if (/\sr:id\s*=\s*(["'])[^"']+\1/.test(image)) count++;
+function hasAncestor(element: Element, namespaces: readonly string[], localName: string): boolean {
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    if (parent.localName === localName && namespaces.includes(parent.namespaceURI ?? '')) return true;
   }
-  return count;
-}
-
-/** Occurrences of one element, counting both `<tag>` and `<tag/>` forms. */
-function countTag(xml: string, tag: string): number {
-  return xml.split(new RegExp(`<${tag}[\\s/>]`)).length - 1;
+  return false;
 }
 
 type ZipEntry = {

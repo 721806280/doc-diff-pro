@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 test.use({ locale: 'zh-CN' });
 
+type ImageAllocationProbe = { attempts: number; created: string[]; revoked: string[] };
+
 async function compareFixture(page: Page, fixture: string) {
   await page.goto('./');
   await page.locator('input[type="file"]').nth(0).setInputFiles(`e2e/fixtures/${fixture}-original.docx`);
@@ -85,38 +87,91 @@ test('preserves merged cells and distinguishes repeated, re-encoded and edited f
   await expect(page.locator('.image-preview-status').filter({ hasText: '内容相同' })).toHaveCount(0);
 });
 
-test('explains accepted tracked changes from the document notice', async ({ page, isMobile }, testInfo) => {
-  if (isMobile) await page.setViewportSize({ width: 320, height: 740 });
-  const panes = await compareFixture(page, 'tracked');
-  for (const pane of panes) await expect(pane).toHaveText('交付期限为15日。');
-  await expect(page.locator('.summary-chip.total')).toHaveText('无差异');
-  if (isMobile) await page.locator('.mobile-pane-switch__option.is-revised').click();
-  const notice = page.locator('.warning-chip.revisions');
-  await expect(notice).toBeVisible();
-  await notice.locator('.warning-chip__trigger').focus();
-  const tooltip = notice.getByRole('tooltip');
-  await expect(tooltip).toBeVisible();
-  await expect(tooltip).toContainText('全部修订被接受后的状态');
-  const bounds = await tooltip.boundingBox();
-  expect(bounds).not.toBeNull();
-  expect(bounds!.x).toBeGreaterThanOrEqual(0);
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
-  await page.screenshot({ path: testInfo.outputPath('document-notice.png'), animations: 'disabled' });
-  await page.getByRole('button', { name: '切换到夜间模式', exact: true }).click();
-  await notice.locator('.warning-chip__trigger').focus();
-  await expect(tooltip).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('document-notice-dark.png'), animations: 'disabled' });
-});
+for (const fixture of ['tracked', 'tracked-aliased']) {
+  test(`explains accepted tracked changes from the document notice (${fixture})`, async ({
+    page,
+    isMobile
+  }, testInfo) => {
+    if (isMobile) await page.setViewportSize({ width: 320, height: 740 });
+    const panes = await compareFixture(page, fixture);
+    for (const pane of panes) await expect(pane).toHaveText('交付期限为15日。');
+    await expect(page.locator('.summary-chip.total')).toHaveText('无差异');
+    if (isMobile) await page.locator('.mobile-pane-switch__option.is-revised').click();
+    const notice = page.locator('.warning-chip.revisions');
+    await expect(notice).toBeVisible();
+    await notice.locator('.warning-chip__trigger').focus();
+    const tooltip = notice.getByRole('tooltip');
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText('全部修订被接受后的状态');
+    const bounds = await tooltip.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    await page.screenshot({ path: testInfo.outputPath('document-notice.png'), animations: 'disabled' });
+    await page.getByRole('button', { name: '切换到夜间模式', exact: true }).click();
+    await notice.locator('.warning-chip__trigger').focus();
+    await expect(tooltip).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('document-notice-dark.png'), animations: 'disabled' });
+  });
+}
 
-test('qualifies a zero-difference result when native chart data could not be compared', async ({ page }) => {
-  await compareFixture(page, 'native-chart');
-  await expect(page.locator('.summary-chip.total')).toHaveText('已解析内容无差异');
-  await expect(page.locator('.summary-chip.total')).not.toHaveClass(/clean/);
-  await expect(page.locator('.warning-chip.uncomparable')).toHaveCount(2);
-  const notice = page.locator('.warning-chip.uncomparable').first();
-  await notice.locator('.warning-chip__trigger').focus();
-  await expect(notice.getByRole('tooltip')).toBeVisible();
-  await expect(notice.getByRole('tooltip')).toContainText('1');
+for (const fixture of ['native-chart', 'native-chart-aliased']) {
+  test(`qualifies a zero-difference result when native chart data could not be compared (${fixture})`, async ({
+    page
+  }) => {
+    await compareFixture(page, fixture);
+    await expect(page.locator('.summary-chip.total')).toHaveText('已解析内容无差异');
+    await expect(page.locator('.summary-chip.total')).not.toHaveClass(/clean/);
+    await expect(page.locator('.warning-chip.uncomparable')).toHaveCount(2);
+    const notice = page.locator('.warning-chip.uncomparable').first();
+    await notice.locator('.warning-chip__trigger').focus();
+    await expect(notice.getByRole('tooltip')).toBeVisible();
+    await expect(notice.getByRole('tooltip')).toContainText('1');
+  });
+}
+
+test('releases images after a partial allocation failure and allows a fresh import', async ({ page }) => {
+  await page.addInitScript(() => {
+    const probe: ImageAllocationProbe = { attempts: 0, created: [], revoked: [] };
+    Reflect.set(window, '__imageAllocationProbe', probe);
+    const create = URL.createObjectURL.bind(URL);
+    const revoke = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = (blob) => {
+      if (blob instanceof Blob && blob.type === 'image/png') {
+        probe.attempts++;
+        if (probe.attempts === 2) throw new Error('Image allocation failed');
+        const url = create(blob);
+        probe.created.push(url);
+        return url;
+      }
+      return create(blob);
+    };
+    URL.revokeObjectURL = (url) => {
+      if (probe.created.includes(url)) probe.revoked.push(url);
+      revoke(url);
+    };
+  });
+  await page.goto('./');
+  const originalInput = page.locator('input[type="file"]').first();
+  await originalInput.setInputFiles('e2e/fixtures/structure-images-original.docx');
+  await expect(page.getByText('无法解析该 DOCX 文件。Image allocation failed', { exact: true })).toBeVisible();
+  const probe = await page.evaluate(() => Reflect.get(window, '__imageAllocationProbe') as ImageAllocationProbe);
+  expect(probe.created).toHaveLength(1);
+  expect(probe.revoked).toEqual(probe.created);
+
+  await originalInput.setInputFiles('e2e/fixtures/structure-images-original.docx');
+  await page.locator('input[type="file"]').last().setInputFiles('e2e/fixtures/structure-images-revised.docx');
+  await expect(page.locator('.floating-navigator')).toBeVisible();
+  await expect(page.locator('.docx-render-content img')).toHaveCount(6);
+  await expect
+    .poll(() =>
+      page
+        .locator('.docx-render-content img')
+        .evaluateAll((images) =>
+          images.every((image) => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)
+        )
+    )
+    .toBe(true);
 });
 
 test('keeps conversion warnings beside the document when parsed content is identical', async ({ page }) => {

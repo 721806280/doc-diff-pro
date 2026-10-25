@@ -84,10 +84,8 @@ const PICTURE_DRAWING =
   '<w:drawing><wp:inline><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed="rId8"/>' +
   '</pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
 
-function documentWith(body: string): Record<string, string> {
-  return {
-    '[Content_Types].xml': '<Types/>',
-    'word/document.xml': `<w:document
+function bodyPartXml(body: string, root = 'document'): string {
+  return `<w:${root}
       xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
       xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
       xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
@@ -98,7 +96,13 @@ function documentWith(body: string): Record<string, string> {
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:v="urn:schemas-microsoft-com:vml"
       xmlns:o="urn:schemas-microsoft-com:office:office"
-    ><w:body>${body}</w:body></w:document>`
+    >${root === 'document' ? `<w:body>${body}</w:body>` : body}</w:${root}>`;
+}
+
+function documentWith(body: string): Record<string, string> {
+  return {
+    '[Content_Types].xml': '<Types/>',
+    'word/document.xml': bodyPartXml(body)
   };
 }
 
@@ -125,6 +129,63 @@ describe('scanDocxParts', () => {
     expect(report.nativeGraphics).toBe(1);
   });
 
+  it.each(['transitional', 'strict'])('recognizes renamed namespace prefixes in %s OOXML', async (format) => {
+    const files = documentWith(
+      CHART_DRAWING +
+        PICTURE_DRAWING +
+        '<m:oMath><m:r><m:t>x</m:t></m:r></m:oMath>' +
+        '<w:object><v:shape><v:imagedata r:id="rId4" o:title="Sheet1"/></v:shape>' +
+        '<o:OLEObject ProgID="Excel.Sheet.12"/></w:object>' +
+        '<w:ins w:id="1"/><w:del w:id="2">' +
+        CHART_DRAWING +
+        '</w:del><mc:AlternateContent><mc:Choice Requires="wps">' +
+        CHART_DRAWING +
+        '<w:ins w:id="3"/></mc:Choice><mc:Fallback>' +
+        PICTURE_DRAWING +
+        '</mc:Fallback></mc:AlternateContent>'
+    );
+    let xml = files['word/document.xml']!;
+    if (format === 'strict') {
+      xml = xml
+        .replaceAll(
+          'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+          'http://purl.oclc.org/ooxml/wordprocessingml/main'
+        )
+        .replaceAll(
+          'http://schemas.openxmlformats.org/officeDocument/2006/',
+          'http://purl.oclc.org/ooxml/officeDocument/'
+        )
+        .replaceAll('http://schemas.openxmlformats.org/drawingml/2006/', 'http://purl.oclc.org/ooxml/drawingml/');
+    }
+    files['word/document.xml'] = xml
+      .replace(/xmlns:(w|r|wp|a|pic|c|m|mc|v|o)=/g, 'xmlns:$1alias=')
+      .replace(/\b(w|r|wp|a|pic|c|m|mc|v|o):/g, '$1alias:');
+
+    expect(await scanDocxParts(zip(files))).toEqual({
+      graphics: {
+        nativeGraphics: 1,
+        embeddedObjects: 1,
+        formulas: 1,
+        embeddedObjectKinds: [{ progId: 'Excel.Sheet.12', title: 'Sheet1' }]
+      },
+      revisions: { insertions: 1, deletions: 1 }
+    });
+  });
+
+  it('recognizes the default namespace and ignores familiar prefixes bound to other namespaces', async () => {
+    const files = documentWith(CHART_DRAWING + PICTURE_DRAWING + '<w:ins w:id="1"/>');
+    // Word attributes still need their own prefix: default namespaces apply to
+    // element names only.
+    files['word/document.xml'] = files['word/document.xml']!.replace(/(<\/?)w:/g, '$1')
+      .replace('xmlns:w=', 'xmlns="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w=')
+      .replace('</body>', '<foreign xmlns:w="urn:other"><w:drawing/><w:ins/><w:del/></foreign></body>');
+
+    expect(await scanDocxParts(zip(files))).toEqual({
+      graphics: { ...createEmptyGraphicsReport(), nativeGraphics: 1 },
+      revisions: { insertions: 1, deletions: 0 }
+    });
+  });
+
   it('scans the converted fallback without counting unused graphics or revisions', async () => {
     const report = await scanDocxParts(
       zip(
@@ -139,6 +200,34 @@ describe('scanDocxParts', () => {
 
     expect(report.graphics).toEqual(createEmptyGraphicsReport());
     expect(report.revisions).toEqual({ insertions: 1, deletions: 0 });
+  });
+
+  it('selects alternate-content fallbacks in the default namespace', async () => {
+    const report = await scanDocxParts(
+      zip(
+        documentWith(
+          '<AlternateContent xmlns="http://schemas.openxmlformats.org/markup-compatibility/2006">' +
+            `<Choice Requires="wps">${CHART_DRAWING}<w:del w:id="1"/></Choice>` +
+            `<Fallback><w:ins w:id="2">${PICTURE_DRAWING}</w:ins></Fallback></AlternateContent>`
+        )
+      )
+    );
+
+    expect(report.graphics).toEqual(createEmptyGraphicsReport());
+    expect(report.revisions).toEqual({ insertions: 1, deletions: 0 });
+  });
+
+  it('ignores XML-like text in comments and CDATA', async () => {
+    const report = await scanDocxParts(
+      zip(
+        documentWith(
+          `<!-- ${CHART_DRAWING}<w:ins w:id="1"/> -->` +
+            `<w:p><w:r><w:t><![CDATA[${CHART_DRAWING}<w:del w:id="2"/>]]></w:t></w:r></w:p>`
+        )
+      )
+    );
+
+    expect(report).toEqual({ graphics: createEmptyGraphicsReport(), revisions: { insertions: 0, deletions: 0 } });
   });
 
   it('resolves nested alternatives and ignores additional choices', async () => {
@@ -242,6 +331,20 @@ describe('scanDocxParts', () => {
     ]);
   });
 
+  it('decodes embedded-object captions and accepts either XML attribute quote', async () => {
+    const report = await scanDocxParts(
+      zip(
+        documentWith(
+          "<w:object><v:shape><v:imagedata r:id='rId4' o:title='Sheet &amp; &quot;Plan&quot;'/></v:shape>" +
+            "<o:OLEObject ProgID='Excel.Sheet.12'/></w:object>"
+        )
+      )
+    );
+
+    expect(report.graphics.embeddedObjects).toBe(1);
+    expect(report.graphics.embeddedObjectKinds).toEqual([{ progId: 'Excel.Sheet.12', title: 'Sheet & "Plan"' }]);
+  });
+
   it('counts a VML image standing outside any object as its own figure', async () => {
     const report = (
       await scanDocxParts(
@@ -301,9 +404,9 @@ describe('scanDocxParts', () => {
     const report = (
       await scanDocxParts(
         zip({
-          'word/document.xml': '<w:document><w:body/></w:document>',
-          'word/header1.xml': `<w:hdr>${CHART_DRAWING}</w:hdr>`,
-          'word/footer2.xml': `<w:ftr>${CHART_DRAWING}</w:ftr>`
+          ...documentWith(''),
+          'word/header1.xml': bodyPartXml(CHART_DRAWING, 'hdr'),
+          'word/footer2.xml': bodyPartXml(CHART_DRAWING, 'ftr')
         })
       )
     ).graphics;
@@ -312,9 +415,7 @@ describe('scanDocxParts', () => {
   });
 
   it('ignores parts that are not body content', async () => {
-    const report = (
-      await scanDocxParts(zip({ 'word/document.xml': '<w:document/>', 'word/styles.xml': CHART_DRAWING }))
-    ).graphics;
+    const report = (await scanDocxParts(zip({ ...documentWith(''), 'word/styles.xml': CHART_DRAWING }))).graphics;
 
     expect(report.nativeGraphics).toBe(0);
   });
@@ -328,12 +429,13 @@ describe('scanDocxParts', () => {
   it('skips a part stored with a compression method it does not implement', async () => {
     // Neither stored nor deflated. Legal in a zip, never produced by Word, and no
     // reason to fail a comparison over.
-    const archive = zip({ 'word/document.xml': `<w:document>${CHART_DRAWING}</w:document>` });
+    const archive = zip({ 'word/document.xml': bodyPartXml(CHART_DRAWING) });
+    expect((await scanDocxParts(archive)).graphics.nativeGraphics).toBe(1);
     const view = new DataView(archive);
     // The method appears twice: once in the local header, once in the central
     // directory the reader trusts.
     view.setUint16(8, 14, true);
-    view.setUint16(archive.byteLength - 22 - 46 + 10, 14, true);
+    view.setUint16(archive.byteLength - 22 - 46 - 'word/document.xml'.length + 10, 14, true);
 
     expect((await scanDocxParts(archive)).graphics).toEqual(createEmptyGraphicsReport());
   });
@@ -415,7 +517,7 @@ describe('scanDocxParts', () => {
   it('skips an entry whose local header does not check out', async () => {
     // Only the scanned part, so the corrupted header is certainly the one the
     // central directory pointed the reader at.
-    const archive = zip({ 'word/document.xml': `<w:document>${CHART_DRAWING}</w:document>` });
+    const archive = zip({ 'word/document.xml': bodyPartXml(CHART_DRAWING) });
     new DataView(archive).setUint32(0, 0x00000000, true);
 
     expect((await scanDocxParts(archive)).graphics).toEqual(createEmptyGraphicsReport());
@@ -425,11 +527,8 @@ describe('scanDocxParts', () => {
     // A single unreadable part must not zero the whole report: a partial count
     // still tells the reader a figure is there, which is the point of the scan.
     const archive = zip({
-      '[Content_Types].xml': '<Types/>',
-      'word/document.xml': `<w:document>${CHART_DRAWING}</w:document>`,
-      // Malformed XML that carries an AlternateContent block, so the header part
-      // throws in the parser while the document part scans cleanly.
-      'word/header1.xml': '<w:hdr><mc:AlternateContent><w:drawing></w:hdr>'
+      ...documentWith(CHART_DRAWING),
+      'word/header1.xml': bodyPartXml('<mc:AlternateContent><w:drawing>', 'hdr')
     });
 
     const report = (await scanDocxParts(archive)).graphics;

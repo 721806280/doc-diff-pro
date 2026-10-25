@@ -7,6 +7,7 @@ Run from any directory with: python3 scripts/build_regression_docs.py
 from pathlib import Path
 from struct import pack
 from xml.sax.saxutils import escape
+import xml.etree.ElementTree as ET
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 import zlib
 
@@ -54,7 +55,7 @@ def png_chart(heights=(0.3, 0.55, 0.4, 0.7, 0.5), compression=6):
             + chunk(b'IDAT', zlib.compress(bytes(pixels), compression)) + chunk(b'IEND', b''))
 
 
-def write_docx(path, body, images=None, chart=None):
+def write_docx(path, body, images=None, chart=None, word_prefix='w'):
     images = images or {}
     relationships = [f'<Relationship Id="{key}" Type="{R}/image" Target="media/{key}.png"/>' for key in images]
     content_types = [f'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>']
@@ -75,6 +76,10 @@ def write_docx(path, body, images=None, chart=None):
         'word/document.xml': f'<w:document xmlns:w="{W}" xmlns:r="{R}" xmlns:a="{A}" xmlns:wp="{WP}" xmlns:pic="{PIC}" xmlns:c="{C}">'
             f'<w:body>{body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:body></w:document>'
     })
+    if word_prefix != 'w':
+        for prefix, namespace in ((word_prefix, W), ('r', R), ('a', A), ('wp', WP), ('pic', PIC), ('c', C)):
+            ET.register_namespace(prefix, namespace)
+        parts['word/document.xml'] = ET.tostring(ET.fromstring(parts['word/document.xml']), encoding='unicode')
     path.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(path, 'w') as archive:
         for name, value in sorted(parts.items()):
@@ -136,6 +141,8 @@ def build_regressions():
                    '<w:ins w:id="2" w:author="Fixture" w:date="2026-09-10T00:00:00Z">'
                    '<w:r><w:t>交付期限为15日。</w:t></w:r></w:ins></w:p>')
         write_docx(target / f'tracked-{suffix}.docx', tracked if revised else paragraph('交付期限为15日。'))
+        write_docx(target / f'tracked-aliased-{suffix}.docx',
+                   tracked if revised else paragraph('交付期限为15日。'), word_prefix='word')
 
         chart_body = (paragraph('附图：年度付款预算。') + '<w:p><w:r><w:drawing><wp:inline>'
                       '<wp:extent cx="2438400" cy="2438400"/><wp:docPr id="1" name="Native chart"/>'
@@ -146,6 +153,7 @@ def build_regressions():
                  '<c:ptCount val="1"/><c:pt idx="0"><c:v>' + ('120000' if revised else '100000')
                  + '</c:v></c:pt></c:numLit></c:val></c:ser></c:barChart></c:plotArea></c:chart></c:chartSpace>')
         write_docx(target / f'native-chart-{suffix}.docx', chart_body, chart=chart)
+        write_docx(target / f'native-chart-aliased-{suffix}.docx', chart_body, chart=chart, word_prefix='word')
 
 
 if __name__ == '__main__':

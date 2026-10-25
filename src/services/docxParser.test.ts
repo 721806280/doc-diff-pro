@@ -262,4 +262,20 @@ describe('parseDocx', () => {
     await expect(parseDocx(new File(['docx'], 'review.docx'))).rejects.toThrow('conversion collapsed');
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:doc-diff/2');
   });
+
+  it('releases earlier image URLs when adopting a later image fails', async () => {
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL');
+    vi.spyOn(URL, 'createObjectURL')
+      .mockReturnValueOnce('blob:doc-diff/partial')
+      .mockImplementationOnce(() => {
+        throw new Error('Image allocation failed');
+      });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    convertToHtml.mockResolvedValueOnce({
+      value: '<p><img src="data:image/png;base64,iVBORw0KGgo="><img src="data:image/png;base64,iVBORw0KGgo="></p>'
+    });
+
+    await expect(parseDocx(new File(['docx'], 'review.docx'))).rejects.toThrow('Image allocation failed');
+    expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith('blob:doc-diff/partial');
+  });
 });
