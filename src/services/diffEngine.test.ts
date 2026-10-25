@@ -16,6 +16,43 @@ const DEFAULT_OPTIONS: CompareOptions = {
 };
 
 describe('compareDocuments', () => {
+  it.each([
+    ['paragraph', (text: string) => `<p>${text}</p>`],
+    ['table cell', (text: string) => `<table><tr><td>标签</td><td>${text}</td></tr></table>`]
+  ])('preserves and compares joining characters in a %s', async (_name, wrap) => {
+    const result = await compareDocuments(wrap('می\u200cروم'), wrap('میروم'), DEFAULT_OPTIONS);
+    const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+    const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+
+    expect(result.summary.total).toBe(1);
+    expect(original.textContent).toContain('می\u200cروم');
+    expect(revised.textContent).toContain('میروم');
+    expect(original.querySelector('del')?.textContent).toContain('\u200c');
+  });
+
+  it('highlights complete emoji without inserting broken surrogate text nodes', async () => {
+    const result = await compareDocuments('<p>状态😀正常</p>', '<p>状态😁正常</p>', DEFAULT_OPTIONS);
+    const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+    const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+
+    expect(original.querySelector('del')?.textContent).toBe('😀');
+    expect(revised.querySelector('ins')?.textContent).toBe('😁');
+    for (const root of [original, revised]) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node: Node | null;
+      while ((node = walker.nextNode())) expect(node.textContent?.isWellFormed()).toBe(true);
+    }
+  });
+
+  it('keeps a joined emoji intact when the same document is compared', async () => {
+    const text = '开发👩\u200d💻团队';
+    const result = await compareDocuments(`<p>${text}</p>`, `<p>${text}</p>`, DEFAULT_OPTIONS);
+
+    expect(result.summary.total).toBe(0);
+    expect(new DOMParser().parseFromString(result.originalHtml, 'text/html').body.textContent).toBe(text);
+    expect(new DOMParser().parseFromString(result.revisedHtml, 'text/html').body.textContent).toBe(text);
+  });
+
   it('compares equation structure even when the text is unchanged', async () => {
     const result = await compareDocuments(
       '<p><math><msup><mi>x</mi><mn>2</mn></msup></math></p>',

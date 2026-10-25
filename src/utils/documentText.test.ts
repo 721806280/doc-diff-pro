@@ -6,6 +6,20 @@ function bodyFromHtml(html: string): HTMLElement {
 }
 
 describe('documentText utilities', () => {
+  it.each(['👩\u200d💻', 'می\u200cروم', 'क्\u200dष'])(
+    'preserves joining characters in %s and its DOM mapping',
+    (text) => {
+      const root = bodyFromHtml(`<p>${text}</p>`);
+      const track = buildTextMapping(root);
+
+      expect(root.textContent).toBe(text);
+      expect(track.text).toBe(`${text}\n`);
+      expect([...track.mapping.offsets.subarray(0, text.length)]).toEqual(
+        Array.from({ length: text.length }, (_, index) => index)
+      );
+    }
+  );
+
   it('collapses layout whitespace without removing ordinary English word spaces', () => {
     const track = buildTextMapping(bodyFromHtml('<p>邮箱： name@example. com</p><p>Example Corp Ltd</p>'));
     const collapsed = collapseWhitespace(track);
@@ -19,6 +33,16 @@ describe('documentText utilities', () => {
     const collapsed = collapseWhitespace(track);
 
     expect(collapsed.text).toContain('a@b.com c@d.com');
+  });
+
+  it('handles a long whitespace run without rescanning it for every character', () => {
+    const track = buildTextMapping(bodyFromHtml(`<p>甲${' '.repeat(30_000)}乙</p>`));
+    const started = performance.now();
+    const collapsed = collapseWhitespace(track);
+
+    expect(collapsed.text).toBe('甲乙');
+    expect([...collapsed.mapping.offsets]).toEqual([0, 30_001]);
+    expect(performance.now() - started).toBeLessThan(1_500);
   });
 
   it('normalizes full-width characters, punctuation variants, and case', () => {

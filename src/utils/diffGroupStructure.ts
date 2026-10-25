@@ -395,7 +395,7 @@ function normalizedGroupText(elements: HTMLElement[]): string {
   const text = normalizeStructureText(elements.map((element) => element.textContent ?? '').join(''));
   if (text) return text;
 
-  return elements.map((element) => element.getAttribute(IMAGE_DIFF_ATTRIBUTE) ?? '').join(' ');
+  return elements.map((element) => element.getAttribute(IMAGE_DIFF_ATTRIBUTE) ?? '').join('\u0000');
 }
 
 function repairTableRowDiffMarkup(alignment: TableAlignmentEntry[], options: DiffGroupRefinementOptions): void {

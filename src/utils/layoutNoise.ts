@@ -136,7 +136,7 @@ export function removeLayoutNoise(root: HTMLElement, options: LayoutNoiseFilterO
 export function normalizeLayoutText(text: string): string {
   const normalized = text
     .normalize('NFKC')
-    .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
+    .replace(/[\u200b\ufeff]/g, '')
     .replace(/\s+/g, '')
     .trim()
     .toLowerCase();

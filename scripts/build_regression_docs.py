@@ -112,6 +112,15 @@ def build_regressions():
         ]
         write_docx(target / f'clauses-{suffix}.docx', ''.join(map(paragraph, clauses)))
 
+        unicode_text = [
+            'Unicode 正文与符号',
+            '状态：😁正常。' if revised else '状态：😀正常。',
+            '开发👩\u200d💻团队保持不变。',
+            '字符：𠀀。' if revised else '字符：𐀀。',
+            'میروم' if revised else 'می\u200cروم'
+        ]
+        write_docx(target / f'unicode-{suffix}.docx', ''.join(map(paragraph, unicode_text)))
+
         images = {
             'first': png_chart(),
             'second': png_chart(compression=1 if revised else 6),

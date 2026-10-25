@@ -6,6 +6,14 @@ function bodyFromHtml(html: string): HTMLElement {
 }
 
 describe('layoutNoise', () => {
+  it('keeps body text whose joining characters differ from a header hint', () => {
+    const body = bodyFromHtml('<p>می\u200cروم</p>');
+    const result = removeLayoutNoise(body, { enabled: true, hints: { exact: ['میروم'], fragments: [] } });
+
+    expect(result.filteredCount).toBe(0);
+    expect(body.textContent).toBe('می\u200cروم');
+  });
+
   it('extracts native header/footer hints and removes them from content html', () => {
     const body = bodyFromHtml('<header><p>公司保密页眉</p></header><p>正文</p><footer><p>第 1 页</p></footer>');
     const layoutNoise = extractLayoutNoise(body);

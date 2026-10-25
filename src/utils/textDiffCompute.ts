@@ -29,11 +29,9 @@ import { DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT } from './textDiffCore';
  * `diffMarkup` maps tuple offsets back onto DOM text nodes through exactly that
  * correspondence.
  *
- * One pre-existing limitation is untouched: diff-match-patch works in UTF-16
- * code units, so a boundary it chooses inside a paragraph can fall between the
- * halves of an astral character. The shared ends stripped here are guarded
- * against that, because whatever they swallow is never offered to the search
- * again, but a split diff-match-patch makes itself is left as it was.
+ * diff-match-patch searches UTF-16 code units. Shared ends and returned
+ * equalities are guarded so no tuple boundary splits a surrogate pair before
+ * those offsets become separate DOM text nodes.
  */
 
 /**
@@ -157,7 +155,46 @@ function computeMiddle(
 
   const diffs = diffMatchPatch.diff_main(original, revised) as DiffTuple[];
   cleanupDiffs(diffs, granularity, mergeShortGaps);
-  return diffs;
+  return repairSurrogateBoundaries(diffs);
+}
+
+/** Move shared surrogate halves into the adjacent edits to keep whole characters. */
+function repairSurrogateBoundaries(diffs: DiffTuple[]): DiffTuple[] {
+  const hasSplit = diffs.some(
+    ([, text]) => isLowSurrogate(text.charCodeAt(0)) || isHighSurrogate(text.charCodeAt(text.length - 1))
+  );
+  if (!hasSplit) return diffs;
+
+  const repaired: DiffTuple[] = [];
+  let deleted = '';
+  let inserted = '';
+  const flushChanges = (): void => {
+    append(repaired, DIFF_DELETE, deleted);
+    append(repaired, DIFF_INSERT, inserted);
+    deleted = '';
+    inserted = '';
+  };
+
+  for (const [operation, text] of diffs) {
+    if (operation === DIFF_DELETE) deleted += text;
+    else if (operation === DIFF_INSERT) inserted += text;
+    else {
+      const start = isLowSurrogate(text.charCodeAt(0)) ? 1 : 0;
+      const end = text.length - (isHighSurrogate(text.charCodeAt(text.length - 1)) ? 1 : 0);
+      // An equality can consist entirely of a shared half. Keeping it as an
+      // edit lets the next run supply its partner on each side independently.
+      deleted += text.slice(0, start);
+      inserted += text.slice(0, start);
+      if (start < end) {
+        flushChanges();
+        append(repaired, DIFF_EQUAL, text.slice(start, end));
+      }
+      deleted += text.slice(end);
+      inserted += text.slice(end);
+    }
+  }
+  flushChanges();
+  return repaired;
 }
 
 /**

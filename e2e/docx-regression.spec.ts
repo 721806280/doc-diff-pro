@@ -10,6 +10,30 @@ async function compareFixture(page: Page, fixture: string) {
   return [page.locator('.docx-render-content').first(), page.locator('.docx-render-content').last()] as const;
 }
 
+test('preserves joining characters and highlights complete Unicode characters', async ({ page }) => {
+  const [original, revised] = await compareFixture(page, 'unicode');
+  await expect(page.locator('.diff-progress')).toHaveAttribute('aria-valuemax', '3');
+  await expect(original.locator('del').filter({ hasText: '😀' })).toHaveCount(1);
+  await expect(revised.locator('ins').filter({ hasText: '😁' })).toHaveCount(1);
+  await expect(original.locator('del').filter({ hasText: '𐀀' })).toHaveCount(1);
+  await expect(revised.locator('ins').filter({ hasText: '𠀀' })).toHaveCount(1);
+  await expect(original).toContainText('می\u200cروم');
+  await expect(revised).toContainText('میروم');
+  for (const pane of [original, revised]) {
+    await expect(pane).toContainText('👩\u200d💻');
+    expect(
+      await pane.evaluate((root) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          if (!node.textContent?.isWellFormed()) return false;
+        }
+        return true;
+      })
+    ).toBe(true);
+  }
+});
+
 test('marks every critical clause change without marking unchanged repeated paragraphs', async ({ page }) => {
   const [original, revised] = await compareFixture(page, 'clauses');
   const expected = [

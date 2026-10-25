@@ -96,6 +96,43 @@ describe('createTextDiffs contract', () => {
     expect(diffs[2]?.[1].startsWith('🙃')).toBe(true);
   });
 
+  it.each(['char', 'word', 'semantic'] as const)(
+    'keeps complete code points in exact %s differences',
+    (granularity) => {
+      const cases: Array<[string, string]> = [
+        ['before 😀 after', 'before 😁 after'],
+        ['before 𐀀 after', 'before 𠀀 after'],
+        ['🙂x🙃', '🙃x🙂'],
+        ['a😀b🙂c', 'a😁b🙃c']
+      ];
+      for (const [original, revised] of cases) {
+        const diffs = createTextDiffs(sideOf([original]), sideOf([revised]), granularity);
+
+        expect(reconstruct(diffs)).toEqual({ original, revised });
+        for (const [, text] of diffs) expect(text.isWellFormed(), JSON.stringify(diffs)).toBe(true);
+      }
+    }
+  );
+
+  it('preserves both documents and whole code points across repeated Unicode sequences', () => {
+    const alphabet = ['a', '甲', '😀', '😁', '𐀀', '𠀀', '🙂', '🙃'];
+    let seed = 721806280;
+    const text = () =>
+      Array.from({ length: 12 }, () => {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        return alphabet[(seed >>> 16) % alphabet.length];
+      }).join('');
+
+    for (let index = 0; index < 200; index++) {
+      const original = text();
+      const revised = text();
+      const diffs = createTextDiffs(sideOf([original]), sideOf([revised]), 'char', { mergeShortGaps: false });
+
+      expect(reconstruct(diffs)).toEqual({ original, revised });
+      for (const [, span] of diffs) expect(span.isWellFormed(), JSON.stringify(diffs)).toBe(true);
+    }
+  });
+
   it('returns the same diff for the same input, every time', () => {
     const original = sideOf(
       Array.from({ length: 200 }, (_unused, index) => `第 ${index} 条 ${PARAGRAPH}`),

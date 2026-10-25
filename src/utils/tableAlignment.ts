@@ -264,7 +264,7 @@ function ratioSimilarity(left: number, right: number): number {
 export function normalizeStructureText(text: string): string {
   return text
     .normalize('NFKC')
-    .replace(/[\s\u200b\u200c\u200d\ufeff]+/g, '')
+    .replace(/[\s\u200b\ufeff]+/g, '')
     .toLowerCase();
 }
 

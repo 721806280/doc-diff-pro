@@ -146,10 +146,10 @@ const URLISH_PATTERN = /^(?:https?:\/\/|www\.)/i;
  * together. Those newlines belong to no text node, which is what NO_TEXT_NODE
  * marks: markup cannot be applied to them, and the mapping has to say so.
  *
- * Text nodes are normalized in place as they are visited — zero-width
- * characters dropped, hard line breaks turned into spaces — so that the
+ * Text nodes are normalized in place as they are visited — layout separators
+ * dropped, hard line breaks turned into spaces — so that the
  * offsets recorded here stay valid against the live DOM the markup pass will
- * mutate.
+ * mutate. Joining controls stay: they shape emoji and complex-script text.
  */
 export function buildTextMapping(rootDom: HTMLElement): TextMapping {
   const textBuffer: string[] = [];
@@ -188,7 +188,7 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
 
   function walk(node: Node): void {
     if (node.nodeType === Node.TEXT_NODE) {
-      const value = (node.nodeValue ?? '').replace(/[\u200b\u200c\u200d\ufeff]/g, '').replace(/[\r\n]/g, ' ');
+      const value = (node.nodeValue ?? '').replace(/[\u200b\ufeff]/g, '').replace(/[\r\n]/g, ' ');
 
       node.nodeValue = value;
       if (value.length === 0) return;
@@ -297,6 +297,9 @@ export function collapseWhitespace({ text, mapping, boundaries: sourceBoundaries
   };
   let lastChar = '';
   let currentLine = '';
+  let whitespaceRunEnd = 0;
+  let followsStructuralMarker = false;
+  let dropBetween = false;
 
   const appendResult = (ch: string, sourceIndex: number, resetLine = false): void => {
     resultTextChunks.push(ch);
@@ -309,14 +312,19 @@ export function collapseWhitespace({ text, mapping, boundaries: sourceBoundaries
     let ch = text[index];
     if (ch === undefined || index >= mapping.nodeIds.length) continue;
     if (isTextWhitespace(ch)) {
-      const nextChar = nextNonTextWhitespace(text, index + 1);
-      if (
-        isStructuralMarkerBeforeWhitespace(currentLine) ||
-        lastChar === ' ' ||
-        lastChar === '' ||
-        shouldDropWhitespaceBetween(resultTextChunks, text, index, lastChar, nextChar)
-      ) {
-        if (ch === '\n') currentLine = '';
+      if (index >= whitespaceRunEnd) {
+        whitespaceRunEnd = index + 1;
+        while (isTextWhitespace(text[whitespaceRunEnd])) whitespaceRunEnd++;
+        followsStructuralMarker = isStructuralMarkerBeforeWhitespace(currentLine);
+        // The surrounding tokens stay fixed throughout this run. Looking ahead
+        // and reading those tokens for every space makes long runs quadratic.
+        dropBetween = shouldDropWhitespaceBetween(resultTextChunks, text, index, lastChar, text[whitespaceRunEnd]);
+      }
+      if (followsStructuralMarker || lastChar === ' ' || lastChar === '' || dropBetween) {
+        if (ch === '\n') {
+          currentLine = '';
+          followsStructuralMarker = false;
+        }
         markBoundaryAfter(index);
         continue;
       }
@@ -486,13 +494,6 @@ function isTextWhitespace(ch: string | undefined): boolean {
 
 function isCjkOrFullwidthPunctuation(ch: string | undefined): boolean {
   return !!ch && CJK_OR_FULLWIDTH_PUNCT_PATTERN.test(ch);
-}
-
-function nextNonTextWhitespace(text: string, startIndex: number): string | undefined {
-  for (let index = startIndex; index < text.length; index++) {
-    if (!isTextWhitespace(text[index])) return text[index];
-  }
-  return undefined;
 }
 
 function previousTextChar(textChunks: string[]): string | undefined {
