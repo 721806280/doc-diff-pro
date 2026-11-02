@@ -54,10 +54,14 @@ export type DocumentPaneState = {
   size: number;
   originalHtml: string;
   highlightedHtml: string;
+  /** A comparison can succeed with empty HTML on either side. */
+  comparisonComplete?: boolean;
   textLength: number;
   imageCount: number;
   /** Images the sanitizer refused, which take no part in the comparison. */
   droppedImageCount: number;
+  /** Preview limits keep these images in exact byte comparisons. */
+  limitedImageCount?: number;
   /** Figures the converter never emitted: Word's own graphics, and formulas. */
   graphics: DocxGraphicsReport;
   /** Tracked changes the document still carries; the comparison sees them applied. */
@@ -71,7 +75,7 @@ export type DocumentPaneState = {
    */
   imageUrls: string[];
   /**
-   * Image fingerprints taken while parsing, keyed by the `src` in the markup.
+   * Image fingerprints taken while parsing, keyed by the stable image ID.
    * Travels with the pane because a comparison cannot recompute it: by then the
    * markup holds object URLs and the pixels are gone.
    */

@@ -1,6 +1,7 @@
 import type { PaneSide } from '@/types/document';
 import type { ImageDifferenceKind } from './imageAlignment';
 import { IMAGE_CHANGE_ATTRIBUTE, IMAGE_PAIR_ATTRIBUTE, IMAGE_SIMILARITY_ATTRIBUTE } from './textDiffCore';
+import { IMAGE_RESOURCE_LIMIT_ATTRIBUTE } from './imageResourceBudget';
 
 export type PreviewImage = {
   src: string;
@@ -62,7 +63,7 @@ export function resolveImagePreview(
 function readImage(image: HTMLImageElement | undefined): PreviewImage | null {
   if (!image) return null;
   return {
-    src: image.currentSrc || image.getAttribute('src') || '',
+    src: image.hasAttribute(IMAGE_RESOURCE_LIMIT_ATTRIBUTE) ? '' : image.currentSrc || image.getAttribute('src') || '',
     alt: image.alt,
     width: image.naturalWidth || Number(image.getAttribute('width')) || 0,
     height: image.naturalHeight || Number(image.getAttribute('height')) || 0

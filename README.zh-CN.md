@@ -42,6 +42,7 @@
 - 🔗 支持同步滚动；窄屏设备可在基准文档和修订文档之间切换。
 - 🖼️ 支持内嵌图片比对，按图片状态显示单图或双图预览，提供联动/独立缩放、旋转、翻转、还原及视觉相似度详情。
 - 🧮 原生 Word 公式以 MathML 展示并参与比对，转换时保留支持的段落和表格对齐方式。
+- 🔗 链接目标、上下标和显式行内换行也参与比对。
 - 🎨 提供中英文界面、主题色和浅色/夜间模式，并在本地保存界面偏好。
 - 🔌 支持运行时部署配置和浏览器 `File` 对象接入，便于嵌入第三方系统。
 
@@ -75,6 +76,8 @@
 1 - 编辑距离 / max(基准文本长度, 修订文本长度)
 ```
 
+相似度只衡量文本字符。链接目标、上下标、公式或图片发生变化时，文本相似度可能仍为 100%；这些变化仍会出现在差异计数和审阅预览中。
+
 ## 🧹 文本归一化
 
 ### ↔️ 忽略空白
@@ -101,7 +104,7 @@ DocDiff Pro 会在正式比对前把版面内容和正文内容分离：
 - 原生 DOCX 页眉页脚会在解析时读取，用作版面线索、列入版面明细，并从展示正文中移除。
 - 开启“版面过滤”后，正文中命中页眉页脚线索的转换内容也会从比对输入中排除。
 - 可识别 `第1页/共5页`、`1/5`、`Page 1 of 5`、`P. iv of x`、`页码：1` 等页码文本。
-- 可过滤重复出现的短版面文字，例如保密提示、版权声明、文件编号、电话或邮箱页脚。
+- 可过滤重复的独立提示，例如“内部资料 请勿外传”或 `Confidential`。其他重复文字需有原生页眉页脚线索或页码特征；仅有“保密”等关键词或联系字段不会删除正文条款。
 - 为避免误删正文，电话、邮箱、联系人等片段线索只用于带页码特征的候选文本。
 - 结果栏中的“版面干扰”数量可点击查看明细。
 
@@ -117,6 +120,8 @@ DocDiff Pro 会在正式比对前把版面内容和正文内容分离：
 - 仅支持 `.docx` 文件；不支持 `.doc`、`.pdf`、扫描件或 OCR 流程。
 - 单个文件默认不能超过 25 MB，可通过运行时配置调整。该上限只用于上传校验，不代表所有复杂文档都能在相同时间内完成比对。
 - 通过内容指纹和视觉特征比对内嵌图片。视觉相似度为估算值，不代表改动面积；图片文字不会执行 OCR。
+- 唯一且字节相同的图片还会结合对齐后的正文位置检测移动。重复的相同图片，以及位于大段改写文本中的图片位置，可能无法确定。
+- 图片解码和预览共用资源限制：单图最多 4000 万像素、32 MiB，每份文档累计最多 1.6 亿像素，按不同图片内容计量。超预算或尺寸无法验证的图片仍按字节比较，但不提供可加载的预览源，面板会说明限制；SVG 也计入其内嵌位图和滤镜图片的资源。使用相对尺寸、根节点样式、样式表、动画或 HTML 子内容的 SVG 无法可靠核算视口或资源，只保留字节比较。
 - DOCX 到 HTML 的转换效果取决于 mammoth。应用会尽量保留可转换的段落、列表、表格和图片，但复杂 Word 版式不一定与 Microsoft Word 一致。
 - 原生 Word 公式转换为 MathML 后参与比对。旧式嵌入公式对象、图表和不支持的绘图仍可能无法展示，转换提示会说明这些限制。
 - 需要支持 File API、Web Worker 和 ES module 的现代浏览器；不支持 Internet Explorer。
@@ -125,19 +130,22 @@ DocDiff Pro 会在正式比对前把版面内容和正文内容分离：
 
 ## 🔌 第三方系统接入
 
-部署方可在应用入口脚本执行前注入运行时配置。部署配置与用户保存在浏览器中的比对设置相互独立。
+部署方可在应用入口脚本执行前注入运行时配置。生产 CSP 允许同源脚本：将配置放入部署目录中与 `index.html` 同级的 `runtime-config.js`，并在应用入口模块之前添加以下同步脚本。部署配置与用户保存在浏览器中的比对设置相互独立。
 
 ```html
-<script>
-  window.__DOC_DIFF_CONFIG__ = {
-    documentInput: 'external',
-    showHeader: false,
-    showSampleDocuments: false,
-    showGithubLink: false,
-    locale: 'zh-CN',
-    maxDocxSizeMb: 40
-  };
-</script>
+<script src="./runtime-config.js"></script>
+```
+
+```js
+// runtime-config.js
+window.__DOC_DIFF_CONFIG__ = {
+  documentInput: 'external',
+  showHeader: false,
+  showSampleDocuments: false,
+  showGithubLink: false,
+  locale: 'zh-CN',
+  maxDocxSizeMb: 40
+};
 ```
 
 | 配置项                | 默认值  | 说明                                                                                                             |
@@ -152,22 +160,26 @@ DocDiff Pro 会在正式比对前把版面内容和正文内容分离：
 `documentInput: 'external'` 不支持 URL 输入。接入方应先完成鉴权、来源验证和文件获取，再将浏览器 `File` 对象传给已挂载的应用。API 暴露 `ready` 标志与 `doc-diff-pro:ready` 窗口事件让接入方无需轮询，`on()` 订阅生命周期与比对事件，`getState()` 查询当前状态：
 
 ```js
-// 挂载前订阅，避免遗漏 ready 信号。
+// 挂载前注册，在载入文档前订阅结果。
 window.addEventListener('doc-diff-pro:ready', () => {
-  window.DocDiffPro.loadDocuments({ baseline: baselineFile, revised: revisedFile });
+  const api = window.DocDiffPro;
+  api.on('result', ({ summary, meta }) => {
+    console.log(meta?.bizId, summary.total, api.getState().hasResult);
+  });
+  api.on('error', ({ message, meta, side, phase }) => {
+    console.warn(meta?.bizId, side, phase, message);
+  });
+  api.loadDocuments({ baseline: baselineFile, revised: revisedFile, meta: { bizId: 'contract-42' } }).catch((error) => {
+    // 导入失败还会触发 error；取消或被新请求替代时以 AbortError 拒绝。
+    if (error.name === 'AbortError') return;
+    console.warn(error.message);
+  });
 });
-
-// 订阅比对结果，与业务流程对账。
-window.DocDiffPro.on('result', ({ summary, meta }) => {
-  console.log(meta.bizId, summary.total);
-});
-window.DocDiffPro.on('error', ({ message, meta }) => {
-  console.warn(meta.bizId, message);
-});
-const state = window.DocDiffPro.getState(); // { ready, comparing, hasDocuments, hasResult, error }
 ```
 
 `baseline` 和 `revised` 可只传入其中一侧——只传一侧时仅更新对应面板，不会因缺另一侧阻断。可选 `meta`（`{ bizId?, source? }`）随调用透传，并在 `result` / `error` / `cleared` 事件中原样回传，便于业务对账。该 API 在 `external` 与 `both` 模式下安装，适用于同页面或同源 iframe。跨域 iframe 需要接入方增加带明确来源校验的 `postMessage` 适配层；应用不会开放无来源校验的消息入口。
+
+`loadDocuments()` 在导入成功后返回 `{ sequence }`，比对完成通过 `result` 通知。文件校验或解析失败时，Promise 会拒绝，并触发包含该次请求 `meta`、`phase: 'import'` 和已知面板 `side: 'A' | 'B'` 的 `error`。取消或被新请求替代时以 `AbortError` 拒绝，不发错误事件。`getState()` 返回 `{ ready, comparing, hasDocuments, hasResult, error }`，其中 `error` 包含面板导入错误；`result` 回调中的即时状态已提交，`comparing: false`、`hasResult: true`，正文为空的文档同样适用。
 
 GitHub 入口固定指向作者仓库，不支持运行时替换，只能通过 `showGithubLink` 控制显示。设置 `showHeader: false` 会隐藏整个顶部工具栏，包括比对设置和界面偏好入口。
 

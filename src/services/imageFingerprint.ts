@@ -1,4 +1,10 @@
 import { readImageHeader } from '@/utils/imageHeader';
+import {
+  createImageResourceBudget,
+  MAX_IMAGE_BYTES,
+  MAX_IMAGE_PIXELS,
+  type ImageResourceInfo
+} from '@/utils/imageResourceBudget';
 import { throwIfAborted } from '@/utils/comparisonScheduling';
 import {
   createImageVisualDescriptor,
@@ -32,7 +38,7 @@ import {
  * was, which is not a property a document comparison may have.
  */
 
-/** Descriptors by the `src` of the element they were taken from. */
+/** Descriptors by the stable ID stamped on the image element. */
 export type { ImageDescriptorTable };
 
 export type ImageSourceEntry = {
@@ -40,23 +46,6 @@ export type ImageSourceEntry = {
   id: string;
   blob: Blob;
 };
-
-/**
- * Refuse to even hand these to a decoder. A .docx is untrusted input and an
- * image that declares dimensions like these is a decompression bomb, not a
- * figure: `createImageBitmap`'s resize options describe its output, and for
- * everything but JPEG the full surface is decoded before the resize happens.
- */
-const MAX_IMAGE_PIXELS = 40_000_000;
-const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
-
-/**
- * Total pixels this document may have decoded on its behalf. Reached only by
- * documents that are mostly photographs, and the images past it still get their
- * exact hash — they lose the ability to be recognised as a revised version of
- * something, not the ability to be recognised at all.
- */
-const TOTAL_PIXEL_BUDGET = 160_000_000;
 
 /**
  * Side of the intermediate the decoder is asked for.
@@ -121,6 +110,7 @@ async function identifyImage(entry: ImageSourceEntry, signal?: AbortSignal): Pro
   const bytes = new Uint8Array(await entry.blob.arrayBuffer());
   throwIfAborted(signal);
   const header = readImageHeader(bytes);
+  const resources = entry.blob.type === 'image/svg+xml' ? inspectSvgResources(bytes) : undefined;
 
   return {
     id: entry.id,
@@ -129,9 +119,84 @@ async function identifyImage(entry: ImageSourceEntry, signal?: AbortSignal): Pro
       hash: await contentHash(bytes),
       width: header?.width ?? 0,
       height: header?.height ?? 0,
-      byteLength: bytes.byteLength
+      byteLength: bytes.byteLength,
+      ...resources
     }
   };
+}
+
+/** Inspect SVG viewports and embedded raster images before any decoder sees them. */
+function inspectSvgResources(bytes: Uint8Array): ImageResourceInfo {
+  const unknown: ImageResourceInfo = {
+    width: 0,
+    height: 0,
+    byteLength: bytes.byteLength,
+    resourceLimit: 'unknown-dimensions'
+  };
+  if (bytes.byteLength > MAX_IMAGE_BYTES) return { ...unknown, resourceLimit: 'image-bytes' };
+  const document = new DOMParser().parseFromString(new TextDecoder().decode(bytes), 'image/svg+xml');
+  const root = document.documentElement;
+  if (root.localName !== 'svg' || document.querySelector('parsererror')) return unknown;
+  const viewBox = (root.getAttribute('viewBox') ?? '')
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  const widthAttribute = root.getAttribute('width');
+  const heightAttribute = root.getAttribute('height');
+  let width = svgLength(widthAttribute);
+  let height = svgLength(heightAttribute);
+  // A relative or invalid explicit size cannot be replaced with viewBox units.
+  if ((widthAttribute !== null && width <= 0) || (heightAttribute !== null && height <= 0)) return unknown;
+  if (widthAttribute === null || heightAttribute === null) {
+    const viewWidth = viewBox[2] ?? 0;
+    const viewHeight = viewBox[3] ?? 0;
+    if (viewBox.length !== 4 || !viewBox.every(Number.isFinite) || viewWidth <= 0 || viewHeight <= 0) return unknown;
+    if (widthAttribute === null && heightAttribute === null) {
+      width = viewWidth;
+      height = viewHeight;
+    } else if (widthAttribute === null) width = (height * viewWidth) / viewHeight;
+    else height = (width * viewHeight) / viewWidth;
+  }
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return unknown;
+  const resources: ImageResourceInfo = {
+    width: Math.ceil(width),
+    height: Math.ceil(height),
+    byteLength: bytes.byteLength
+  };
+  // HTML, stylesheets and animation can add resources or override the inspected
+  // viewport. Keep their bytes without handing unverifiable sizes to a decoder.
+  if (
+    root.hasAttribute('style') ||
+    root.querySelector('foreignObject, style, animate, animateColor, animateMotion, animateTransform, set')
+  )
+    return { ...resources, resourceLimit: 'unknown-dimensions' };
+  let pixels = resources.width * resources.height;
+  for (const image of root.querySelectorAll('image, feImage')) {
+    const source = image.getAttribute('href') ?? image.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ?? '';
+    if (!/^data:image\/(png|jpeg|gif|webp|bmp);base64,/i.test(source))
+      return { ...resources, resourceLimit: 'unknown-dimensions' };
+    let encoded: Uint8Array;
+    try {
+      encoded = Uint8Array.from(atob(source.slice(source.indexOf(',') + 1)), (character) => character.charCodeAt(0));
+    } catch {
+      return { ...resources, resourceLimit: 'unknown-dimensions' };
+    }
+    const header = readImageHeader(encoded);
+    if (!header) return { ...resources, resourceLimit: 'unknown-dimensions' };
+    if (encoded.byteLength > MAX_IMAGE_BYTES) return { ...resources, resourceLimit: 'image-bytes' };
+    if (header.width * header.height > MAX_IMAGE_PIXELS) return { ...resources, resourceLimit: 'image-pixels' };
+    pixels += header.width * header.height;
+  }
+  return { ...resources, resourcePixels: pixels };
+}
+
+const SVG_LENGTH_PATTERN = /^(\+?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(px|pt|pc|in|cm|mm)?$/i;
+const SVG_LENGTH_SCALE: Record<string, number> = { px: 1, pt: 96 / 72, pc: 16, in: 96, cm: 96 / 2.54, mm: 96 / 25.4 };
+
+function svgLength(value: string | null): number {
+  const match = value?.trim().match(SVG_LENGTH_PATTERN);
+  if (!match) return 0;
+  return Number(match[1]) * SVG_LENGTH_SCALE[match[2]?.toLowerCase() ?? 'px']!;
 }
 
 /**
@@ -150,18 +215,10 @@ async function decodeWithinBudget(
   if (!canDecodeImages()) return;
 
   const admitted: Array<{ descriptor: ImageDescriptor; blob: Blob }> = [];
-  let spentPixels = 0;
+  const admit = createImageResourceBudget();
 
   for (const group of groups) {
-    const { width, height, byteLength } = group.descriptor;
-    // An unreadable header means an unknown surface; the decoder is the wrong
-    // place to find out how big it was going to be.
-    if (width <= 0 || height <= 0) continue;
-    const pixels = width * height;
-    if (pixels > MAX_IMAGE_PIXELS || byteLength > MAX_IMAGE_BYTES) continue;
-    if (spentPixels + pixels > TOTAL_PIXEL_BUDGET) continue;
-
-    spentPixels += pixels;
+    if (admit(group.descriptor)) continue;
     admitted.push(group);
   }
 

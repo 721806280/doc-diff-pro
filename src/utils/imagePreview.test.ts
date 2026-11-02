@@ -6,6 +6,17 @@ function root(html: string): HTMLElement {
 }
 
 describe('resolveImagePreview', () => {
+  it('never copies a resource-limited source into the preview modal', () => {
+    const original = root('<img src="blob:safe" data-ddv-image-pair="pair-1" data-ddv-image-change="revised">');
+    const revised = root(
+      '<img src="blob:blocked" data-ddv-image-pair="pair-1" data-ddv-image-resource-limit="image-pixels">'
+    );
+    const image = revised.querySelector('img')!;
+    Object.defineProperty(image, 'currentSrc', { value: 'blob:cached-blocked' });
+    expect(resolveImagePreview('A', original.querySelector('img')!, revised, true).images.B?.src).toBe('');
+    expect(resolveImagePreview('B', image, original, true).images.B?.src).toBe('');
+  });
+
   it('uses the paired occurrence even when sources repeat or image positions differ', () => {
     const original = root('<img src="blob:shared" data-ddv-image-pair="pair-2" data-ddv-image-change="unchanged">');
     const revised = root(

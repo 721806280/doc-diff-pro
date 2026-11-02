@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import type { DocDiffProState } from '../src/services/externalDocumentApi';
 
 test.use({ locale: 'zh-CN' });
 
@@ -18,6 +20,59 @@ function observeFailures(page: Page): string[] {
   });
   return failures;
 }
+
+test('loads same-origin runtime configuration before the entry module under the production CSP', async ({ page }) => {
+  const failures = observeFailures(page);
+  const [original, revised] = await Promise.all([
+    readFile('e2e/fixtures/clauses-original.docx'),
+    readFile('e2e/fixtures/clauses-revised.docx')
+  ]);
+  await page.route('**/doc-diff-pro/runtime-config.js', (route) =>
+    route.fulfill({
+      contentType: 'text/javascript',
+      body: "window.__DOC_DIFF_CONFIG__ = { documentInput: 'external', showHeader: false, showSampleDocuments: false, locale: 'zh-CN' };"
+    })
+  );
+  await page.route('**/doc-diff-pro/', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      /(?=<script\b[^>]*type="module")/,
+      '<script src="./runtime-config.js"></script>'
+    );
+    await route.fulfill({ response, body });
+  });
+  await page.goto('./');
+  await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveAttribute(
+    'content',
+    /script-src 'self';/
+  );
+  await page.waitForFunction(() => window.DocDiffPro?.ready);
+  await expect(page.locator('input[type="file"], .app-header')).toHaveCount(0);
+  await expect(page.getByText('等待接入系统提供基准文档', { exact: true })).toBeVisible();
+  const loaded = await page.evaluate(
+    async ({ baseline, revision }) => {
+      const api = window.DocDiffPro!;
+      const states: DocDiffProState[] = [];
+      Reflect.set(window, '__productionResultStates', states);
+      api.on('result', () => states.push(api.getState()));
+      return api.loadDocuments({
+        baseline: new File([new Uint8Array(baseline)], 'baseline.docx'),
+        revised: new File([new Uint8Array(revision)], 'revised.docx'),
+        meta: { bizId: 'production-config' }
+      });
+    },
+    { baseline: Array.from(original), revision: Array.from(revised) }
+  );
+  expect(loaded.sequence).toBe(1);
+  await expect(page.locator('.diff-progress')).toHaveAttribute('aria-valuemax', '5');
+  await page.waitForFunction(
+    () => (Reflect.get(window, '__productionResultStates') as DocDiffProState[])?.length === 1
+  );
+  expect(await page.evaluate(() => Reflect.get(window, '__productionResultStates') as DocDiffProState[])).toEqual([
+    { ready: true, comparing: false, hasDocuments: true, hasResult: true, error: '' }
+  ]);
+  expect(failures).toEqual([]);
+});
 
 test('imports documents and uses the bundled worker and image overlay under the production CSP', async ({ page }) => {
   const failures = observeFailures(page);

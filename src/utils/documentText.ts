@@ -1,3 +1,5 @@
+import { GENERATED_DOCUMENT_TEXT_ATTRIBUTE } from './textDiffCore';
+
 /**
  * Where each character of the extracted text came from.
  *
@@ -22,6 +24,8 @@ export type TextMapping = {
    * paragraph at a time, so the structure has to survive the trip.
    */
   boundaries: number[];
+  /** Inline image positions in normalized text, independent of image order. */
+  imageOffsets?: Map<HTMLImageElement, number>;
 };
 
 export type TextPositionMap = {
@@ -31,6 +35,8 @@ export type TextPositionMap = {
   nodeIds: Int32Array;
   /** Offset within the owning text node per character. */
   offsets: Int32Array;
+  /** Explicit inline breaks; block separators have no element to mark. */
+  breaks?: Map<number, HTMLBRElement>;
 };
 
 /** Marks a character that belongs to no text node: a synthetic block separator. */
@@ -156,6 +162,8 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
   const mapping = createMappingBuilder();
   const orderedListCounters = new WeakMap<HTMLElement, number>();
   const boundaries: number[] = [];
+  const breaks = new Map<number, HTMLBRElement>();
+  const imageOffsets = new Map<HTMLImageElement, number>();
   let length = 0;
   let cellDepth = 0;
   let listItemDepth = 0;
@@ -205,10 +213,17 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
     const element = node as HTMLElement;
+    if (element.hasAttribute(GENERATED_DOCUMENT_TEXT_ATTRIBUTE)) return;
     // Equations are compared as complete structures; HTML markers inside
     // MathML would break its layout and miss changes such as superscripts.
     if (element.namespaceURI === 'http://www.w3.org/1998/Math/MathML') return;
     const tagName = element.tagName.toUpperCase();
+    if (tagName === 'BR') {
+      breaks.set(length, element as HTMLBRElement);
+      pushSeparator(false);
+      return;
+    }
+    if (tagName === 'IMG') imageOffsets.set(element as HTMLImageElement, length);
     const isBlock = BLOCK_TAGS.has(tagName);
     const isListItem = tagName === LIST_ITEM_TAG;
     const isBoundary = BOUNDARY_TAGS.has(tagName) && cellDepth === 0 && (listItemDepth === 0 || isListItem);
@@ -227,7 +242,7 @@ export function buildTextMapping(rootDom: HTMLElement): TextMapping {
   }
 
   walk(rootDom);
-  return { text: textBuffer.join(''), mapping: finishMapping(mapping), boundaries };
+  return { text: textBuffer.join(''), mapping: { ...finishMapping(mapping), breaks }, boundaries, imageOffsets };
 }
 
 type MappingBuilder = {
@@ -276,7 +291,12 @@ function finishMapping(builder: MappingBuilder): TextPositionMap {
   };
 }
 
-export function collapseWhitespace({ text, mapping, boundaries: sourceBoundaries }: TextMapping): TextMapping {
+export function collapseWhitespace({
+  text,
+  mapping,
+  boundaries: sourceBoundaries,
+  imageOffsets: sourceImages
+}: TextMapping): TextMapping {
   const resultTextChunks: string[] = [];
   // Collapsing only ever drops characters, so the source length is an exact
   // ceiling and the columns never have to grow. The node table is shared: the
@@ -287,6 +307,16 @@ export function collapseWhitespace({ text, mapping, boundaries: sourceBoundaries
   // dropped here and leaves no character to find it by afterwards. Walked in step
   // with the source, which is already in order.
   const boundaries: number[] = [];
+  const breaks = new Map<number, HTMLBRElement>();
+  const imageOffsets = new Map<HTMLImageElement, number>();
+  const images = sourceImages ? [...sourceImages] : [];
+  let imageCursor = 0;
+  const remapImagesBefore = (sourceIndex: number): void => {
+    while (imageCursor < images.length && images[imageCursor]![1] <= sourceIndex) {
+      imageOffsets.set(images[imageCursor]![0], resultTextChunks.length);
+      imageCursor++;
+    }
+  };
   let boundaryCursor = 0;
   const markBoundaryAfter = (sourceIndex: number): void => {
     if (sourceBoundaries[boundaryCursor] !== sourceIndex + 1) return;
@@ -302,6 +332,8 @@ export function collapseWhitespace({ text, mapping, boundaries: sourceBoundaries
   let dropBetween = false;
 
   const appendResult = (ch: string, sourceIndex: number, resetLine = false): void => {
+    const lineBreak = mapping.breaks?.get(sourceIndex);
+    if (lineBreak) breaks.set(resultTextChunks.length, lineBreak);
     resultTextChunks.push(ch);
     appendMapping(resultMapping, mapping.nodeIds[sourceIndex] ?? NO_TEXT_NODE, mapping.offsets[sourceIndex] ?? 0);
     lastChar = ch;
@@ -309,6 +341,7 @@ export function collapseWhitespace({ text, mapping, boundaries: sourceBoundaries
   };
 
   for (let index = 0; index < text.length; index++) {
+    remapImagesBefore(index);
     let ch = text[index];
     if (ch === undefined || index >= mapping.nodeIds.length) continue;
     if (isTextWhitespace(ch)) {
@@ -341,12 +374,16 @@ export function collapseWhitespace({ text, mapping, boundaries: sourceBoundaries
   }
 
   const length = resultTextChunks.length;
+  remapImagesBefore(text.length);
+  for (const [image, offset] of imageOffsets) imageOffsets.set(image, Math.min(offset, length));
+  for (const offset of breaks.keys()) if (offset >= length) breaks.delete(offset);
   return {
     text: resultTextChunks.join(''),
-    mapping: finishMapping(resultMapping),
+    mapping: { ...finishMapping(resultMapping), breaks },
     // A trailing space just went, so a boundary that sat behind it now sits past
     // the end of the text.
-    boundaries: boundaries.filter((offset) => offset < length)
+    boundaries: boundaries.filter((offset) => offset < length),
+    imageOffsets
   };
 }
 

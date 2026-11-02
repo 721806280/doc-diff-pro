@@ -16,6 +16,30 @@ afterEach(() => {
 });
 
 describe('DocumentPane', () => {
+  it('explains blocked previews without calling the images uncomparable or opening them', () => {
+    const previews = vi.fn();
+    const { host } = mountPane(
+      true,
+      {
+        ...emptyDocument(),
+        name: 'large.docx',
+        status: 'ready',
+        limitedImageCount: 1,
+        highlightedHtml:
+          '<p><del data-diff-id="diff-1" data-diff-image="图片"><img data-ddv-unrenderable data-ddv-image-resource-limit="image-pixels" alt="无法预览，仍比较原始字节。"></del></p>'
+      },
+      undefined,
+      undefined,
+      { onImagePreview: previews }
+    );
+    expect(host.querySelector('button[aria-label="1 张图片无法预览"]')).not.toBeNull();
+    expect(host.textContent).toContain('仍按原始字节参与比较');
+    expect(host.querySelector('.warning-chip.uncomparable')).toBeNull();
+    act(() => host.querySelector<HTMLImageElement>('img')!.click());
+    expect(previews).not.toHaveBeenCalled();
+    expect(host.querySelector('img')?.hasAttribute('role')).toBe(false);
+  });
+
   it('keeps a file error visible while the other document is preparing', () => {
     const { host } = mountPane(
       true,

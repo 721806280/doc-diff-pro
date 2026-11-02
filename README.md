@@ -42,6 +42,7 @@ Document parsing, text normalization, diffing, and highlighting run in the brows
 - 🔗 Synchronized scrolling and a narrow-screen switch between the baseline and revised panes.
 - 🖼️ Embedded image comparison with adaptive single/paired previews, linked or independent zoom, rotation, flips, reset, and visual similarity details.
 - 🧮 Native Word equations are rendered as MathML and compared; document conversion preserves supported paragraph and table alignment.
+- 🔗 Link destinations, superscripts, subscripts, and explicit inline breaks participate in comparison.
 - 🎨 English and Chinese UI, theme presets, and light/dark appearance with locally saved preferences.
 - 🔌 Runtime deployment configuration and browser `File` input for embedding in third-party systems.
 
@@ -75,6 +76,8 @@ Similarity is computed from the edit distance of the currently normalized text:
 1 - edit distance / max(baseline text length, revised text length)
 ```
 
+Similarity measures text characters. A link target, script, equation, or image can change while text similarity stays at 100%; those changes still appear in the difference count and review previews.
+
 ## 🧹 Text Normalization
 
 ### ↔️ Ignore Whitespace
@@ -101,7 +104,7 @@ DocDiff Pro separates layout text from body content before diffing:
 - Native DOCX headers and footers are read during parsing, used as layout hints, listed in layout details, and removed from the displayed document body.
 - With `Layout filter` enabled, converted body content matching header or footer hints is also excluded from comparison input.
 - Page text such as `Page 1 of 5`, `P. iv of x`, `第1页/共5页`, `1/5`, or `页码：1` can be recognized.
-- Repeated short layout text such as confidentiality notices, copyright notices, document IDs, phone numbers, or email footer lines can be filtered.
+- Repeated standalone notices such as `Confidential` or `内部资料 请勿外传` can be filtered. Other repeated text needs a native header/footer hint or page marker; a confidentiality keyword or contact field alone does not remove a body clause.
 - To protect body content, contact fragments such as phone numbers, email addresses, and contact names are only matched against page-marked candidates.
 - Click the `Layout` count in the result bar to review details.
 
@@ -117,6 +120,8 @@ DocDiff Pro separates layout text from body content before diffing:
 - Only `.docx` files are supported. `.doc`, `.pdf`, scanned documents, and OCR workflows are not supported.
 - Each file is limited to 25 MB by default, configurable at runtime. This is an upload validation limit, not a guarantee that every complex document will complete in the same amount of time.
 - Embedded images are compared using content fingerprints and visual features. Visual similarity is an estimate, not the percentage of edited area; image text is not OCR-processed.
+- Unique unchanged images are checked for moves relative to aligned body text as well as image order. Repeated identical copies and positions inside extensively rewritten text can remain ambiguous.
+- Image decoding and preview share limits of 40 million pixels and 32 MiB per image, and 160 million pixels per document, counted by distinct image content. Oversized or unverifiable images retain byte comparison but have no loadable preview source; the pane explains the limitation. SVG budgets also include embedded raster and filter images. SVGs with relative dimensions, root styles, stylesheets, animations, or HTML subtrees retain byte comparison without a preview because their viewport or resources cannot be verified.
 - DOCX-to-HTML fidelity depends on mammoth. The app preserves convertible paragraphs, lists, tables, and images where possible, but complex Word layouts may not match Microsoft Word.
 - Native Word equations are compared after conversion to MathML. Legacy embedded equation objects, charts, and unsupported drawings may still be unavailable; conversion notices identify these limitations.
 - A modern browser with File API, Web Worker, and ES module support is required. Internet Explorer is not supported.
@@ -125,19 +130,22 @@ DocDiff Pro separates layout text from body content before diffing:
 
 ## 🔌 Third-Party Integration
 
-Deployments can inject runtime configuration before the application entry module runs. Deployment configuration remains separate from comparison settings saved in the browser.
+Deployments can inject runtime configuration before the application entry module runs. The production CSP allows same-origin scripts. Place the configuration in `runtime-config.js` beside the deployed `index.html`, and add this synchronous script before the application entry module. Deployment configuration remains separate from comparison settings saved in the browser.
 
 ```html
-<script>
-  window.__DOC_DIFF_CONFIG__ = {
-    documentInput: 'external',
-    showHeader: false,
-    showSampleDocuments: false,
-    showGithubLink: false,
-    locale: 'en',
-    maxDocxSizeMb: 40
-  };
-</script>
+<script src="./runtime-config.js"></script>
+```
+
+```js
+// runtime-config.js
+window.__DOC_DIFF_CONFIG__ = {
+  documentInput: 'external',
+  showHeader: false,
+  showSampleDocuments: false,
+  showGithubLink: false,
+  locale: 'en',
+  maxDocxSizeMb: 40
+};
 ```
 
 | Option                | Default | Description                                                                                                                                                                 |
@@ -152,22 +160,26 @@ Deployments can inject runtime configuration before the application entry module
 `documentInput: 'external'` does not accept URLs. The integrating system must handle authentication, source validation, and file retrieval, then pass browser `File` objects to the mounted app. The API exposes a `ready` flag plus a `doc-diff-pro:ready` window event so integrators no longer need to poll, lifecycle/comparison subscriptions via `on()`, and `getState()`:
 
 ```js
-// Subscribe before mount so you never miss the ready signal.
+// Register before mount, then subscribe before loading the documents.
 window.addEventListener('doc-diff-pro:ready', () => {
-  window.DocDiffPro.loadDocuments({ baseline: baselineFile, revised: revisedFile });
+  const api = window.DocDiffPro;
+  api.on('result', ({ summary, meta }) => {
+    console.log(meta?.bizId, summary.total, api.getState().hasResult);
+  });
+  api.on('error', ({ message, meta, side, phase }) => {
+    console.warn(meta?.bizId, side, phase, message);
+  });
+  api.loadDocuments({ baseline: baselineFile, revised: revisedFile, meta: { bizId: 'contract-42' } }).catch((error) => {
+    // Import failures also emit error; cancellations/supersessions reject with AbortError.
+    if (error.name === 'AbortError') return;
+    console.warn(error.message);
+  });
 });
-
-// Subscribe to outcomes for correlation with your business flow.
-window.DocDiffPro.on('result', ({ summary, meta }) => {
-  console.log(meta.bizId, summary.total);
-});
-window.DocDiffPro.on('error', ({ message, meta }) => {
-  console.warn(meta.bizId, message);
-});
-const state = window.DocDiffPro.getState(); // { ready, comparing, hasDocuments, hasResult, error }
 ```
 
 `baseline` and `revised` may be supplied independently — passing one side updates only that pane without blocking on the other. An optional `meta` (`{ bizId?, source? }`) travels with the call and is echoed back on `result` / `error` / `cleared` events for correlation. The API is installed in `external` and `both` modes and works on the same page or in a same-origin iframe. Cross-origin iframes require an integration-owned `postMessage` adapter with explicit origin validation; the app does not expose an unrestricted message listener.
+
+`loadDocuments()` resolves to `{ sequence }` after successful import; comparison completion is reported by `result`. Validation or parse failure rejects the promise and emits `error` with the request's `meta`, `phase: 'import'`, and `side: 'A' | 'B'` when a pane is known. Canceled or superseded imports reject with `AbortError` without an error event. `getState()` returns `{ ready, comparing, hasDocuments, hasResult, error }` and includes pane import errors. A `result` callback sees committed results with `comparing: false` and `hasResult: true`, including empty-body documents.
 
 The GitHub entry always points to the author's repository and cannot be replaced at runtime; only its visibility is configurable. Setting `showHeader: false` hides the entire toolbar, including comparison settings and UI preference controls.
 

@@ -1,6 +1,8 @@
 import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createExternalDocumentApi, type DocDiffProState } from './externalDocumentApi';
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { createExternalDocumentApi, type DocDiffProApi, type DocDiffProState } from './externalDocumentApi';
+import type { DocDiffProApi as ClientApi } from './doc-diff-pro.client';
+import { DocumentImportError } from './documentFile';
 
 const idleState: DocDiffProState = {
   ready: false,
@@ -11,6 +13,10 @@ const idleState: DocDiffProState = {
 };
 
 describe('externalDocumentApi', () => {
+  it('keeps the standalone client declaration aligned with the runtime API', () => {
+    expectTypeOf<DocDiffProApi>().toEqualTypeOf<ClientApi>();
+  });
+
   afterEach(() => {
     delete window.DocDiffPro;
   });
@@ -82,6 +88,36 @@ describe('externalDocumentApi', () => {
 
     await window.DocDiffPro?.loadDocuments({ revised: new File(['r'], 'r.docx'), meta: { bizId: 'c-42' } });
     expect(loadDocuments).toHaveBeenCalledWith(expect.objectContaining({ meta: { bizId: 'c-42' } }));
+  });
+
+  it.each([new DocumentImportError('invalid file', 'A'), new Error('invalid request'), 'invalid request'])(
+    'forwards an import rejection and its request metadata: %s',
+    async (failure) => {
+      const host = createExternalDocumentApi(vi.fn().mockRejectedValue(failure), () => idleState);
+      host.install();
+      const api = window.DocDiffPro!;
+      const error = vi.fn();
+      api.on('error', error);
+      await expect(
+        api.loadDocuments({ baseline: new File(['bad'], 'bad.docx'), meta: { bizId: 'failed' } })
+      ).rejects.toBe(failure);
+      expect(error).toHaveBeenCalledExactlyOnceWith({
+        message: failure instanceof Error ? failure.message : failure,
+        meta: { bizId: 'failed' },
+        phase: 'import',
+        ...(failure instanceof DocumentImportError ? { side: 'A' } : {})
+      });
+    }
+  );
+
+  it('rejects cancellations without emitting an error event', async () => {
+    const failure = new DOMException('superseded', 'AbortError');
+    const host = createExternalDocumentApi(vi.fn().mockRejectedValue(failure), () => idleState);
+    host.install();
+    const error = vi.fn();
+    window.DocDiffPro!.on('error', error);
+    await expect(window.DocDiffPro!.loadDocuments({})).rejects.toBe(failure);
+    expect(error).not.toHaveBeenCalled();
   });
 
   it('delivers result/error/cleared events to subscribers', async () => {

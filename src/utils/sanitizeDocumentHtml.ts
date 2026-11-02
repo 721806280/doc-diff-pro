@@ -99,9 +99,8 @@ export async function sanitizeDocumentBody(html: string): Promise<HTMLElement> {
     if (RENDERABLE_IMAGE_SOURCE_PATTERN.test(source)) return;
 
     if (COMPARABLE_ONLY_IMAGE_SOURCE_PATTERN.test(source)) {
-      // The payload survives only as far as `adoptInlineImages`, which takes the
-      // bytes for the fingerprint and then removes the source, so nothing ever
-      // asks the browser to draw it.
+      // The parser takes the bytes for fingerprinting and removes this source
+      // before returning any markup that the browser could render.
       image.setAttribute(UNRENDERABLE_IMAGE_ATTRIBUTE, '');
       return;
     }

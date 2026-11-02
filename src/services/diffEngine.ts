@@ -12,6 +12,7 @@ import {
 import { DIFF_DELETE, DIFF_INSERT, summarizeDiffs } from '@/utils/textDiffCore';
 import { throwIfAborted, yieldToBrowser } from '@/utils/comparisonScheduling';
 import { refineDiffGroups } from '@/utils/diffGroupStructure';
+import { DEFAULT_SEMANTIC_LABELS, enrichSemanticDiffs, type SemanticDifferenceLabels } from '@/utils/semanticDiff';
 import { markMathDifferences } from '@/utils/mathAlignment';
 import {
   alignDocumentImages,
@@ -39,6 +40,8 @@ export type CompareOptions = {
   imageLabel?: string;
   /** Localized note for a figure that changed but cannot be drawn. */
   unrenderableImageLabel?: string;
+  /** Link, script and explicit-break descriptions shown in review previews. */
+  semanticLabels?: SemanticDifferenceLabels;
   /** Stops the comparison at the next phase boundary when a newer one starts. */
   signal?: AbortSignal;
   onProgress?: (phase: ComparisonPhase) => void;
@@ -101,6 +104,15 @@ export async function compareDocuments(
   );
   throwIfAborted(signal);
   const summary = summarizeDiffs(diffs, options.granularity, originalTrack.text.length, revisedTrack.text.length);
+  const semanticLabels = options.semanticLabels ?? DEFAULT_SEMANTIC_LABELS;
+  const markupDiffs = enrichSemanticDiffs(
+    diffs,
+    originalTrack.mapping,
+    revisedTrack.mapping,
+    semanticLabels,
+    !options.ignoreSpaces
+  );
+  summarizeDiffs(markupDiffs, options.granularity, originalTrack.text.length, revisedTrack.text.length);
   const nativeNoiseItems = [
     ...withSide(options.layoutNoise.original.nativeItems, 'original', 'native'),
     ...withSide(options.layoutNoise.revised.nativeItems, 'revised', 'native')
@@ -115,9 +127,9 @@ export async function compareDocuments(
   summary.layoutNoiseFiltered = summary.layoutNoiseItems.reduce((total, item) => total + item.count, 0);
 
   await yieldToBrowser(signal);
-  applyDiffMarkup(originalDom, originalTrack.mapping, diffs, DIFF_DELETE, 'del');
+  applyDiffMarkup(originalDom, originalTrack.mapping, markupDiffs, DIFF_DELETE, 'del', semanticLabels.lineBreak);
   await yieldToBrowser(signal);
-  applyDiffMarkup(revisedDom, revisedTrack.mapping, diffs, DIFF_INSERT, 'ins');
+  applyDiffMarkup(revisedDom, revisedTrack.mapping, markupDiffs, DIFF_INSERT, 'ins', semanticLabels.lineBreak);
 
   // After the text markup and before the groups are refined: the image pass
   // produces the same `<del>`/`<ins>` elements, so refinement scopes, pairs and
@@ -125,7 +137,13 @@ export async function compareDocuments(
   // what it is doing.
   options.onProgress?.('images');
   await yieldToBrowser(signal);
-  const imageAlignment = options.images ? alignDocumentImages(originalDom, revisedDom, options.images) : [];
+  const imageAlignment = options.images
+    ? alignDocumentImages(originalDom, revisedDom, options.images, {
+        originalOffsets: originalTrack.imageOffsets!,
+        revisedOffsets: revisedTrack.imageOffsets!,
+        diffs
+      })
+    : [];
   markImageDifferences(imageAlignment, {
     label: options.imageLabel,
     unrenderableLabel: options.unrenderableImageLabel
@@ -135,15 +153,21 @@ export async function compareDocuments(
 
   options.onProgress?.('finalizing');
   await yieldToBrowser(signal);
+  let recoveredTextEdits = 0;
   const refinedSummary = refineDiffGroups(originalDom, revisedDom, {
     granularity: options.granularity,
     ignoreSpaces: options.ignoreSpaces,
-    ignoreFullHalfWidth: options.ignoreFullHalfWidth
+    ignoreFullHalfWidth: options.ignoreFullHalfWidth,
+    onRecoveredTextEdits: (distance) => {
+      recoveredTextEdits += distance;
+    }
   });
   summary.total = refinedSummary.total;
   summary.inserted = refinedSummary.inserted;
   summary.deleted = refinedSummary.deleted;
   summary.modified = refinedSummary.modified;
+  const textLength = Math.max(originalTrack.text.length, revisedTrack.text.length);
+  if (textLength > 0) summary.similarity = Math.max(0, summary.similarity - recoveredTextEdits / textLength);
 
   return {
     originalHtml: originalDom.innerHTML,
@@ -195,10 +219,9 @@ function prepareDocumentText(root: HTMLElement, options: CompareOptions): TextMa
   const track = options.ignoreSpaces ? collapseWhitespace(textMapping) : textMapping;
 
   return {
+    ...track,
     // Every substitution normalization makes is one character for one, so the
     // block boundaries recorded above still point where they did.
-    text: normalizeText(track.text, options.ignoreFullHalfWidth, false),
-    mapping: track.mapping,
-    boundaries: track.boundaries
+    text: normalizeText(track.text, options.ignoreFullHalfWidth, false)
   };
 }

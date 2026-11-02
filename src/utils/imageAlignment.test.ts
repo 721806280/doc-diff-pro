@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { buildTextMapping, collapseWhitespace } from './documentText';
+import { createTextDiffs } from './textDiffCompute';
 import {
   alignDocumentImages,
   collectDocumentImages,
@@ -77,6 +79,68 @@ describe('collectDocumentImages', () => {
 });
 
 describe('alignDocumentImages', () => {
+  const image = '<img data-ddv-image-id="a" src="blob:a" alt="figure">';
+  const paragraphs = '<p>第一条：履约期限。</p><p>第二条：付款期限。</p>';
+  function alignWithText(
+    originalHtml: string,
+    revisedHtml: string,
+    descriptors = sides({ a: descriptor('same', 0.4) }, { a: descriptor('same', 0.4) })
+  ) {
+    const original = bodyFromHtml(originalHtml);
+    const revised = bodyFromHtml(revisedHtml);
+    const left = collapseWhitespace(buildTextMapping(original));
+    const right = collapseWhitespace(buildTextMapping(revised));
+    return alignDocumentImages(original, revised, descriptors, {
+      originalOffsets: left.imageOffsets!,
+      revisedOffsets: right.imageOffsets!,
+      diffs: createTextDiffs(left, right, 'char')
+    });
+  }
+
+  it('detects a unique image moved relative to unchanged clauses', () => {
+    const entries = alignWithText(
+      `<p>第一条：履约期限。${image}</p><p>第二条：付款期限。</p>`,
+      `${paragraphs}<p>${image}</p>`
+    );
+    expect(entries[0]?.kind).toBe('moved');
+    expect(summarizeImageAlignment(entries)).toMatchObject({ paired: 1, moved: 1, revised: 0 });
+  });
+
+  it.each([
+    [`<p>前言：合同内容。</p>${paragraphs}${image}`, `${paragraphs}${image}`],
+    [`${paragraphs}${image}`, `<p>前言：合同内容。</p>${paragraphs}${image}`],
+    [`<p>付款期限为1年。${image}</p>`, `<p>付款期限为3年。${image}</p>`],
+    [`<p>A${image}B</p>`, `<p>A新增${image}B</p>`],
+    [`<p>A${image}B</p>`, `<p>A${image}新增B</p>`],
+    [`<p>原内容${image}原结尾</p>`, `<p>新内容扩展${image}新结尾扩展</p>`],
+    [image, image]
+  ])('keeps a stationary image aligned despite adjacent text edits', (left, right) => {
+    expect(alignWithText(left, right)[0]?.kind).toBe('unchanged');
+  });
+
+  it('leaves repeated image copies ambiguous instead of declaring text-relative moves', () => {
+    const copy = '<img data-ddv-image-id="b" src="blob:b">';
+    const repeated = sides(
+      { a: descriptor('same', 0.4), b: descriptor('same', 0.4) },
+      { a: descriptor('same', 0.4), b: descriptor('same', 0.4) }
+    );
+    expect(
+      alignWithText(`${image}<p>条款。</p>${copy}`, `<p>条款。</p>${image}${copy}`, repeated).map((entry) => entry.kind)
+    ).toEqual(['unchanged', 'unchanged']);
+  });
+
+  it('does not invent a move when an image has no recorded text position', () => {
+    const original = documentWith('a');
+    const revised = documentWith('a');
+    expect(
+      alignDocumentImages(original, revised, sides({ a: descriptor('same', 0.4) }, { a: descriptor('same', 0.4) }), {
+        originalOffsets: new Map(),
+        revisedOffsets: new Map(),
+        diffs: [[0, 'text']]
+      })[0]?.kind
+    ).toBe('unchanged');
+  });
+
   it('reports nothing for two documents with no images', () => {
     expect(alignDocumentImages(bodyFromHtml('<p>text</p>'), bodyFromHtml('<p>text</p>'), sides({}, {}))).toEqual([]);
   });

@@ -1,11 +1,11 @@
 import type { DiffOperation, DiffTuple } from '@/types/diff';
 import { mappedNode, mappedOffset, type TextPositionMap } from './documentText';
-import { DIFF_EQUAL } from './textDiffCore';
+import { DIFF_EQUAL, LINE_BREAK_DIFF_ATTRIBUTE, SEMANTIC_DIFF_ATTRIBUTE } from './textDiffCore';
 
 type MarkupDiffOperation = Exclude<DiffOperation, 0>;
 type WrapperTag = 'del' | 'ins';
-type DiffRange = { start: number; length: number; groupId: string };
-type TextNodeRange = { startOffset: number; endOffset: number; groupId: string };
+type DiffRange = { start: number; length: number; groupId: string; semanticLabel?: string };
+type TextNodeRange = { startOffset: number; endOffset: number; groupId: string; semanticLabel?: string };
 type NodeRangeMap = Map<Text, TextNodeRange[]>;
 const MERGE_CONTAINER_SELECTOR = 'p, li, td, th, div, h1, h2, h3, h4, h5, h6, blockquote, pre';
 // `img` blocks a bridge despite carrying no text: an image difference is its own
@@ -23,7 +23,8 @@ export function applyDiffMarkup(
   mapping: TextPositionMap,
   diffs: DiffTuple[],
   targetOperation: MarkupDiffOperation,
-  wrapperTag: WrapperTag
+  wrapperTag: WrapperTag,
+  lineBreakLabel = 'Line break'
 ): string {
   const ranges = collectDiffRanges(diffs, targetOperation);
   const nodesToWrap = mapRangesToTextNodes(mapping, ranges);
@@ -31,6 +32,21 @@ export function applyDiffMarkup(
 
   for (const [node, nodeRanges] of nodesToWrap) {
     replaceTextNodeWithMarkup(ownerDocument, node, nodeRanges, wrapperTag);
+  }
+
+  for (const range of ranges) {
+    for (let index = range.start; index < range.start + range.length; index++) {
+      const lineBreak = mapping.breaks?.get(index);
+      if (!lineBreak || lineBreak.closest(DIFF_FRAGMENT_SELECTOR)) continue;
+      const wrapper = ownerDocument.createElement(wrapperTag);
+      wrapper.dataset.diffId = range.groupId;
+      wrapper.setAttribute(SEMANTIC_DIFF_ATTRIBUTE, lineBreakLabel);
+      wrapper.setAttribute(LINE_BREAK_DIFF_ATTRIBUTE, '');
+      wrapper.setAttribute('aria-label', lineBreakLabel);
+      wrapper.title = lineBreakLabel;
+      lineBreak.replaceWith(wrapper);
+      wrapper.appendChild(lineBreak);
+    }
   }
 
   mergeNearbyDiffFragments(domElement, wrapperTag);
@@ -45,7 +61,7 @@ function collectDiffRanges(diffs: DiffTuple[], targetOperation: MarkupDiffOperat
     const operation = diff[0];
     const length = diff[1].length;
     if (operation === targetOperation) {
-      ranges.push({ start: currentIndex, length, groupId: diff.groupId ?? '' });
+      ranges.push({ start: currentIndex, length, groupId: diff.groupId ?? '', semanticLabel: diff.semanticLabel });
       currentIndex += length;
     } else if (operation === DIFF_EQUAL) {
       currentIndex += length;
@@ -57,6 +73,14 @@ function collectDiffRanges(diffs: DiffTuple[], targetOperation: MarkupDiffOperat
 
 function mapRangesToTextNodes(mapping: TextPositionMap, ranges: DiffRange[]): NodeRangeMap {
   const nodesToWrap: NodeRangeMap = new Map();
+  const semanticNodes = new WeakMap<Text, boolean>();
+  const hasSemanticMarkup = (node: Text): boolean => {
+    const cached = semanticNodes.get(node);
+    if (cached !== undefined) return cached;
+    const marked = Boolean(node.parentElement?.closest(`[${SEMANTIC_DIFF_ATTRIBUTE}]`));
+    semanticNodes.set(node, marked);
+    return marked;
+  };
 
   for (const range of ranges) {
     const end = range.start + range.length;
@@ -70,7 +94,8 @@ function mapRangesToTextNodes(mapping: TextPositionMap, ranges: DiffRange[]): No
       addNodeRange(nodesToWrap, activeNode, {
         startOffset: activeStartOffset,
         endOffset: previousOffset + 1,
-        groupId: range.groupId
+        groupId: range.groupId,
+        semanticLabel: range.semanticLabel
       });
       activeNode = null;
       previousOffset = -1;
@@ -78,7 +103,9 @@ function mapRangesToTextNodes(mapping: TextPositionMap, ranges: DiffRange[]): No
 
     for (let index = range.start; index < end; index++) {
       const node = mappedNode(mapping, index);
-      if (!node) {
+      // A coarse cell repair can span equal text already marked for a link or
+      // script change. Keep that semantic marker instead of nesting a text edit.
+      if (!node || hasSemanticMarkup(node)) {
         flushActiveRange();
         continue;
       }
@@ -105,7 +132,12 @@ function addNodeRange(nodesToWrap: NodeRangeMap, node: Text, range: TextNodeRang
   const nodeRanges = nodesToWrap.get(node) ?? [];
   const previous = nodeRanges.at(-1);
 
-  if (previous && previous.endOffset === range.startOffset && previous.groupId === range.groupId) {
+  if (
+    previous &&
+    previous.endOffset === range.startOffset &&
+    previous.groupId === range.groupId &&
+    previous.semanticLabel === range.semanticLabel
+  ) {
     previous.endOffset = range.endOffset;
   } else {
     nodeRanges.push(range);
@@ -133,7 +165,14 @@ function replaceTextNodeWithMarkup(
       fragment.appendChild(ownerDocument.createTextNode(nodeText.slice(cursor, startOffset)));
     }
     if (endOffset > startOffset) {
-      appendWrappedText(ownerDocument, fragment, wrapperTag, nodeText.slice(startOffset, endOffset), range.groupId);
+      appendWrappedText(
+        ownerDocument,
+        fragment,
+        wrapperTag,
+        nodeText.slice(startOffset, endOffset),
+        range.groupId,
+        range.semanticLabel
+      );
     }
     cursor = endOffset;
   }
@@ -150,11 +189,16 @@ function appendWrappedText(
   fragment: DocumentFragment,
   wrapperTag: WrapperTag,
   text: string,
-  groupId: string
+  groupId: string,
+  semanticLabel?: string
 ): void {
   const element = ownerDocument.createElement(wrapperTag);
   element.dataset.diffId = groupId;
   element.textContent = text;
+  if (semanticLabel) {
+    element.setAttribute(SEMANTIC_DIFF_ATTRIBUTE, semanticLabel);
+    element.title = semanticLabel;
+  }
   fragment.appendChild(element);
 }
 
@@ -186,6 +230,8 @@ function getTopLevelDiffFragments(domElement: HTMLElement, wrapperTag: WrapperTa
 }
 
 function canMergeDiffFragments(root: HTMLElement, current: HTMLElement, next: HTMLElement): boolean {
+  // These labels describe their exact text and must survive regrouping.
+  if (current.hasAttribute(SEMANTIC_DIFF_ATTRIBUTE) || next.hasAttribute(SEMANTIC_DIFF_ATTRIBUTE)) return false;
   if (!current.dataset.diffId || current.dataset.diffId !== next.dataset.diffId) return false;
   if ((current.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING) === 0) return false;
 

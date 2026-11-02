@@ -31,6 +31,12 @@ export const IMAGE_ID_ATTRIBUTE = 'data-ddv-image-id';
 export const IMAGE_PAIR_ATTRIBUTE = 'data-ddv-image-pair';
 export const IMAGE_CHANGE_ATTRIBUTE = 'data-ddv-image-change';
 export const IMAGE_SIMILARITY_ATTRIBUTE = 'data-ddv-image-similarity';
+/** A content attribute or inline structure that text alone cannot compare. */
+export const SEMANTIC_DIFF_ATTRIBUTE = 'data-diff-semantic';
+/** A real inline break, whose visible marker is excluded from text extraction. */
+export const LINE_BREAK_DIFF_ATTRIBUTE = 'data-diff-line-break';
+/** UI placeholders never contribute characters to the comparison input. */
+export const GENERATED_DOCUMENT_TEXT_ATTRIBUTE = 'data-ddv-generated-text';
 
 export function createEmptyImageComparisonSummary(): ImageComparisonSummary {
   return { paired: 0, revised: 0, moved: 0, inserted: 0, deleted: 0, cosmetic: 0 };
@@ -158,7 +164,7 @@ function calculateSimilarity(diffs: DiffTuple[], originalLength: number, revised
  * document past a full document's worth of edits and into the clamp, where
  * every such document would look equally unrecognisable.
  */
-function estimateEditDistance(diffs: DiffTuple[]): number {
+export function estimateEditDistance(diffs: DiffTuple[]): number {
   let distance = 0;
   let insertions = 0;
   let deletions = 0;

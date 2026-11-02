@@ -63,6 +63,8 @@ describe('React app external document input', () => {
   it('loads both documents, compares them, and removes the API on unmount', async () => {
     mocks.parseDocx.mockResolvedValueOnce(parsed('<p>baseline</p>')).mockResolvedValueOnce(parsed('<p>revised</p>'));
     await renderApp();
+    const resultStates: ReturnType<NonNullable<typeof window.DocDiffPro>['getState']>[] = [];
+    window.DocDiffPro!.on('result', () => resultStates.push(window.DocDiffPro!.getState()));
     await act(async () => {
       await window.DocDiffPro?.loadDocuments({
         baseline: externalFile('baseline.docx'),
@@ -76,10 +78,56 @@ describe('React app external document input', () => {
     await waitFor(() =>
       expect(mocks.compareDocuments).toHaveBeenCalledWith('<p>baseline</p>', '<p>revised</p>', expect.any(Object))
     );
+    await waitFor(() => expect(resultStates).toHaveLength(1));
+    expect(resultStates[0]).toEqual({
+      ready: true,
+      comparing: false,
+      hasDocuments: true,
+      hasResult: true,
+      error: ''
+    });
     expect(host?.textContent).toContain('baseline.docx');
     act(() => root?.unmount());
     root = null;
     expect(window.DocDiffPro).toBeUndefined();
+  });
+
+  it.each(['invalid extension', 'corrupt DOCX'])('rejects %s and exposes the committed import error', async (kind) => {
+    if (kind === 'corrupt DOCX') mocks.parseDocx.mockRejectedValueOnce(new Error('corrupt archive'));
+    await renderApp();
+    const api = window.DocDiffPro!;
+    const errorEvents: unknown[] = [];
+    const states: ReturnType<typeof api.getState>[] = [];
+    api.on('error', (event) => {
+      errorEvents.push(event);
+      states.push(api.getState());
+    });
+    const file = externalFile(kind === 'corrupt DOCX' ? 'broken.docx' : 'invalid.pdf');
+    await act(async () => {
+      await expect(api.loadDocuments({ revised: file, meta: { bizId: 'contract-42' } })).rejects.toMatchObject({
+        name: 'DocumentImportError',
+        side: 'B'
+      });
+    });
+    expect(errorEvents).toEqual([
+      {
+        message: expect.any(String),
+        side: 'B',
+        phase: 'import',
+        meta: { bizId: 'contract-42' }
+      }
+    ]);
+    expect(states[0]).toMatchObject({ ready: false, comparing: false, hasDocuments: true, hasResult: false });
+    expect(states[0]?.error).toBe(api.getState().error);
+    expect(api.getState().error).toBeTruthy();
+    expect(mocks.compareDocuments).not.toHaveBeenCalled();
+
+    mocks.parseDocx.mockResolvedValueOnce(parsed('<p>recovered</p>'));
+    await act(async () => {
+      await expect(api.loadDocuments({ revised: externalFile('valid.docx') })).resolves.toEqual({ sequence: 2 });
+      expect(api.getState().error).toBe('');
+    });
+    expect(errorEvents).toHaveLength(1);
   });
 
   async function renderApp(): Promise<void> {

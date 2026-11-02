@@ -533,6 +533,96 @@ describe('useDocumentSession', () => {
     expect(window.DocDiffPro).toBeUndefined();
   });
 
+  it('rejects a superseded external import without notifying an error or losing the new meta', async () => {
+    let finish!: (value: ParsedDocx) => void;
+    mocks.parseDocx.mockImplementationOnce(
+      () =>
+        new Promise<ParsedDocx>((resolve) => {
+          finish = resolve;
+        })
+    );
+    const { result, onMeta } = mountSession({ allowLocalInput: false });
+    const api = window.DocDiffPro!;
+    const error = vi.fn();
+    api.on('error', error);
+    let first!: Promise<{ sequence: number }>;
+    act(() => {
+      first = api.loadDocuments({ baseline: docxFile('old.docx'), meta: { bizId: 'old' } });
+    });
+    await act(async () => {
+      await expect(api.loadDocuments({ baseline: docxFile('new.docx'), meta: { bizId: 'new' } })).resolves.toEqual({
+        sequence: 2
+      });
+      finish(parsed({ html: '<p>stale</p>' }));
+      await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    });
+    expect(error).not.toHaveBeenCalled();
+    expect(result.current.documents.A.name).toBe('new.docx');
+    expect(onMeta.mock.calls).toEqual([[{ bizId: 'old' }], [{ bizId: 'new' }]]);
+  });
+
+  it('emits a local import error when the external API is also enabled', async () => {
+    const { result, onMeta } = mountSession({ allowLocalInput: false });
+    const error = vi.fn();
+    window.DocDiffPro!.on('error', error);
+    await act(async () => {
+      await result.current.handleFile('A', new File(['bad'], 'bad.txt'));
+    });
+    expect(error).toHaveBeenCalledExactlyOnceWith({ message: i18n.app.errors.invalidType, side: 'A', phase: 'import' });
+    expect(onMeta).toHaveBeenCalledWith(undefined);
+  });
+
+  it.each(['ready', 'error'])(
+    'rejects a document pair when its %s side is replaced before the other side finishes',
+    async (status) => {
+      let finishRevised!: (value: ParsedDocx) => void;
+      if (status === 'ready') mocks.parseDocx.mockResolvedValueOnce(parsed({ html: '<p>old baseline</p>' }));
+      else mocks.parseDocx.mockRejectedValueOnce(new Error('invalid old baseline'));
+      mocks.parseDocx.mockImplementationOnce(
+        () =>
+          new Promise<ParsedDocx>((resolve) => {
+            finishRevised = resolve;
+          })
+      );
+      const { result, onMeta } = mountSession({ allowLocalInput: false });
+      const api = window.DocDiffPro!;
+      const error = vi.fn();
+      api.on('error', error);
+      let first!: Promise<{ sequence: number }>;
+      act(() => {
+        first = api.loadDocuments({
+          baseline: docxFile('old-a.docx'),
+          revised: docxFile('old-b.docx'),
+          meta: { bizId: 'old' }
+        });
+      });
+      await waitFor(() => expect(result.current.documents.A.status).toBe(status));
+      await act(async () => {
+        await api.loadDocuments({ baseline: docxFile('new-a.docx'), meta: { bizId: 'new' } });
+        finishRevised(parsed({ html: '<p>revised</p>' }));
+        await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+      });
+      expect(error).not.toHaveBeenCalled();
+      expect(result.current.documents.A.name).toBe('new-a.docx');
+      expect(result.current.documents.B.name).toBe('old-b.docx');
+      expect(onMeta).toHaveBeenLastCalledWith({ bizId: 'new' });
+    }
+  );
+
+  it('does not emit a superseded local validation failure', async () => {
+    const { result } = mountSession({ allowLocalInput: false });
+    const error = vi.fn();
+    window.DocDiffPro!.on('error', error);
+    await act(async () => {
+      await Promise.all([
+        result.current.handleFile('A', new File(['bad'], 'bad.txt')),
+        result.current.handleFile('A', docxFile('valid.docx'))
+      ]);
+    });
+    expect(result.current.documents.A.status).toBe('ready');
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it('keeps the external API and its subscriptions when language and callbacks change', async () => {
     const getStateRef = {
       current: () => ({ ready: false, comparing: false, hasDocuments: false, hasResult: false, error: '' })
@@ -563,9 +653,7 @@ describe('useDocumentSession', () => {
     await act(async () => {
       await expect(
         api.loadDocuments({ revised: new File(['text'], 'invalid.txt'), meta: { bizId: 'next' } })
-      ).resolves.toEqual({
-        sequence: 2
-      });
+      ).rejects.toMatchObject({ message: messages['zh-CN'].app.errors.invalidType, side: 'B' });
     });
     act(() => view.result.current.externalEmit('cleared', {}));
 

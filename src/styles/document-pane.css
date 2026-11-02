@@ -689,11 +689,22 @@
   cursor: pointer;
   border-radius: 3px;
   border-bottom: 2px solid;
-  transition: all 0.18s ease;
+  /* Inherited visibility must change immediately when a mobile pane is revealed. */
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    outline-color 0.18s ease,
+    opacity 0.18s ease;
 }
 .docx-render-content ins:has(> math),
 .docx-render-content del:has(> math) {
   display: inline-block;
+}
+.docx-render-content [data-diff-line-break]::before {
+  content: '↵';
+  font-size: 0.85em;
 }
 .docx-render-content ins:has(> math[display='block']),
 .docx-render-content del:has(> math[display='block']) {

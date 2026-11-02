@@ -7,6 +7,7 @@ import { throwIfAborted } from '@/utils/comparisonScheduling';
 import type { DiffSummary } from '@/types/diff';
 import type { DocumentPair } from '@/types/document';
 import { createEmptyImageComparisonSummary } from '@/utils/textDiffCore';
+import { useLatestRef } from './useLatestRef';
 
 const EMPTY_SUMMARY: DiffSummary = {
   total: 0,
@@ -45,6 +46,8 @@ export function useComparisonSession({
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState('');
   const [summary, setSummary] = useState<DiffSummary>(EMPTY_SUMMARY);
+  const [completedResult, setCompletedResult] = useState<{ summary: DiffSummary; sequence: number } | null>(null);
+  const latestOnResult = useLatestRef(onResult);
   const compareSequence = useRef(0);
   const activeCompare = useRef<AbortController | null>(null);
 
@@ -90,6 +93,7 @@ export function useComparisonSession({
           images: { original: nextDocuments.A.imageDescriptors, revised: nextDocuments.B.imageDescriptors },
           imageLabel: i18n.documentPane.imageDifferenceLabel,
           unrenderableImageLabel: i18n.documentPane.unrenderableImageLabel,
+          semanticLabels: i18n.documentPane.semanticDifferenceLabels,
           signal: compare.signal,
           onProgress: (nextPhase) => {
             if (sequence === compareSequence.current) setPhase(nextPhase);
@@ -97,11 +101,11 @@ export function useComparisonSession({
         });
         if (sequence !== compareSequence.current) return;
         setDocuments({
-          A: { ...nextDocuments.A, highlightedHtml: result.originalHtml },
-          B: { ...nextDocuments.B, highlightedHtml: result.revisedHtml }
+          A: { ...nextDocuments.A, highlightedHtml: result.originalHtml, comparisonComplete: true },
+          B: { ...nextDocuments.B, highlightedHtml: result.revisedHtml, comparisonComplete: true }
         });
         setSummary(result.summary);
-        onResult(result.summary);
+        setCompletedResult({ summary: result.summary, sequence });
         if (showDoneNotice) onNotice(i18n.app.notices.compareRefreshed);
         return;
       } catch (reason) {
@@ -121,7 +125,6 @@ export function useComparisonSession({
       i18n,
       onClearReviewState,
       onNotice,
-      onResult,
       rules.diffGranularity,
       rules.filterLayoutNoise,
       rules.ignoreFullHalfWidth,
@@ -134,8 +137,17 @@ export function useComparisonSession({
     cancelCompare();
     onClearReviewState();
     setSummary(EMPTY_SUMMARY);
+    setCompletedResult(null);
     setCancelled(false);
   }, [cancelCompare, onClearReviewState]);
+
+  // Subscribers must see the committed documents and idle state when reading
+  // getState() from a result callback. Locale changes do not re-emit a result.
+  useEffect(() => {
+    if (completedResult && completedResult.sequence === compareSequence.current) {
+      latestOnResult.current(completedResult.summary);
+    }
+  }, [completedResult, latestOnResult]);
 
   useEffect(
     () => () => {
@@ -153,6 +165,8 @@ export function useComparisonSession({
       activeCompare.current ||
       cancelled ||
       error ||
+      documents.A.comparisonComplete ||
+      documents.B.comparisonComplete ||
       documents.A.highlightedHtml ||
       documents.B.highlightedHtml
     )

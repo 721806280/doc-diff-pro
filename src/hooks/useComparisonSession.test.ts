@@ -118,6 +118,20 @@ describe('useComparisonSession', () => {
     expect(mocks.compareDocuments).toHaveBeenCalledTimes(1);
   });
 
+  it('completes an empty comparison once and does not restart it when documents are committed', async () => {
+    mocks.compareDocuments.mockResolvedValueOnce({ ...comparisonResult(0), originalHtml: '', revisedHtml: '' });
+    const view = mountSession();
+    await waitFor(() => expect(view.onResult).toHaveBeenCalledTimes(1));
+    expect(view.state.documents.A.comparisonComplete).toBe(true);
+    expect(view.state.documents.B.comparisonComplete).toBe(true);
+    view.rerender({ documents: view.state.documents, ready: true });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.compareDocuments).toHaveBeenCalledTimes(1);
+    expect(view.result.current.comparing).toBe(false);
+  });
+
   it('surfaces a comparison failure as an error and a notice', async () => {
     mocks.compareDocuments.mockRejectedValueOnce(new Error('worker exploded'));
     const view = mountSession();

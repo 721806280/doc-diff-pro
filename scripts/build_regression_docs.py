@@ -5,8 +5,9 @@ Run from any directory with: python3 scripts/build_regression_docs.py
 """
 
 from pathlib import Path
+from base64 import b64encode
 from struct import pack
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, quoteattr
 import xml.etree.ElementTree as ET
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 import zlib
@@ -71,11 +72,23 @@ def png_hash_collision(revised):
             + png_chunk(b'tEXt', b'Case\0' + f'{nonce:08x}'.encode('ascii')) + png_chunk(b'IEND', b''))
 
 
-def write_docx(path, body, images=None, chart=None, word_prefix='w'):
+def write_docx(path, body, images=None, chart=None, word_prefix='w', header=None, hyperlinks=None, image_extension='png'):
+    if image_extension not in ('png', 'svg'):
+        raise ValueError('Regression images must be PNG or SVG.')
     images = images or {}
-    relationships = [f'<Relationship Id="{key}" Type="{R}/image" Target="media/{key}.png"/>' for key in images]
+    relationships = [f'<Relationship Id="{key}" Type="{R}/image" Target="media/{key}.{image_extension}"/>' for key in images]
     content_types = [f'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>']
-    parts = {f'word/media/{key}.png': value for key, value in images.items()}
+    if image_extension == 'svg':
+        content_types.append('<Default Extension="svg" ContentType="image/svg+xml"/>')
+    parts = {f'word/media/{key}.{image_extension}': value for key, value in images.items()}
+    section = ''
+    if header is not None:
+        relationships.append(f'<Relationship Id="header" Type="{R}/header" Target="header1.xml"/>')
+        content_types.append('<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>')
+        parts['word/header1.xml'] = f'<w:hdr xmlns:w="{W}">{header}</w:hdr>'
+        section = '<w:headerReference w:type="default" r:id="header"/>'
+    for key, destination in (hyperlinks or {}).items():
+        relationships.append(f'<Relationship Id="{key}" Type="{R}/hyperlink" Target={quoteattr(destination)} TargetMode="External"/>')
     if chart:
         relationships.append(f'<Relationship Id="chart" Type="{R}/chart" Target="charts/chart1.xml"/>')
         content_types.append('<Override PartName="/word/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>')
@@ -90,7 +103,7 @@ def write_docx(path, body, images=None, chart=None, word_prefix='w'):
         'word/_rels/document.xml.rels': '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
             + ''.join(relationships) + '</Relationships>',
         'word/document.xml': f'<w:document xmlns:w="{W}" xmlns:r="{R}" xmlns:a="{A}" xmlns:wp="{WP}" xmlns:pic="{PIC}" xmlns:c="{C}">'
-            f'<w:body>{body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:body></w:document>'
+            f'<w:body>{body}<w:sectPr>{section}<w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:body></w:document>'
     })
     if word_prefix != 'w':
         for prefix, namespace in ((word_prefix, W), ('r', R), ('a', A), ('wp', WP), ('pic', PIC), ('c', C)):
@@ -115,6 +128,20 @@ def merged_table(amount):
             + cell('预算汇总', '<w:gridSpan w:val="2"/>') + cell('执行说明') + '</w:tr><w:tr>'
             + cell('服务费', '<w:vMerge w:val="restart"/>') + cell(amount) + cell('分期付款') + '</w:tr><w:tr>'
             + cell('', '<w:vMerge/>') + cell('20000.00') + cell('验收付款') + '</w:tr></w:tbl>')
+
+
+def table(rows):
+    return ('<w:tbl><w:tblPr/><w:tblGrid>' + '<w:gridCol w:w="2200"/>' * len(rows[0])
+            + '</w:tblGrid>' + ''.join('<w:tr>' + ''.join('<w:tc><w:tcPr/>' + paragraph(value)
+            + '</w:tc>' for value in row) + '</w:tr>' for row in rows) + '</w:tbl>')
+
+
+def oversized_png():
+    """Valid, compact 1-bit PNG declaring 41 million pixels; never decode it in tests."""
+    width, height = 10000, 4100
+    row = b'\0' + b'\xff' * ((width + 7) // 8)
+    return (b'\x89PNG\r\n\x1a\n' + png_chunk(b'IHDR', pack('!2I5B', width, height, 1, 0, 0, 0, 0))
+            + png_chunk(b'IDAT', zlib.compress(row * height, 6)) + png_chunk(b'IEND', b''))
 
 
 def build_regressions():
@@ -173,6 +200,50 @@ def build_regressions():
 
         write_docx(target / f'hash-collision-{suffix}.docx', paragraph('图片身份校验') + picture(1, 'figure'),
                    images={'figure': png_hash_collision(revised)})
+
+        write_docx(target / f'table-boundary-{suffix}.docx', paragraph('采购清单') + table([
+            ['项目', '数量', '单价'], ['项目 A', '12' if revised else '1', '3' if revised else '23']
+        ]))
+        clause = '双方承担保密义务，期限为3年。' if revised else '双方承担保密义务，期限为1年。'
+        write_docx(target / f'confidential-{suffix}.docx', paragraph('合同正文') + paragraph(clause) * 2)
+        destination = 'https://revised.example.com/pay' if revised else 'https://original.example.com/pay'
+        write_docx(target / f'link-{suffix}.docx',
+                   '<w:p><w:hyperlink r:id="link"><w:r><w:t>付款入口</w:t></w:r></w:hyperlink></w:p>',
+                   hyperlinks={'link': destination})
+        prefix = '正文' * 1100
+        label = '付款入口说明' * 10
+        long_cell = ('<w:p><w:r><w:t>' + prefix + ('新' if revised else '旧') + '</w:t></w:r>'
+                     '<w:hyperlink r:id="link"><w:r><w:t>' + label + '</w:t></w:r></w:hyperlink>'
+                     '<w:r><w:t>' + ('尾' if revised else '末') + '</w:t></w:r></w:p>')
+        long_table = table([['条款', '长条款']]).replace(paragraph('长条款'), long_cell)
+        write_docx(target / f'long-table-semantic-{suffix}.docx', long_table, hyperlinks={'link': destination})
+        properties = '<w:rPr><w:vertAlign w:val="superscript"/></w:rPr>' if revised else ''
+        write_docx(target / f'superscript-{suffix}.docx', '<w:p><w:r><w:t>面积：m</w:t></w:r><w:r>'
+                   + properties + '<w:t>2</w:t></w:r></w:p>')
+        write_docx(target / f'line-break-{suffix}.docx', '<w:p><w:r><w:t>A</w:t>'
+                   + ('' if revised else '<w:br/>') + '<w:t>B</w:t></w:r></w:p>')
+        first = paragraph('第1条：乙方须按期履约。')
+        second = paragraph('第2条：甲方须按期付款。')
+        write_docx(target / f'image-moved-{suffix}.docx',
+                   first + second + picture(1, 'figure') if revised else first + picture(1, 'figure') + second,
+                   images={'figure': png_chart()})
+        write_docx(target / f'empty-body-{suffix}.docx', paragraph('乙方须于30日内交付。') if revised else '<w:p/>',
+                   header=paragraph('公司文件'))
+        write_docx(target / f'layout-only-{suffix}.docx', paragraph('第2页/共2页' if revised else '第1页/共2页'))
+
+    write_docx(target / 'header-only.docx', '<w:p/>', header=paragraph('公司文件'))
+    write_docx(target / 'blank.docx', '<w:p/>')
+    large_image = oversized_png()
+    image_body = paragraph('大图预览') + picture(1, 'large')
+    write_docx(target / 'large-image.docx', image_body, images={'large': large_image})
+    raster = 'data:image/png;base64,' + b64encode(large_image).decode('ascii')
+    svg_contents = {
+        'filter': f'<defs><filter id="preview"><feImage href="{raster}"/></filter></defs><rect width="128" height="58" filter="url(#preview)"/>',
+        'html': f'<foreignObject width="128" height="58"><img xmlns="http://www.w3.org/1999/xhtml" src="{raster}"/></foreignObject>'
+    }
+    for kind, content in svg_contents.items():
+        svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="58">{content}</svg>'.encode('utf-8')
+        write_docx(target / f'large-image-svg-{kind}.docx', image_body, images={'large': svg}, image_extension='svg')
 
 
 if __name__ == '__main__':

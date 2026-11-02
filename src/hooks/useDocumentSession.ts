@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { flushSync } from 'react-dom';
 import type { I18nMessages } from '@/i18n/messages';
 import { useLatestRef } from './useLatestRef';
 import {
@@ -12,6 +13,7 @@ import { parseDocx } from '@/services/docxParser';
 import type { DocumentPair, DocumentPaneState, PaneSide } from '@/types/document';
 import {
   createEmptyDocument,
+  DocumentImportError,
   resolveDocumentError,
   revokeDocumentImageUrls,
   validateDocumentFile,
@@ -19,6 +21,9 @@ import {
 } from '@/services/documentFile';
 
 type Documents = DocumentPair;
+type ImportOutcome = { sequence: number } & (
+  { status: 'ready' | 'cancelled' } | { status: 'error'; error: DocumentImportError }
+);
 
 type DocumentSessionOptions = {
   allowsExternalApi: boolean;
@@ -142,8 +147,8 @@ export function useDocumentSession({
     []
   );
 
-  const handleFile = useCallback(
-    async (side: PaneSide, file: File) => {
+  const importDocument = useCallback(
+    async (side: PaneSide, file: File): Promise<ImportOutcome> => {
       const fileSequence = ++fileSequences.current[side];
       activeParses.current[side]?.abort();
       activeParses.current[side] = null;
@@ -169,7 +174,7 @@ export function useDocumentSession({
           error: message
         });
         onNotice(message);
-        return;
+        return { status: 'error', error: new DocumentImportError(message, side), sequence: fileSequence };
       }
 
       delete documentErrors.current[side];
@@ -185,7 +190,7 @@ export function useDocumentSession({
       try {
         const parsed = await parseDocx(file, {
           embeddedImageAlt: i18n.documentPane.embeddedImageAlt,
-          emptyDocumentHtml: i18n.documentPane.emptyDocumentHtml,
+          imagePreviewUnavailableLabel: i18n.documentPane.imagePreviewUnavailableLabel,
           signal: parse.signal,
           onProgress: (parsePhase) => {
             if (fileSequence !== fileSequences.current[side]) return;
@@ -202,7 +207,7 @@ export function useDocumentSession({
         if (fileSequence !== fileSequences.current[side]) {
           // A newer file won the pane; nothing will ever render these.
           revokeDocumentImageUrls(parsed.imageUrls);
-          return;
+          return { status: 'cancelled', sequence: fileSequence };
         }
         adoptImageUrls(side, parsed.imageUrls);
         replaceDocument(side, {
@@ -210,9 +215,11 @@ export function useDocumentSession({
           size: file.size,
           originalHtml: parsed.html,
           highlightedHtml: '',
+          comparisonComplete: false,
           textLength: parsed.textLength,
           imageCount: parsed.imageCount,
           droppedImageCount: parsed.droppedImageCount,
+          limitedImageCount: parsed.limitedImageCount,
           graphics: parsed.graphics,
           revisions: parsed.revisions,
           warnings: parsed.warnings,
@@ -224,18 +231,21 @@ export function useDocumentSession({
         });
         if (parsed.warnings.length)
           onNotice(i18n.app.notices.parseCompleteWithWarnings(file.name, parsed.warnings.length));
+        return { status: 'ready', sequence: fileSequence };
       } catch (reason) {
-        if (fileSequence !== fileSequences.current[side]) return;
+        if (fileSequence !== fileSequences.current[side]) return { status: 'cancelled', sequence: fileSequence };
         const detail = reason instanceof Error ? reason.message : String(reason);
+        const message = resolveDocumentError(i18n, maxSizeMb, 'parseFailed', detail);
         documentErrors.current[side] = { kind: 'parseFailed', detail };
         replaceDocument(side, {
           ...createEmptyDocument(),
           name: file.name,
           size: file.size,
           status: 'error',
-          error: resolveDocumentError(i18n, maxSizeMb, 'parseFailed', detail)
+          error: message
         });
         onNotice(i18n.app.notices.parseFailed);
+        return { status: 'error', error: new DocumentImportError(message, side), sequence: fileSequence };
       } finally {
         if (fileSequence === fileSequences.current[side]) activeParses.current[side] = null;
       }
@@ -245,7 +255,7 @@ export function useDocumentSession({
 
   // The installed API and its subscriptions belong to the mounted session.
   // Locale and callback updates must reach it without replacing the host.
-  const latestHandleFile = useLatestRef(handleFile);
+  const latestImportDocument = useLatestRef(importDocument);
   const latestOnMeta = useLatestRef(onMeta);
   const externalApiHost = useMemo(
     () =>
@@ -257,17 +267,48 @@ export function useDocumentSession({
           if (input.revised && !isFileLike(input.revised))
             throw new TypeError('Revised must be a browser File object.');
           latestOnMeta.current(input.meta);
-          const loads: Promise<void>[] = [];
-          if (input.baseline) loads.push(latestHandleFile.current('A', input.baseline));
-          if (input.revised) loads.push(latestHandleFile.current('B', input.revised));
-          await Promise.all(loads);
+          const load = async (side: PaneSide, file: File) => ({
+            side,
+            outcome: await latestImportDocument.current(side, file)
+          });
+          const loads: Promise<{ side: PaneSide; outcome: ImportOutcome }>[] = [];
+          if (input.baseline) loads.push(load('A', input.baseline));
+          if (input.revised) loads.push(load('B', input.revised));
+          const outcomes = await Promise.all(loads);
+          // This is the third-party API boundary: make the completed imports
+          // observable before resolving or delivering an error to the host.
+          flushSync(() => setDocuments((current) => current));
+          // A side may finish before its partner, then be replaced while this
+          // request is still waiting. Its earlier outcome is no longer current.
+          if (
+            outcomes.some(
+              ({ side, outcome }) => outcome.status === 'cancelled' || outcome.sequence !== fileSequences.current[side]
+            )
+          ) {
+            throw new DOMException('Document import canceled or superseded.', 'AbortError');
+          }
+          const failed = outcomes.find(({ outcome }) => outcome.status === 'error')?.outcome;
+          if (failed?.status === 'error') throw failed.error;
         },
         () => getStateRef.current()
       ),
-    [getStateRef, latestHandleFile, latestOnMeta]
+    [getStateRef, latestImportDocument, latestOnMeta]
   );
 
   const externalEmit = externalApiHost.emit;
+
+  const handleFile = useCallback(
+    async (side: PaneSide, file: File): Promise<void> => {
+      latestOnMeta.current(undefined);
+      const outcome = await importDocument(side, file);
+      if (outcome.sequence !== fileSequences.current[side]) return;
+      if (outcome.status === 'error' && allowsExternalApi) {
+        flushSync(() => setDocuments((current) => current));
+        externalEmit('error', { message: outcome.error.message, side, phase: 'import' });
+      }
+    },
+    [allowsExternalApi, externalEmit, importDocument, latestOnMeta]
+  );
 
   useEffect(() => {
     if (!allowsExternalApi) return;
@@ -319,8 +360,8 @@ export function useDocumentSession({
     // The markup moves panes, so its object URLs move with it.
     liveImageUrls.current = { A: liveImageUrls.current.B, B: liveImageUrls.current.A };
     setDocuments({
-      A: { ...documents.B, highlightedHtml: '' },
-      B: { ...documents.A, highlightedHtml: '' }
+      A: { ...documents.B, highlightedHtml: '', comparisonComplete: false },
+      B: { ...documents.A, highlightedHtml: '', comparisonComplete: false }
     });
     onNotice(i18n.app.notices.documentsSwapped);
   }, [documents, i18n, onBeforeDocumentChange, onNotice, ready]);
@@ -348,5 +389,7 @@ function isFileLike(value: unknown): value is File {
 
 /** Left as it is when there is no markup to drop, so React sees no change. */
 function withoutComparisonMarkup(document: DocumentPaneState): DocumentPaneState {
-  return document.highlightedHtml ? { ...document, highlightedHtml: '' } : document;
+  return document.highlightedHtml || document.comparisonComplete
+    ? { ...document, highlightedHtml: '', comparisonComplete: false }
+    : document;
 }

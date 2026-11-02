@@ -7,7 +7,7 @@ import type {
 } from '@/types/diff';
 import type { DiffElementGroup, DiffElementIndex } from './diffElementIndex';
 import { longestCommonSubsequenceLength } from './longestCommonSubsequence';
-import { diffId, IMAGE_DIFF_ATTRIBUTE, parseDiffId } from './textDiffCore';
+import { diffId, IMAGE_DIFF_ATTRIBUTE, parseDiffId, SEMANTIC_DIFF_ATTRIBUTE } from './textDiffCore';
 
 export const SIMILAR_DIFF_THRESHOLDS: Record<SimilarDiffLevel, number> = {
   strict: 0.86,
@@ -174,8 +174,8 @@ export function firstReviewElement(group: DiffElementGroup | undefined, side: 'A
  * time; falls back to whichever side exists (a pure insertion or deletion has
  * only one).
  */
-export function focusReviewElement(group: DiffElementGroup | undefined, preferredSide: 'A' | 'B' = 'B'): void {
-  if (!group) return;
+export function focusReviewElement(group: DiffElementGroup | undefined, preferredSide: 'A' | 'B' = 'B'): boolean {
+  if (!group) return false;
 
   const otherSide = preferredSide === 'B' ? 'A' : 'B';
   const candidates = [firstReviewElement(group, preferredSide), firstReviewElement(group, otherSide)].filter(
@@ -187,8 +187,9 @@ export function focusReviewElement(group: DiffElementGroup | undefined, preferre
     element.focus({ preventScroll: true });
     // The browser refuses focus inside a hidden pane without saying so; move on
     // to the other side rather than leave focus where it was.
-    if (document.activeElement === element) return;
+    if (document.activeElement === element) return true;
   }
+  return false;
 }
 
 function isOnScreen(element: HTMLElement): boolean {
@@ -244,7 +245,13 @@ function resolveReviewContext(group: DiffElementGroup): DiffReviewContext {
 function previewElements(elements: HTMLElement[]): string {
   return truncateReviewPreview(
     elements
-      .map((element) => element.textContent?.trim() || element.getAttribute(IMAGE_DIFF_ATTRIBUTE) || '')
+      .map((element) => {
+        const text = element.textContent?.trim() ?? '';
+        const semantic = element.getAttribute(SEMANTIC_DIFF_ATTRIBUTE);
+        return semantic
+          ? [text, `[${semantic}]`].filter(Boolean).join(' ')
+          : text || element.getAttribute(IMAGE_DIFF_ATTRIBUTE) || '';
+      })
       .join(' / ')
       .replace(/\s+/g, ' ')
       .trim()

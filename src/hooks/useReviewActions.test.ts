@@ -111,6 +111,27 @@ describe('useReviewActions', () => {
     expect(document.activeElement).toBe(paneB.querySelector(`[data-diff-id="${diffReviewId(2)}"]`));
   });
 
+  it('focuses a one-sided change after its previously hidden pane becomes visible', () => {
+    let frame!: FrameRequestCallback;
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frame = callback;
+      return 1;
+    });
+    const view = mountActions(3);
+    const group = view.diffIndex.current.get(diffReviewId(2))!;
+    group.A = [];
+    const target = group.B[0]!;
+    let visible = false;
+    vi.spyOn(target, 'focus').mockImplementation(() => {
+      if (visible) HTMLElement.prototype.focus.call(target);
+    });
+    act(() => view.result.current.locateDiff(2));
+    expect(document.activeElement).not.toBe(target);
+    visible = true;
+    act(() => frame(performance.now()));
+    expect(document.activeElement).toBe(target);
+  });
+
   it('ignores a locate request outside the difference range', () => {
     const { result, focusDiff, setCurrentDiff } = mountActions(3);
 

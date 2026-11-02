@@ -70,11 +70,12 @@ export default memo(function DocumentPane({
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const sideClass = side === 'A' ? 'side-original' : 'side-revision';
   const displayHtml = hasResult
-    ? document.highlightedHtml
+    ? document.highlightedHtml || i18n.documentPane.emptyDocumentHtml
     : document.status === 'ready' && !comparing && !pendingComparison
-      ? document.originalHtml
+      ? document.originalHtml || i18n.documentPane.emptyDocumentHtml
       : '';
   const statusLabel = i18n.documentPane.status[document.status];
+  const limitedImageCount = document.limitedImageCount ?? 0;
   const meta = useMemo(() => {
     const fileSize =
       document.size <= 0
@@ -201,6 +202,21 @@ export default memo(function DocumentPane({
                 count={document.warnings.length}
                 title={i18n.documentPane.conversionWarnings}
                 details={document.warnings}
+              />
+            )}
+            {limitedImageCount > 0 && (
+              <NoticeChip
+                label={i18n.documentPane.limitedImageCount(limitedImageCount)}
+                tone="warning"
+                icon={
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="m3 16 5-5 4 4M3 3l18 18" />
+                  </svg>
+                }
+                count={limitedImageCount}
+                title={i18n.documentPane.limitedImageTitle}
+                details={[i18n.documentPane.limitedImageTitle]}
               />
             )}
             {uncomparableCount > 0 && (

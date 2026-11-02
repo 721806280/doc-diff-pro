@@ -60,6 +60,11 @@ const PAGE_BRACKET_PATTERN = /[()[\]{}（）【】〔〕［］]/g;
 const LAYOUT_KEYWORD_PATTERN = /(confidential|copyright|all rights reserved|内部资料|保密|版权所有|机密|页眉|页脚)/i;
 const CONTACT_OR_IDENTIFIER_PATTERN =
   /(www\.|https?:\/\/|电话|传真|编号|文件号|版本|tel[:：]|fax[:：]|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i;
+// Repetition alone is not layout evidence: confidentiality clauses and contact
+// fields routinely occur twice in a contract. Only standalone notices qualify
+// without a page marker or a native header/footer hint.
+const REPEATED_LAYOUT_NOTICE_PATTERN =
+  /^(?:内部资料(?:请勿外传|仅供内部使用)?|(?:机密|秘密|绝密|保密)(?:文件|资料|文档)?(?:请勿(?:外传|对外传阅)|仅供内部使用|不得外传)?|仅供内部使用|版权所有(?:侵权必究)?|confidential(?:document|internaluseonly|donotdistribute|notfordistribution)?|internaluseonly|allrightsreserved|(?:copyright|©)[a-z0-9©&]*allrightsreserved)$/i;
 const CANDIDATE_BLOCK_SELECTOR = 'p, div, li, td, th';
 const HINT_SPLIT_PATTERN = /[;；,，|｜]/;
 const LEADING_PAGE_TEXT_PATTERN = new RegExp(
@@ -254,7 +259,9 @@ function classifyLayoutArtifact(
   const frequency = frequencies.get(normalized) ?? 0;
   if (frequency < MIN_REPEAT_COUNT || normalized.length > MAX_REPEAT_LINE_LENGTH) return null;
 
-  return LAYOUT_KEYWORD_PATTERN.test(normalized) || CONTACT_OR_IDENTIFIER_PATTERN.test(normalized)
+  return REPEATED_LAYOUT_NOTICE_PATTERN.test(normalized) ||
+    (hasPageMarker(rawText) &&
+      (LAYOUT_KEYWORD_PATTERN.test(normalized) || CONTACT_OR_IDENTIFIER_PATTERN.test(normalized)))
     ? 'repeated-layout-text'
     : null;
 }

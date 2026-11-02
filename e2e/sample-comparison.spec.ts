@@ -52,7 +52,9 @@ test('shows every kind of figure difference in the sample comparison', async ({ 
         while (heading && !heading.matches('h2')) heading = heading.previousElementSibling;
         return {
           section: heading?.textContent?.replace(/\s/g, ''),
-          width: (image as HTMLImageElement).naturalWidth
+          // Lazy off-screen images have no decoded surface yet. The parser
+          // reserves their dimensions from the verified container header.
+          width: (image as HTMLImageElement).naturalWidth || Number(image.getAttribute('width'))
         };
       })
     );

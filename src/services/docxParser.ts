@@ -4,6 +4,11 @@ import type { ImageSourceEntry } from '@/services/imageFingerprint';
 import { extractLayoutNoise, type LayoutNoiseData } from '@/utils/layoutNoise';
 import type { ImageDescriptorTable } from '@/utils/imageDescriptor';
 import { IMAGE_ID_ATTRIBUTE } from '@/utils/textDiffCore';
+import {
+  createImageResourceBudget,
+  IMAGE_RESOURCE_LIMIT_ATTRIBUTE,
+  type ImageResourceLimit
+} from '@/utils/imageResourceBudget';
 import type { DocxGraphicsReport, DocxRevisionReport, DocxScanReport, DocumentParsePhase } from '@/types/document';
 import { sanitizeDocumentBody, UNRENDERABLE_IMAGE_ATTRIBUTE } from '@/utils/sanitizeDocumentHtml';
 import { throwIfAborted, yieldToBrowser } from '@/utils/comparisonScheduling';
@@ -40,6 +45,8 @@ export type ParsedDocx = {
    * silently ignores part of a document is worse than one that says it did.
    */
   droppedImageCount: number;
+  /** Images kept for byte comparison but blocked from all rendering. */
+  limitedImageCount?: number;
   /**
    * Figures the converter never emitted at all — Word's own charts, shapes and
    * text boxes, embedded objects, and formulas. Unlike a dropped image these
@@ -53,14 +60,14 @@ export type ParsedDocx = {
    */
   revisions: DocxRevisionReport;
   imageUrls: string[];
-  /** Fingerprints keyed by the `src` each `<img>` carries in `html`. */
+  /** Fingerprints keyed by the stable ID stamped on each image in `html`. */
   imageDescriptors: ImageDescriptorTable;
   warnings: string[];
 };
 
 export type ParseDocxOptions = {
   embeddedImageAlt?: string;
-  emptyDocumentHtml?: string;
+  imagePreviewUnavailableLabel?: string;
   signal?: AbortSignal;
   onProgress?: (phase: DocumentParsePhase) => void;
 };
@@ -90,14 +97,15 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
       { convertImage, includeHeadersAndFooters: true, preserveAlignment: true }
     );
     throwIfAborted(options.signal);
-    const html = result.value ? result.value.trim() : (options.emptyDocumentHtml ?? '<p>(Empty document)</p>');
+    // Empty-body messaging belongs to the viewer, never to comparison input.
+    const html = result.value?.trim() ?? '';
     // One parse, mutated in place through every stage, serialized once at the
     // end: the markup is large enough that each extra round trip shows up.
     const body = await sanitizeDocumentBody(html);
     throwIfAborted(options.signal);
     const renderedFormulas = body.querySelectorAll('math').length;
     const layoutNoise = extractLayoutNoise(body);
-    const images = adoptInlineImages(body, imageUrls);
+    const images = collectInlineImages(body);
     const scan = await scanParts(arrayBuffer);
     throwIfAborted(options.signal);
     // Source equations retained by the sanitizer are no longer missing figures.
@@ -108,6 +116,12 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
     }
     const imageDescriptors = await fingerprintImages(images, options.signal);
     throwIfAborted(options.signal);
+    adoptImageSources(
+      images,
+      imageDescriptors,
+      imageUrls,
+      options.imagePreviewUnavailableLabel ?? 'Preview unavailable; original bytes are still compared.'
+    );
     // The dimensions the fingerprinter already read from each header are what
     // lets the browser reserve the image's box before its bytes decode.
     reserveImageLayout(body, imageDescriptors);
@@ -116,9 +130,6 @@ export async function parseDocx(file: File, options: ParseDocxOptions = {}): Pro
       html: body.innerHTML,
       layoutNoise,
       imageUrls,
-      // Awaited here rather than handed on as a promise: parsing is already the
-      // slow phase the reader is waiting through, and every image is hashed
-      // without being decoded, which is the part that would have cost.
       imageDescriptors,
       // The same buffer mammoth was handed, read again for what it discarded.
       ...scan,
@@ -176,33 +187,65 @@ async function fingerprintImages(entries: ImageSourceEntry[], signal?: AbortSign
  * fail exactly then; holding the blob keeps the bytes alive for as long as it
  * needs them and no longer.
  */
-function adoptInlineImages(body: HTMLElement, urls: string[]): ImageSourceEntry[] {
-  const entries: ImageSourceEntry[] = [];
+type InlineImageEntry = ImageSourceEntry & { image: HTMLImageElement };
+
+function collectInlineImages(body: HTMLElement): InlineImageEntry[] {
+  const entries: InlineImageEntry[] = [];
 
   body.querySelectorAll<HTMLImageElement>('img[src^="data:"]').forEach((image, index) => {
     const blob = dataUrlToBlob(image.getAttribute('src') ?? '');
+    // No loadable source survives until dimensions and budgets are verified.
+    image.removeAttribute('src');
     if (!blob) {
-      image.removeAttribute('src');
       return;
     }
 
     const id = `figure-${index}`;
     image.setAttribute(IMAGE_ID_ATTRIBUTE, id);
-    entries.push({ id, blob });
-
-    if (image.hasAttribute(UNRENDERABLE_IMAGE_ATTRIBUTE)) {
-      image.removeAttribute('src');
-      return;
-    }
-
-    const url = URL.createObjectURL(blob);
-    // Register ownership before another image or DOM mutation can fail. The
-    // parser's catch block must also see URLs from a partially completed pass.
-    urls.push(url);
-    image.setAttribute('src', url);
+    entries.push({ id, blob, image });
   });
 
   return entries;
+}
+
+/** Admit distinct images in the same order as fingerprinting and share their URLs. */
+function adoptImageSources(
+  entries: InlineImageEntry[],
+  descriptors: ImageDescriptorTable,
+  urls: string[],
+  unavailableLabel: string
+): void {
+  const admit = createImageResourceBudget();
+  const sources = new Map<string, { url: string } | { limit: ImageResourceLimit }>();
+  for (const { id, blob, image } of entries) {
+    if (image.hasAttribute(UNRENDERABLE_IMAGE_ATTRIBUTE)) continue;
+    const descriptor = descriptors.get(id)!;
+    let source = sources.get(descriptor.hash);
+    if (!source) {
+      const limit = admit(descriptor);
+      if (limit) source = { limit };
+      else {
+        const url = URL.createObjectURL(blob);
+        // Keep ownership even if a later DOM mutation or URL allocation fails.
+        urls.push(url);
+        source = { url };
+      }
+      sources.set(descriptor.hash, source);
+    }
+    if ('limit' in source) {
+      image.setAttribute(UNRENDERABLE_IMAGE_ATTRIBUTE, '');
+      image.setAttribute(IMAGE_RESOURCE_LIMIT_ATTRIBUTE, source.limit);
+      image.alt = [image.alt, unavailableLabel].filter(Boolean).join(' — ');
+      image.removeAttribute('width');
+      image.removeAttribute('height');
+      image.style.removeProperty('width');
+      image.style.removeProperty('height');
+    } else {
+      image.setAttribute('src', source.url);
+      image.setAttribute('loading', 'lazy');
+      image.setAttribute('decoding', 'async');
+    }
+  }
 }
 
 /**
@@ -219,8 +262,7 @@ function adoptInlineImages(body: HTMLElement, urls: string[]): ImageSourceEntry[
  * appears out of nowhere.
  *
  * Dimensions come from the fingerprinter's header read, which never decodes the
- * image, so an image bomb declaring 30000x30000 costs only the reserved layout,
- * never a decode.
+ * image. Sources that exceeded the shared budget have already been removed.
  */
 function reserveImageLayout(body: HTMLElement, descriptors: ImageDescriptorTable): void {
   body.querySelectorAll<HTMLImageElement>(`img[${IMAGE_ID_ATTRIBUTE}]`).forEach((image) => {
@@ -257,13 +299,14 @@ function dataUrlToBlob(dataUrl: string): Blob | null {
 
 export function collectDocxMetadata(
   body: HTMLElement
-): Pick<ParsedDocx, 'textLength' | 'imageCount' | 'droppedImageCount'> {
+): Pick<ParsedDocx, 'textLength' | 'imageCount' | 'droppedImageCount' | 'limitedImageCount'> {
   const textLength = (body.textContent ?? '').replace(/\s+/g, '').length;
 
   return {
     textLength,
     imageCount: body.querySelectorAll('img[src]').length,
-    droppedImageCount: body.querySelectorAll('img:not([src])').length
+    droppedImageCount: body.querySelectorAll(`img:not([src]):not([${IMAGE_RESOURCE_LIMIT_ATTRIBUTE}])`).length,
+    limitedImageCount: body.querySelectorAll(`img[${IMAGE_RESOURCE_LIMIT_ATTRIBUTE}]`).length
   };
 }
 

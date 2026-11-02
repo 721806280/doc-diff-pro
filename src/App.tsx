@@ -181,7 +181,7 @@ export default function App() {
       onResult: handleComparisonResult,
       onNotice: setNotice
     });
-  const hasComparisonResult = documents.A.highlightedHtml.length > 0 && documents.B.highlightedHtml.length > 0;
+  const hasComparisonResult = Boolean(documents.A.comparisonComplete && documents.B.comparisonComplete);
   const parsing = documents.A.status === 'parsing' || documents.B.status === 'parsing';
   const processing = parsing || comparing || loadingSample;
   // Avoid committing large provisional panes immediately before the engine
@@ -202,9 +202,9 @@ export default function App() {
       comparing,
       hasDocuments,
       hasResult: hasComparisonResult,
-      error
+      error: error || documents.A.error || documents.B.error
     }),
-    [ready, comparing, hasDocuments, hasComparisonResult, error]
+    [ready, comparing, hasDocuments, hasComparisonResult, error, documents.A.error, documents.B.error]
   );
   useBindLatest(externalGetStateRef, getExternalState);
   const labelDiff = useCallback(
@@ -274,7 +274,7 @@ export default function App() {
 
   useEffect(() => {
     if (!error) return;
-    externalEmit('error', { message: error, meta: externalMetaRef.current });
+    externalEmit('error', { message: error, meta: externalMetaRef.current, phase: 'comparison' });
   }, [error, externalEmit]);
   useBindLatest(resetTableHintRef, resetTableHint);
 
@@ -377,6 +377,15 @@ export default function App() {
     preferredDiffActionElement.current = null;
     clearDiffActionPosition();
   }, [clearDiffActionPosition, resetTableHint]);
+  const focusNavigatedDiff = useCallback(
+    (index: number, behavior?: ScrollBehavior) => {
+      const group = diffIndex.current.get(diffReviewId(index));
+      if (group?.A.length && !group.B.length) setMobilePane('A');
+      else if (group?.B.length && !group.A.length) setMobilePane('B');
+      focusDiff(index, behavior);
+    },
+    [diffIndex, focusDiff]
+  );
   const { locateDiff, moveDiff, ignoreDiffsById, restoreIgnored, restoreAllIgnored } = useReviewActions({
     summary,
     currentDiff,
@@ -384,7 +393,7 @@ export default function App() {
     ignoredDiffs,
     setIgnoredDiffs,
     diffIndex,
-    focusDiff,
+    focusDiff: focusNavigatedDiff,
     onIgnore: closeSimilarDiffs,
     onNoActiveDiff: clearNoActiveDiff
   });

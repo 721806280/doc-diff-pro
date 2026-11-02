@@ -1,4 +1,5 @@
 import { useCallback, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useAnimationFrameRef } from './useAnimationFrameRef';
 import type { DiffSummary, IgnoredDiffItem } from '@/types/diff';
 import type { DiffElementIndex } from '@/utils/diffElementIndex';
 import {
@@ -34,6 +35,21 @@ export function useReviewActions({
   onIgnore,
   onNoActiveDiff
 }: ReviewActionsOptions) {
+  const navigationFocusFrame = useAnimationFrameRef();
+  const focusNavigatedElement = useCallback(
+    (index: number) => {
+      const group = diffIndex.current.get(diffReviewId(index));
+      navigationFocusFrame.cancel();
+      if (focusReviewElement(group)) return;
+      // Revealing a one-sided change updates React's mobile pane on commit.
+      // The hidden pane cannot accept focus until that commit has completed.
+      navigationFocusFrame.schedule(() => {
+        if (diffIndex.current.get(diffReviewId(index)) === group) focusReviewElement(group);
+      });
+    },
+    [diffIndex, navigationFocusFrame]
+  );
+
   const locateDiff = useCallback(
     (index: number, behavior: ScrollBehavior = 'smooth') => {
       if (index < 1 || index > summary.total) return;
@@ -42,9 +58,9 @@ export function useReviewActions({
       // Only explicit navigation moves keyboard focus. The re-alignment that
       // follows a content rebuild goes through `focusDiff` alone, so it cannot
       // pull focus out of the settings panel a user is still working in.
-      focusReviewElement(diffIndex.current.get(diffReviewId(index)));
+      focusNavigatedElement(index);
     },
-    [diffIndex, focusDiff, setCurrentDiff, summary.total]
+    [focusNavigatedElement, focusDiff, setCurrentDiff, summary.total]
   );
 
   const moveDiff = useCallback(

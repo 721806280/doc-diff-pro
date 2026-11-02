@@ -9,12 +9,23 @@ export type DocumentErrorState = {
   detail?: string;
 };
 
+export class DocumentImportError extends Error {
+  constructor(
+    message: string,
+    readonly side: 'A' | 'B'
+  ) {
+    super(message);
+    this.name = 'DocumentImportError';
+  }
+}
+
 export function createEmptyDocument(): DocumentPaneState {
   return {
     name: '',
     size: 0,
     originalHtml: '',
     highlightedHtml: '',
+    comparisonComplete: false,
     textLength: 0,
     imageCount: 0,
     droppedImageCount: 0,

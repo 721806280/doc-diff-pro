@@ -17,6 +17,131 @@ const DEFAULT_OPTIONS: CompareOptions = {
 
 describe('compareDocuments', () => {
   it.each([
+    [
+      'link target',
+      '<a href="https://old.example">入口</a>',
+      '<a href="https://new.example">入口</a>',
+      'Link: https://old.example',
+      'Link: https://new.example'
+    ],
+    ['link removal', '<a href="#definition">入口</a>', '入口', 'Link: #definition', 'Link: No link'],
+    ['link addition', '入口', '<a href="#definition">入口</a>', 'Link: No link', 'Link: #definition'],
+    ['superscript', 'm2', 'm<sup>2</sup>', 'Normal text', 'Superscript'],
+    ['subscript', 'H2O', 'H<sub>2</sub>O', 'Normal text', 'Subscript'],
+    ['script type', 'm<sup>2</sup>', 'm<sub>2</sub>', 'Superscript', 'Subscript']
+  ])('compares %s while retaining text-only similarity', async (_name, left, right, leftLabel, rightLabel) => {
+    for (const wrap of [
+      (html: string) => `<p>${html}</p>`,
+      (html: string) => `<table><tr><td>值</td><td>${html}</td></tr></table>`
+    ]) {
+      const result = await compareDocuments(wrap(left), wrap(right), DEFAULT_OPTIONS);
+      const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+      const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+      expect(result.summary).toMatchObject({ total: 1, modified: 1, similarity: 1 });
+      expect(original.querySelector('del[data-diff-semantic]')?.getAttribute('data-diff-semantic')).toBe(leftLabel);
+      expect(revised.querySelector('ins[data-diff-semantic]')?.getAttribute('data-diff-semantic')).toBe(rightLabel);
+      expect(original.querySelector('del')?.dataset.diffId).toBe(revised.querySelector('ins')?.dataset.diffId);
+    }
+  });
+
+  it.each(['char', 'word', 'semantic'] as const)(
+    'retains semantic differences beside repaired table text (%s)',
+    async (granularity) => {
+      const result = await compareDocuments(
+        '<table><tr><td>条款</td><td><a href="https://old.example">入口</a>旧内容</td></tr></table>',
+        '<table><tr><td>条款</td><td><a href="https://new.example">入口</a>新内容补充</td></tr></table>',
+        { ...DEFAULT_OPTIONS, granularity }
+      );
+      const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+      const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+      expect(original.querySelector('a > del[data-diff-semantic]')?.textContent).toBe('入口');
+      expect(revised.querySelector('a > ins[data-diff-semantic]')?.textContent).toBe('入口');
+      expect(original.textContent).toBe('条款入口旧内容');
+      expect(revised.textContent).toBe('条款入口新内容补充');
+      expect(original.querySelector('del del')).toBeNull();
+      expect(revised.querySelector('ins ins')).toBeNull();
+    }
+  );
+
+  it('keeps semantic markers separate from coarse text repair in a long table cell', async () => {
+    const prefix = '正文'.repeat(1100);
+    const label = '付款入口说明'.repeat(10);
+    const cell = (href: string, first: string, last: string) =>
+      `<table><tr><td>条款</td><td>${prefix}${first}<a href="${href}">${label}</a>${last}</td></tr></table>`;
+    const result = await compareDocuments(
+      cell('https://old.example', '旧', '末'),
+      cell('https://new.example', '新', '尾'),
+      DEFAULT_OPTIONS
+    );
+    const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+    const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+    expect(original.querySelector('a > del[data-diff-semantic]')?.textContent).toBe(label);
+    expect(revised.querySelector('a > ins[data-diff-semantic]')?.textContent).toBe(label);
+    expect(original.querySelector('del del')).toBeNull();
+    expect(revised.querySelector('ins ins')).toBeNull();
+    expect(original.textContent).toBe(`条款${prefix}旧${label}末`);
+    expect(revised.textContent).toBe(`条款${prefix}新${label}尾`);
+  });
+
+  it.each([true, false])('marks an explicit English line break with ignoreSpaces=%s', async (ignoreSpaces) => {
+    for (const wrap of [
+      (html: string) => `<p>${html}</p>`,
+      (html: string) => `<table><tr><td>${html}</td></tr></table>`
+    ]) {
+      const result = await compareDocuments(wrap('A<br>B'), wrap('AB'), { ...DEFAULT_OPTIONS, ignoreSpaces });
+      const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+      expect(result.summary).toMatchObject({ total: 1, deleted: 1 });
+      expect(original.querySelectorAll('del[data-diff-line-break] > br')).toHaveLength(1);
+      expect(original.textContent).toBe('AB');
+      expect(result.summary.similarity).toBeCloseTo(ignoreSpaces ? 2 / 3 : 3 / 4);
+    }
+  });
+
+  it('respects ignored CJK layout breaks and preserves them when whitespace is significant', async () => {
+    const left = '<p>甲<br>乙</p>';
+    const right = '<p>甲乙</p>';
+    expect((await compareDocuments(left, right, DEFAULT_OPTIONS)).summary.total).toBe(0);
+    const result = await compareDocuments(left, right, { ...DEFAULT_OPTIONS, ignoreSpaces: false });
+    expect(result.summary.total).toBe(1);
+    expect(result.originalHtml).toContain('data-diff-line-break');
+  });
+
+  it.each([
+    ['<p>A<br></p>', '<p>A</p>'],
+    ['<p>A</p>', '<p>A<br></p>']
+  ])('distinguishes a trailing explicit break from a synthetic paragraph separator', async (left, right) => {
+    const result = await compareDocuments(left, right, { ...DEFAULT_OPTIONS, ignoreSpaces: false });
+    expect(result.summary.total).toBe(1);
+    expect(result.originalHtml + result.revisedHtml).toContain('data-diff-line-break');
+    expect((await compareDocuments(left, right, DEFAULT_OPTIONS)).summary.total).toBe(0);
+  });
+
+  it('does not treat styling or a stable link as a semantic change', async () => {
+    const result = await compareDocuments(
+      '<p><a href="https://same.example"><strong>付款入口</strong></a></p>',
+      '<p><a href="https://same.example" title="提示"><em>付款</em>入口</a></p>',
+      DEFAULT_OPTIONS
+    );
+    expect(result.summary.total).toBe(0);
+  });
+
+  it('keeps a unique image moved across distant clauses as one review item', async () => {
+    const image = '<p><img data-ddv-image-id="a" src="blob:a"></p>';
+    const clauses = Array.from({ length: 8 }, (_, index) => `<p>第${index + 1}条：合同义务。</p>`).join('');
+    const descriptor = { hash: 'same', width: 10, height: 10, byteLength: 100 };
+    const result = await compareDocuments(image + clauses, clauses + image, {
+      ...DEFAULT_OPTIONS,
+      images: { original: new Map([['a', descriptor]]), revised: new Map([['a', descriptor]]) },
+      imageLabel: '图片'
+    });
+    expect(result.summary).toMatchObject({ total: 1, modified: 1, similarity: 1, images: { moved: 1, paired: 1 } });
+    const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+    const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+    expect(original.querySelector('del')?.dataset.diffId).toBe(revised.querySelector('ins')?.dataset.diffId);
+    expect(original.querySelector('img')?.getAttribute('data-ddv-image-change')).toBe('moved');
+  });
+
+  it.each([
     ['paragraph', (text: string) => `<p>${text}</p>`],
     ['table cell', (text: string) => `<table><tr><td>标签</td><td>${text}</td></tr></table>`]
   ])('preserves and compares joining characters in a %s', async (_name, wrap) => {
@@ -248,6 +373,44 @@ describe('compareDocuments', () => {
     expect(sameRow.summary.total).toBe(1);
   });
 
+  it.each([true, false])('detects number changes across cell boundaries (ignoreSpaces: %s)', async (ignoreSpaces) => {
+    const result = await compareDocuments(
+      '<table><tr><td>项目 A</td><td>1</td><td>23</td></tr></table>',
+      '<table><tr><td>项目 A</td><td>12</td><td>3</td></tr></table>',
+      { ...DEFAULT_OPTIONS, ignoreSpaces }
+    );
+    expect(result.summary).toMatchObject({ total: 1, modified: 1 });
+    expect(result.summary.similarity).toBeLessThan(1);
+    const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+    const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+    expect(original.querySelector('td:nth-child(3) del')?.textContent).toBe('2');
+    expect(revised.querySelector('td:nth-child(2) ins')?.textContent).toBe('2');
+  });
+
+  it('detects moved cell boundaries without a stable label, including after an inserted row', async () => {
+    const result = await compareDocuments(
+      '<table><tr><td>1</td><td>23</td></tr></table>',
+      '<table><tr><td>新行</td><td>新增值</td></tr><tr><td>12</td><td>3</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+    const original = new DOMParser().parseFromString(result.originalHtml, 'text/html').body;
+    const revised = new DOMParser().parseFromString(result.revisedHtml, 'text/html').body;
+    expect(original.querySelector('td:nth-child(2) del')?.textContent).toBe('2');
+    expect(revised.querySelector('tr:nth-child(2) td:first-child ins')?.textContent).toBe('2');
+    expect(result.summary.modified).toBeGreaterThan(0);
+    expect(result.summary.inserted).toBeGreaterThan(0);
+  });
+
+  it('keeps ordinary word spaces significant while repairing cells with repeated labels', async () => {
+    const result = await compareDocuments(
+      '<table><tr><td>名称</td><td>ExampleCorp</td></tr><tr><td>名称</td><td>Keep</td></tr></table>',
+      '<table><tr><td>名称</td><td>Example Corp</td></tr><tr><td>名称</td><td>Keep</td></tr></table>',
+      DEFAULT_OPTIONS
+    );
+    expect(result.summary.total).toBe(1);
+    expect(result.revisedHtml).toContain('<ins data-diff-id="diff-1"> </ins>');
+  });
+
   it('does not report textless table layout changes as differences', async () => {
     const emptyRow = await compareDocuments(
       '<table><tr><td>内容A</td></tr></table>',
@@ -405,6 +568,14 @@ describe('compareDocuments', () => {
       { side: 'original', reason: 'hint', source: 'native', text: '基准保密页眉', count: 1 },
       { side: 'revised', reason: 'hint', source: 'native', text: '修订保密页脚', count: 1 }
     ]);
+  });
+
+  it('compares repeated confidentiality obligations when layout filtering is enabled', async () => {
+    const clauses = (years: number) => `<p>双方承担保密义务，期限为${years}年。</p>`.repeat(2);
+    const result = await compareDocuments(clauses(1), clauses(3), { ...DEFAULT_OPTIONS, filterLayoutNoise: true });
+    expect(result.summary).toMatchObject({ total: 2, modified: 2, layoutNoiseFiltered: 0 });
+    expect(result.originalHtml).toContain('保密义务');
+    expect(result.revisedHtml).toContain('保密义务');
   });
 
   it('filters converted footer lines by stable hint fragments', async () => {

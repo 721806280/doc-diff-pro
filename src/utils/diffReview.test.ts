@@ -62,6 +62,21 @@ describe('diffReview', () => {
     });
   });
 
+  it('previews the semantic change and its actual target', () => {
+    const original = textElement('入口');
+    const revised = textElement('入口');
+    original.setAttribute('data-diff-semantic', 'Link: https://old.example');
+    revised.setAttribute('data-diff-semantic', 'Link: https://new.example');
+    expect(createReviewItem(1, { A: [original], B: [revised] })).toMatchObject({
+      originalPreview: '入口 [Link: https://old.example]',
+      revisedPreview: '入口 [Link: https://new.example]'
+    });
+    const br = document.createElement('del');
+    br.setAttribute('data-diff-semantic', 'Line break');
+    br.appendChild(document.createElement('br'));
+    expect(createReviewItem(1, { A: [br], B: [] })?.originalPreview).toBe('[Line break]');
+  });
+
   it('previews an image difference by its label, since it has no text', () => {
     // Without this an image difference would appear in the review list as a
     // blank row, indistinguishable from every other image difference.

@@ -10,6 +10,17 @@ vi.mock('mammoth', () => ({
   images: { imgElement }
 }));
 
+/** Only a container header is needed to exercise resource admission without decoding. */
+function pngSource(width = 16, height = 16, marker = 0): string {
+  const bytes = new Uint8Array(25);
+  bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(16, width);
+  view.setUint32(20, height);
+  bytes[24] = marker;
+  return `data:image/png;base64,${Buffer.from(bytes).toString('base64')}`;
+}
+
 describe('docxParser metadata helpers', () => {
   it('counts text characters, comparable images, and the graphics that were dropped', () => {
     const body = new DOMParser().parseFromString(
@@ -24,7 +35,8 @@ describe('docxParser metadata helpers', () => {
     expect(metadata).toEqual({
       textLength: 3,
       imageCount: 1,
-      droppedImageCount: 1
+      droppedImageCount: 1,
+      limitedImageCount: 0
     });
   });
 
@@ -60,9 +72,9 @@ describe('parseDocx', () => {
     expect(log).not.toHaveBeenCalled();
   });
 
-  it('releases adopted image URLs when canceled before image processing', async () => {
+  it('creates no loadable image URLs when canceled before image processing', async () => {
     const controller = new AbortController();
-    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:canceled');
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:canceled');
     const revoke = vi.spyOn(URL, 'revokeObjectURL');
     convertToHtml.mockResolvedValueOnce({
       value: '<p><img src="data:image/png;base64,iVBORw0KGgo="></p>',
@@ -79,7 +91,8 @@ describe('parseDocx', () => {
       })
     ).rejects.toThrow('Comparison superseded');
     expect(phases).toEqual(['reading', 'converting', 'images']);
-    expect(revoke).toHaveBeenCalledWith('blob:canceled');
+    expect(create).not.toHaveBeenCalled();
+    expect(revoke).not.toHaveBeenCalled();
   });
 
   it('includes native headers and footers as layout noise', async () => {
@@ -108,7 +121,7 @@ describe('parseDocx', () => {
   it('rehosts embedded images on object URLs and reports them for release', async () => {
     const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:doc-diff/1');
     convertToHtml.mockResolvedValueOnce({
-      value: '<p><img src="data:image/png;base64,iVBORw0KGgo=" alt="图"></p>',
+      value: `<p><img src="${pngSource()}" alt="图"></p>`,
       messages: []
     });
 
@@ -118,8 +131,166 @@ describe('parseDocx', () => {
     expect(parsed.html).not.toContain('base64');
     expect(parsed.imageUrls).toEqual(['blob:doc-diff/1']);
     expect(parsed.imageCount).toBe(1);
+    expect(parsed.html).toContain('loading="lazy"');
+    expect(parsed.html).toContain('decoding="async"');
     expect(createObjectURL.mock.calls[0]![0]).toBeInstanceOf(Blob);
     expect((createObjectURL.mock.calls[0]![0] as Blob).type).toBe('image/png');
+  });
+
+  it('blocks oversized images before creating a loadable URL and keeps their fingerprints', async () => {
+    const create = vi.spyOn(URL, 'createObjectURL');
+    convertToHtml.mockResolvedValueOnce({
+      value: `<p>正文<img src="${pngSource(10000, 4100)}" width="10000" height="4100" style="width: 10000px; height: 4100px" alt="图"></p>`
+    });
+    const parsed = await parseDocx(new File(['docx'], 'large.docx'), {
+      imagePreviewUnavailableLabel: '无法预览，仍比较原始字节。'
+    });
+    const body = new DOMParser().parseFromString(parsed.html, 'text/html').body;
+    const image = body.querySelector('img')!;
+    expect(create).not.toHaveBeenCalled();
+    expect(image.hasAttribute('src')).toBe(false);
+    expect(image.hasAttribute('width')).toBe(false);
+    expect(image.hasAttribute('height')).toBe(false);
+    expect(image.style.width).toBe('');
+    expect(image.style.height).toBe('');
+    expect(image.getAttribute('data-ddv-image-resource-limit')).toBe('image-pixels');
+    expect(image.alt).toContain('无法预览，仍比较原始字节。');
+    expect(body.textContent).toBe('正文');
+    expect(parsed).toMatchObject({
+      textLength: 2,
+      imageCount: 0,
+      droppedImageCount: 0,
+      limitedImageCount: 1,
+      imageUrls: []
+    });
+    expect(parsed.imageDescriptors.get('figure-0')).toMatchObject({
+      width: 10000,
+      height: 4100,
+      hash: expect.any(String)
+    });
+  });
+
+  it('uses the same cumulative budget for displayed images as for fingerprints', async () => {
+    const create = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation(() => `blob:admitted-${create.mock.calls.length}`);
+    convertToHtml.mockResolvedValueOnce({
+      value: Array.from({ length: 6 }, (_, index) => `<p><img src="${pngSource(5000, 6000, index)}"></p>`).join('')
+    });
+    const parsed = await parseDocx(new File(['docx'], 'many-images.docx'));
+    const images = new DOMParser().parseFromString(parsed.html, 'text/html').body.querySelectorAll('img');
+    expect(create).toHaveBeenCalledTimes(5);
+    expect(parsed).toMatchObject({ imageCount: 5, limitedImageCount: 1, droppedImageCount: 0 });
+    expect(images[5]?.hasAttribute('src')).toBe(false);
+    expect(images[5]?.getAttribute('data-ddv-image-resource-limit')).toBe('document-pixels');
+    expect(parsed.imageDescriptors.size).toBe(6);
+  });
+
+  it('shares a source between repeated image copies without spending the budget twice', async () => {
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:shared');
+    convertToHtml.mockResolvedValueOnce({
+      value: `<p>${Array.from({ length: 6 }, () => `<img src="${pngSource(5000, 6000)}">`).join('')}</p>`
+    });
+    const parsed = await parseDocx(new File(['docx'], 'repeated-images.docx'));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(parsed.imageUrls).toEqual(['blob:shared']);
+    expect(parsed).toMatchObject({ imageCount: 6, limitedImageCount: 0 });
+    expect(parsed.imageDescriptors.get('figure-0')).toBe(parsed.imageDescriptors.get('figure-5'));
+  });
+
+  it('keeps readable SVG object previews and blocks embedded oversized raster payloads', async () => {
+    const svg = (source: string) => `data:image/svg+xml;base64,${Buffer.from(source).toString('base64')}`;
+    const small = svg('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="58"><text>附件</text></svg>');
+    const nested = svg(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="58"><image href="${pngSource(10000, 4100)}" width="128" height="58"/></svg>`
+    );
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:svg');
+    convertToHtml.mockResolvedValueOnce({ value: `<p><img src="${small}"><img src="${nested}"></p>` });
+    const parsed = await parseDocx(new File(['docx'], 'svg-preview.docx'));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(parsed).toMatchObject({ imageCount: 1, limitedImageCount: 1 });
+    expect(parsed.html).toContain('src="blob:svg"');
+    expect(parsed.html).toContain('data-ddv-image-resource-limit="image-pixels"');
+    expect(parsed.imageDescriptors.size).toBe(2);
+  });
+
+  it.each([
+    [
+      'filter image',
+      (source: string) =>
+        `<defs><filter id="preview"><feImage href="${source}"/></filter></defs><rect width="128" height="58" filter="url(#preview)"/>`
+    ],
+    [
+      'HTML image',
+      (source: string) =>
+        `<foreignObject width="128" height="58"><img xmlns="http://www.w3.org/1999/xhtml" src="${source}"/></foreignObject>`
+    ]
+  ])('blocks oversized raster resources in an SVG %s before allocating its source', async (_name, content) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="58">${content(pngSource(10000, 4100))}</svg>`;
+    const source = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+    const create = vi.spyOn(URL, 'createObjectURL');
+    convertToHtml.mockResolvedValueOnce({ value: `<p><img src="${source}"></p>` });
+    const parsed = await parseDocx(new File(['docx'], 'svg-raster.docx'));
+    expect(create).not.toHaveBeenCalled();
+    expect(parsed).toMatchObject({ imageCount: 0, limitedImageCount: 1, imageUrls: [] });
+    expect(parsed.imageDescriptors.get('figure-0')?.hash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('verifies scientific and fractional SVG dimensions before accepting a preview', async () => {
+    const svgSource = (attributes: string) =>
+      `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" ${attributes}><text>附件</text></svg>`).toString('base64')}`;
+    const large = svgSource('width="1e4" height="4.1e3" viewBox="0 0 10 10"');
+    const small = svgSource('width=".5in" height="1e1PT"');
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:small-svg');
+    convertToHtml.mockResolvedValueOnce({ value: `<p><img src="${large}"><img src="${small}"></p>` });
+    const parsed = await parseDocx(new File(['docx'], 'svg-dimensions.docx'));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(parsed.imageDescriptors.get('figure-0')).toMatchObject({ width: 10000, height: 4100 });
+    expect(parsed.imageDescriptors.get('figure-1')).toMatchObject({ width: 48, height: 14 });
+    const images = new DOMParser().parseFromString(parsed.html, 'text/html').body.querySelectorAll('img');
+    expect(images[0]?.hasAttribute('src')).toBe(false);
+    expect(images[0]?.getAttribute('data-ddv-image-resource-limit')).toBe('image-pixels');
+    expect(images[1]?.getAttribute('src')).toBe('blob:small-svg');
+  });
+
+  it.each([
+    ['font-relative dimensions', 'width="10000em" height="4100em"', ''],
+    ['percentage dimensions', 'width="100%" height="100%"', ''],
+    ['inline sizing', 'width="10" height="10" style="width:10000px;height:4100px"', ''],
+    ['stylesheet sizing', 'width="10" height="10"', '<style>svg { width:10000px; height:4100px }</style>'],
+    ['animated sizing', 'width="10" height="10"', '<set attributeName="width" to="10000"/>']
+  ])('keeps SVG %s in byte comparison when its viewport cannot be verified', async (_name, attributes, content) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" ${attributes}>${content}</svg>`;
+    const source = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+    const create = vi.spyOn(URL, 'createObjectURL');
+    convertToHtml.mockResolvedValueOnce({ value: `<p><img src="${source}"></p>` });
+    const parsed = await parseDocx(new File(['docx'], 'svg-viewport.docx'));
+    expect(create).not.toHaveBeenCalled();
+    expect(parsed).toMatchObject({ imageCount: 0, limitedImageCount: 1, imageUrls: [] });
+    expect(parsed.imageDescriptors.get('figure-0')).toMatchObject({
+      hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      resourceLimit: 'unknown-dimensions'
+    });
+  });
+
+  it('derives a missing SVG dimension from its viewport ratio before applying the budget', async () => {
+    const svgSource = (attributes: string) =>
+      `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" ${attributes}/>`).toString('base64')}`;
+    const wide = svgSource('height="1000" viewBox="0 0 5000 10"');
+    const tall = svgSource('width="1000" viewBox="0 0 10 5000"');
+    const small = svgSource('width="100" viewBox="0 0 20 10"');
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:small-svg');
+    convertToHtml.mockResolvedValueOnce({ value: `<p><img src="${wide}"><img src="${tall}"><img src="${small}"></p>` });
+    const parsed = await parseDocx(new File(['docx'], 'svg-ratio.docx'));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(parsed).toMatchObject({ imageCount: 1, limitedImageCount: 2 });
+    expect(parsed.imageDescriptors.get('figure-0')).toMatchObject({ width: 500000, height: 1000 });
+    expect(parsed.imageDescriptors.get('figure-1')).toMatchObject({ width: 1000, height: 500000 });
+    expect(parsed.imageDescriptors.get('figure-2')).toMatchObject({ width: 100, height: 50 });
+    const images = new DOMParser().parseFromString(parsed.html, 'text/html').body.querySelectorAll('img');
+    expect(images[0]?.hasAttribute('src')).toBe(false);
+    expect(images[1]?.hasAttribute('src')).toBe(false);
+    expect(images[2]?.getAttribute('src')).toBe('blob:small-svg');
   });
 
   it('reserves layout by stamping images with the dimensions read from their header', async () => {
@@ -203,13 +374,13 @@ describe('parseDocx', () => {
     expect(createObjectURL).not.toHaveBeenCalled();
   });
 
-  it('uses configured empty markup and image alt text', async () => {
+  it('preserves an empty body and uses configured image alt text', async () => {
     convertToHtml.mockResolvedValueOnce({ value: '', messages: [] });
     const parsed = await parseDocx(new File(['docx'], 'review.docx'), {
-      emptyDocumentHtml: '<p>Nothing here</p>',
       embeddedImageAlt: 'Scanned page'
     });
-    expect(parsed.html).toBe('<p>Nothing here</p>');
+    expect(parsed.html).toBe('');
+    expect(parsed.textLength).toBe(0);
 
     const imageConverter = imgElement.mock.calls[0]![0] as (image: {
       read: (format: 'base64') => Promise<string>;
@@ -221,7 +392,7 @@ describe('parseDocx', () => {
     });
   });
 
-  it('falls back to the default empty markup', async () => {
+  it('preserves a whitespace-only body as empty input', async () => {
     convertToHtml.mockResolvedValueOnce({ value: '   ', messages: [] });
 
     const parsed = await parseDocx(new File(['docx'], 'empty.docx'));
@@ -229,12 +400,12 @@ describe('parseDocx', () => {
     expect(parsed.html).toBe('');
   });
 
-  it('uses the default markup, alt text, and warning list when nothing is configured', async () => {
+  it('keeps empty input and uses default alt text and warnings when nothing is configured', async () => {
     convertToHtml.mockResolvedValueOnce({ value: '' });
 
     const parsed = await parseDocx(new File(['docx'], 'empty.docx'));
 
-    expect(parsed.html).toBe('<p>(Empty document)</p>');
+    expect(parsed.html).toBe('');
     expect(parsed.warnings).toEqual([]);
 
     const imageConverter = imgElement.mock.calls[0]![0] as (image: {
@@ -253,7 +424,7 @@ describe('parseDocx', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     convertToHtml.mockResolvedValueOnce({
       // Reading `messages` after the images are rehosted is what blows up.
-      value: '<p><img src="data:image/png;base64,iVBORw0KGgo="></p>',
+      value: `<p><img src="${pngSource()}"></p>`,
       get messages(): unknown[] {
         throw new Error('conversion collapsed');
       }
@@ -272,7 +443,7 @@ describe('parseDocx', () => {
       });
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     convertToHtml.mockResolvedValueOnce({
-      value: '<p><img src="data:image/png;base64,iVBORw0KGgo="><img src="data:image/png;base64,iVBORw0KGgo="></p>'
+      value: `<p><img src="${pngSource()}"><img src="${pngSource(16, 16, 1)}"></p>`
     });
 
     await expect(parseDocx(new File(['docx'], 'review.docx'))).rejects.toThrow('Image allocation failed');

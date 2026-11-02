@@ -100,7 +100,7 @@ describe('layoutNoise', () => {
     expect(root.textContent).toContain('内部资料');
   });
 
-  it('removes repeated keyword and contact lines as repeated layout text', () => {
+  it('removes standalone repeated notices while keeping contact fields without layout evidence', () => {
     const root = new DOMParser().parseFromString(
       '<p>内部资料 请勿外传</p><p>第一章</p><p>内部资料 请勿外传</p>' +
         '<p>联系电话 010-1234</p><p>第二章</p><p>联系电话 010-1234</p>',
@@ -108,10 +108,19 @@ describe('layoutNoise', () => {
     ).body;
     const result = removeLayoutNoise(root, { hints: { exact: [], fragments: [] }, enabled: true });
 
-    expect(result.filteredCount).toBe(4);
+    expect(result.filteredCount).toBe(2);
     expect(result.removedItems.every((item) => item.reason === 'repeated-layout-text')).toBe(true);
     expect(root.textContent).toContain('第一章');
     expect(root.textContent).not.toContain('内部资料');
+    expect(root.textContent).toContain('联系电话');
+  });
+
+  it('keeps repeated confidentiality clauses and contact obligations', () => {
+    const clause = '双方承担保密义务，期限为1年。';
+    const contact = '乙方应于3日内变更联系电话。';
+    const root = bodyFromHtml(`<p>${clause}</p><p>${clause}</p><p>${contact}</p><p>${contact}</p>`);
+    expect(removeLayoutNoise(root, { hints: { exact: [], fragments: [] }, enabled: true }).filteredCount).toBe(0);
+    expect(root.querySelectorAll('p')).toHaveLength(4);
   });
 
   it('keeps repeated ordinary text and one-off keyword lines', () => {

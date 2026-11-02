@@ -157,6 +157,20 @@ const en = {
     imagePreviewLabel: 'View image full size',
     imageCompareLabel: 'Compare this image',
     unrenderableImageLabel: '(cannot be previewed)',
+    imagePreviewUnavailableLabel: 'Preview unavailable; original bytes are still compared.',
+    limitedImageCount(count: number): string {
+      return `${count} ${count === 1 ? 'image' : 'images'} without preview`;
+    },
+    limitedImageTitle:
+      'These images exceed the preview budget or have unverifiable dimensions. Their original bytes are still compared.',
+    semanticDifferenceLabels: {
+      hyperlink: 'Link',
+      noHyperlink: 'No link',
+      superscript: 'Superscript',
+      subscript: 'Subscript',
+      normalText: 'Normal text',
+      lineBreak: 'Line break'
+    },
     emptyDocumentHtml: '<p>(Empty document)</p>',
     status: {
       parsing: 'Parsing',
@@ -556,6 +570,19 @@ const zhCN: I18nMessages = {
     imagePreviewLabel: '查看原图',
     imageCompareLabel: '放大对比图片',
     unrenderableImageLabel: '（无法预览）',
+    imagePreviewUnavailableLabel: '无法预览，仍按原始字节比较。',
+    limitedImageCount(count: number): string {
+      return `${count} 张图片无法预览`;
+    },
+    limitedImageTitle: '图片超出预览预算或尺寸无法验证，仍按原始字节参与比较。',
+    semanticDifferenceLabels: {
+      hyperlink: '链接目标',
+      noHyperlink: '无链接',
+      superscript: '上标',
+      subscript: '下标',
+      normalText: '普通文字',
+      lineBreak: '换行'
+    },
     emptyDocumentHtml: '<p>（空文档）</p>',
     status: {
       parsing: '解析中',

@@ -118,6 +118,19 @@ describe('React app workflow', () => {
     expect(host.querySelector('.floating-navigator')).toBeTruthy();
   });
 
+  it('shows an empty comparison result without keeping either pane in a loading state', async () => {
+    mocks.parseDocx.mockResolvedValue(parsed(''));
+    mocks.compareDocuments.mockResolvedValue({ ...emptyComparison(), originalHtml: '', revisedHtml: '' });
+    renderApp();
+    await selectFile(0, new File(['docx'], 'empty-a.docx'));
+    await selectFile(1, new File(['docx'], 'empty-b.docx'));
+    await flush();
+    expect(host.querySelector('.floating-navigator')).not.toBeNull();
+    expect(host.querySelectorAll('.spinner-large')).toHaveLength(0);
+    expect(host.querySelectorAll('.docx-render-content')).toHaveLength(2);
+    expect(mocks.compareDocuments).toHaveBeenCalledTimes(1);
+  });
+
   it('moves diff actions when the same difference is selected on the other pane', async () => {
     await mountComparedApp();
     const original = host.querySelector<HTMLElement>('.side-original [data-diff-id="diff-1"]')!;

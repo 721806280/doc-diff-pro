@@ -6,7 +6,7 @@ export type SimilarDiffLevel = 'strict' | 'balanced' | 'loose';
 
 export type DiffOperation = -1 | 0 | 1;
 
-export type DiffTuple = [DiffOperation, string] & { groupId?: string };
+export type DiffTuple = [DiffOperation, string] & { groupId?: string; semanticLabel?: string };
 
 /** What the image pass found, retained in the comparison summary for consumers. */
 export type ImageComparisonSummary = {

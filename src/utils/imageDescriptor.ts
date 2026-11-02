@@ -1,3 +1,5 @@
+import type { ImageResourceInfo } from './imageResourceBudget';
+
 /**
  * What two embedded images are compared on, and how alike the answer says they
  * are.
@@ -108,13 +110,9 @@ export type ImageVisualDescriptor = {
   color: Uint8Array;
 };
 
-export type ImageDescriptor = {
+export type ImageDescriptor = ImageResourceInfo & {
   /** Hex SHA-256 of the encoded bytes: the exact-identity key. */
   hash: string;
-  /** Pixel dimensions from the container header; 0 when it could not be read. */
-  width: number;
-  height: number;
-  byteLength: number;
   /** Absent when the image was never decoded — too large, or no decoder. */
   visual?: ImageVisualDescriptor;
 };

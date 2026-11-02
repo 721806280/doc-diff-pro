@@ -6,6 +6,33 @@ function bodyFromHtml(html: string): HTMLElement {
 }
 
 describe('documentText utilities', () => {
+  it('maps explicit breaks independently from synthetic block boundaries', () => {
+    const root = bodyFromHtml('<p>A<br>B<br><br>C</p>');
+    const track = buildTextMapping(root);
+    expect(track.text).toBe('A\nB\n\nC\n');
+    expect([...track.mapping.breaks!.keys()]).toEqual([1, 3, 4]);
+    expect([...track.mapping.breaks!.values()]).toEqual([...root.querySelectorAll('br')]);
+    const collapsed = collapseWhitespace(track);
+    expect(collapsed.text).toBe('A B C');
+    expect([...collapsed.mapping.breaks!.keys()]).toEqual([1, 3]);
+  });
+
+  it('remaps image positions through collapsed and trailing whitespace', () => {
+    const root = bodyFromHtml('<p>甲  <img>乙<img>   </p><img>');
+    const track = collapseWhitespace(buildTextMapping(root));
+    expect(track.text).toBe('甲乙');
+    expect([...track.imageOffsets!.values()]).toEqual([1, 2, 2]);
+    expect([...track.imageOffsets!.keys()]).toEqual([...root.querySelectorAll('img')]);
+  });
+
+  it('keeps image positions in documents without text and excludes viewer placeholders', () => {
+    const root = bodyFromHtml('<span data-ddv-generated-text>Preview unavailable</span><img><br>');
+    const track = collapseWhitespace(buildTextMapping(root));
+    expect(track.text).toBe('');
+    expect([...track.imageOffsets!.values()]).toEqual([0]);
+    expect(track.mapping.breaks!.size).toBe(0);
+  });
+
   it.each(['👩\u200d💻', 'می\u200cروم', 'क्\u200dष'])(
     'preserves joining characters in %s and its DOM mapping',
     (text) => {

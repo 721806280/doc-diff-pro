@@ -21,7 +21,7 @@
  * every item below it.
  */
 
-import type { ImageComparisonSummary } from '@/types/diff';
+import type { DiffTuple, ImageComparisonSummary } from '@/types/diff';
 import {
   compareImageDescriptors,
   IMAGE_COSMETIC_THRESHOLD,
@@ -33,6 +33,9 @@ import { UNRENDERABLE_IMAGE_ATTRIBUTE } from './sanitizeDocumentHtml';
 import { alignSequences } from './tableAlignment';
 import {
   createEmptyImageComparisonSummary,
+  DIFF_DELETE,
+  DIFF_EQUAL,
+  DIFF_INSERT,
   IMAGE_CHANGE_ATTRIBUTE,
   IMAGE_DIFF_ATTRIBUTE,
   IMAGE_ID_ATTRIBUTE,
@@ -82,6 +85,12 @@ export type ImageDescriptorsBySide = {
   revised: ImageDescriptorTable;
 };
 
+export type ImageTextAlignment = {
+  originalOffsets: ReadonlyMap<HTMLImageElement, number>;
+  revisedOffsets: ReadonlyMap<HTMLImageElement, number>;
+  diffs: readonly DiffTuple[];
+};
+
 /**
  * Every figure that was fingerprinted, whether or not it can be drawn.
  *
@@ -97,7 +106,8 @@ export function collectDocumentImages(root: HTMLElement): HTMLImageElement[] {
 export function alignDocumentImages(
   originalRoot: HTMLElement,
   revisedRoot: HTMLElement,
-  descriptors: ImageDescriptorsBySide
+  descriptors: ImageDescriptorsBySide,
+  textAlignment?: ImageTextAlignment
 ): ImageAlignmentEntry[] {
   const occurrences = (root: HTMLElement, table: ImageDescriptorTable): ImageOccurrence[] =>
     collectDocumentImages(root).map((image, index) => ({
@@ -152,7 +162,85 @@ export function alignDocumentImages(
   // Moved figures are reserved before similarity matching so another figure
   // cannot steal either endpoint. Markup refinement restores document order.
   for (const pair of moved) entries.push({ ...imageEntry(pair.original, pair.revised), kind: 'moved' });
+  if (textAlignment) {
+    const isAligned = textPositionAlignment(textAlignment.diffs);
+    const byOriginal = new Map<HTMLImageElement, ImageAlignmentEntry>();
+    for (const entry of entries) if (entry.original) byOriginal.set(entry.original, entry);
+    // Repeated copies cannot prove which occurrence moved relative to text.
+    for (const pair of candidates) {
+      if (!pair.unique) continue;
+      const originalOffset = textAlignment.originalOffsets.get(pair.original.image);
+      const revisedOffset = textAlignment.revisedOffsets.get(pair.revised.image);
+      if (originalOffset === undefined || revisedOffset === undefined || isAligned(originalOffset, revisedOffset))
+        continue;
+      const entry = byOriginal.get(pair.original.image);
+      if (entry?.revised === pair.revised.image && entry.kind === 'unchanged') entry.kind = 'moved';
+    }
+  }
   return entries;
+}
+
+type TextAlignmentRange = {
+  originalStart: number;
+  originalEnd: number;
+  revisedStart: number;
+  revisedEnd: number;
+  equal: boolean;
+};
+
+/**
+ * Equal text projects a position exactly. An edited run gives an interval:
+ * inserting text beside a stationary image must not manufacture a move.
+ * Inclusive endpoints allow either side of such an insertion at a boundary.
+ */
+function textPositionAlignment(diffs: readonly DiffTuple[]): (original: number, revised: number) => boolean {
+  const ranges: TextAlignmentRange[] = [];
+  let originalOffset = 0;
+  let revisedOffset = 0;
+  for (let index = 0; index < diffs.length; index++) {
+    const [operation, text] = diffs[index]!;
+    const originalStart = originalOffset;
+    const revisedStart = revisedOffset;
+    if (operation === DIFF_EQUAL) {
+      originalOffset += text.length;
+      revisedOffset += text.length;
+    } else {
+      for (; index < diffs.length && diffs[index]![0] !== DIFF_EQUAL; index++) {
+        const [edit, chunk] = diffs[index]!;
+        if (edit === DIFF_DELETE) originalOffset += chunk.length;
+        if (edit === DIFF_INSERT) revisedOffset += chunk.length;
+      }
+      index--;
+    }
+    ranges.push({
+      originalStart,
+      revisedStart,
+      originalEnd: originalOffset,
+      revisedEnd: revisedOffset,
+      equal: operation === DIFF_EQUAL
+    });
+  }
+
+  return (original, revised) => {
+    if (ranges.length === 0) return true;
+    let low = 0;
+    let high = ranges.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (ranges[middle]!.originalEnd < original) low = middle + 1;
+      else high = middle;
+    }
+    for (let index = low; index < ranges.length && ranges[index]!.originalStart <= original; index++) {
+      const range = ranges[index]!;
+      if (
+        range.equal
+          ? revised === range.revisedStart + original - range.originalStart
+          : revised >= range.revisedStart && revised <= range.revisedEnd
+      )
+        return true;
+    }
+    return false;
+  };
 }
 
 type ImageOccurrence = { image: HTMLImageElement; index: number; descriptor?: ImageDescriptor };

@@ -22,6 +22,6 @@ export function documentCoverage(document: DocumentPaneState, i18n: I18nMessages
     unavailable,
     reasons,
     revisions: revisions.insertions + revisions.deletions,
-    limited: unavailable > 0 || warnings.length > 0
+    limited: unavailable > 0 || (document.limitedImageCount ?? 0) > 0 || warnings.length > 0
   };
 }

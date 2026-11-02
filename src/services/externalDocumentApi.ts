@@ -16,6 +16,7 @@
  */
 
 import type { DiffSummary } from '@/types/diff';
+import { DocumentImportError } from './documentFile';
 
 export type ExternalDocumentMeta = {
   /** Integrator business identifier, echoed back in events for correlation. */
@@ -41,7 +42,7 @@ export type DocDiffProState = {
 export type DocDiffProEventMap = {
   ready: Record<string, never>;
   result: { summary: DiffSummary; meta?: ExternalDocumentMeta };
-  error: { message: string; meta?: ExternalDocumentMeta };
+  error: { message: string; meta?: ExternalDocumentMeta; side?: 'A' | 'B'; phase?: 'import' | 'comparison' };
   cleared: { meta?: ExternalDocumentMeta };
 };
 
@@ -53,6 +54,8 @@ export type DocDiffProApi = {
   /**
    * Load one or both documents. Either side may be omitted to update only the
    * supplied side without blocking on the other.
+   * Rejects and emits `error` on import failure. Canceled or superseded imports
+   * reject with `AbortError` without an error event.
    */
   loadDocuments(documents: ExternalDocumentSet): Promise<{ sequence: number }>;
   /** Subscribe to a lifecycle/comparison event. Returns an unsubscribe function. */
@@ -104,7 +107,19 @@ export function createExternalDocumentApi(
     loadDocuments: async (documents) => {
       if (!installed) throw new Error('Document API is not installed.');
       const sequence = ++sequenceCounter;
-      await loadDocuments(documents);
+      try {
+        await loadDocuments(documents);
+      } catch (error) {
+        if (!(typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError')) {
+          emit('error', {
+            message: error instanceof Error ? error.message : String(error),
+            meta: documents?.meta,
+            ...(error instanceof DocumentImportError ? { side: error.side } : {}),
+            phase: 'import'
+          });
+        }
+        throw error;
+      }
       return { sequence };
     },
     on: (event, handler) => {

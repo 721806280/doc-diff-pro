@@ -14,6 +14,9 @@ import {
   DIFF_EQUAL,
   DIFF_INSERT,
   IMAGE_DIFF_ATTRIBUTE,
+  LINE_BREAK_DIFF_ATTRIBUTE,
+  SEMANTIC_DIFF_ATTRIBUTE,
+  estimateEditDistance,
   parseDiffId,
   summarizeDiffs
 } from './textDiffCore';
@@ -63,6 +66,8 @@ export type DiffGroupRefinementOptions = {
   granularity: DiffGranularity;
   ignoreSpaces: boolean;
   ignoreFullHalfWidth: boolean;
+  /** Text edits recovered after row flattening hid changed cell contents. */
+  onRecoveredTextEdits?: (distance: number) => void;
 };
 
 const DEFAULT_REFINEMENT_OPTIONS: DiffGroupRefinementOptions = {
@@ -205,6 +210,15 @@ function bucketByScope(elements: HTMLElement[], index: StructureIndex): DiffGrou
 }
 
 function pairScopedBuckets(original: DiffGroupBuckets, revised: DiffGroupBuckets): DiffGroupUnit[] {
+  // Image alignment already proved this pair's identity, including a move
+  // across distant paragraphs or table cells. Keep it one review item.
+  if (original.size === 1 && revised.size === 1) {
+    const left = [...original.values()][0]!;
+    const right = [...revised.values()][0]!;
+    if ([...left.elements, ...right.elements].every((element) => element.hasAttribute(IMAGE_DIFF_ATTRIBUTE))) {
+      return [{ original: left, revised: right }];
+    }
+  }
   const units: DiffGroupUnit[] = [];
   const matchedOriginal = new Set<string>();
   const matchedRevised = new Set<string>();
@@ -450,6 +464,37 @@ function pairRowsByUniqueFirstCell(
     matchedRevised.add(revisedRow);
   });
 
+  // A moved cell boundary can leave the whole row's text unchanged even when
+  // its first cell changed. Pair those rows before a positional fallback, so
+  // an inserted row does not shift the cells we compare below it.
+  const originalTextKeys = originalRows.map((row) => normalizeStructureText(row.textContent ?? ''));
+  const revisedTextKeys = revisedRows.map((row) => normalizeStructureText(row.textContent ?? ''));
+  const originalTextCounts = countValues(originalTextKeys);
+  const revisedTextCounts = countValues(revisedTextKeys);
+  const revisedByText = new Map(revisedRows.map((row, index) => [revisedTextKeys[index], row]));
+  originalRows.forEach((row, index) => {
+    const key = originalTextKeys[index];
+    if (matchedOriginal.has(row) || !key || originalTextCounts.get(key) !== 1 || revisedTextCounts.get(key) !== 1)
+      return;
+    const revisedRow = revisedByText.get(key);
+    if (!revisedRow || matchedRevised.has(revisedRow)) return;
+    pairs.push([row, revisedRow]);
+    matchedOriginal.add(row);
+    matchedRevised.add(revisedRow);
+  });
+
+  // Equal row counts also allow an edited label or a repeated label to stay
+  // paired at its position. Already identified moves keep their own endpoints.
+  if (originalRows.length === revisedRows.length) {
+    originalRows.forEach((row, index) => {
+      const revisedRow = revisedRows[index];
+      if (!revisedRow || matchedOriginal.has(row) || matchedRevised.has(revisedRow)) return;
+      pairs.push([row, revisedRow]);
+      matchedOriginal.add(row);
+      matchedRevised.add(revisedRow);
+    });
+  }
+
   return {
     pairs,
     unmatchedOriginal: originalRows.filter((row) => !matchedOriginal.has(row)),
@@ -480,14 +525,33 @@ function repairPairedRowCells(
   const revisedCells = directRowCells(revisedRow);
   if (originalCells.length !== revisedCells.length) return;
 
+  const textMarkers = (root: HTMLElement) =>
+    Array.from(root.querySelectorAll<HTMLElement>(DIFF_ELEMENT_SELECTOR)).filter(
+      (element) => !element.hasAttribute(SEMANTIC_DIFF_ATTRIBUTE) && element.querySelector('img, math') === null
+    );
+  const rowHadTextMarkers =
+    textMarkers(originalRow).length > 0 ||
+    textMarkers(revisedRow).length > 0 ||
+    originalRow.querySelector(`[${LINE_BREAK_DIFF_ATTRIBUTE}]`) !== null ||
+    revisedRow.querySelector(`[${LINE_BREAK_DIFF_ATTRIBUTE}]`) !== null;
+  let recoveredRowId: string | undefined;
+
   originalCells.forEach((originalCell, index) => {
     const revisedCell = revisedCells[index];
     if (!revisedCell) return;
 
     const originalId = fullCellDiffId(originalCell, 'del');
     const revisedId = fullCellDiffId(revisedCell, 'ins');
-    if ((!originalId && revisedId) || (!revisedId && originalId)) {
-      remarkCellDifference(originalCell, revisedCell, revisedId ?? originalId!, options, nextRepairGroupId);
+    const changed = prepareCellText(originalCell, options).text !== prepareCellText(revisedCell, options).text;
+    if (changed || (!originalId && revisedId) || (!revisedId && originalId)) {
+      const id =
+        originalId ??
+        revisedId ??
+        textMarkers(originalCell)[0]?.dataset.diffId ??
+        textMarkers(revisedCell)[0]?.dataset.diffId ??
+        (recoveredRowId ??= nextRepairGroupId());
+      const distance = remarkCellDifference(originalCell, revisedCell, id, options, nextRepairGroupId);
+      if (changed && !rowHadTextMarkers && options.ignoreSpaces) options.onRecoveredTextEdits?.(distance);
     }
   });
 }
@@ -498,12 +562,14 @@ function remarkCellDifference(
   id: string,
   options: DiffGroupRefinementOptions,
   nextRepairGroupId: () => string
-): void {
+): number {
   [originalCell, revisedCell].forEach((cell) => {
     Array.from(cell.querySelectorAll<HTMLElement>(DIFF_ELEMENT_SELECTOR))
       // Image and equation markers are not this pass's to redo. Re-diffing
       // only the cell's text would silently drop those differences.
-      .filter((element) => element.querySelector('img, math') === null)
+      .filter(
+        (element) => !element.hasAttribute(SEMANTIC_DIFF_ATTRIBUTE) && element.querySelector('img, math') === null
+      )
       .reverse()
       .forEach(unwrapDiffElement);
   });
@@ -515,6 +581,7 @@ function remarkCellDifference(
 
   applyDiffMarkup(originalCell, originalTrack.mapping, diffs, DIFF_DELETE, 'del');
   applyDiffMarkup(revisedCell, revisedTrack.mapping, diffs, DIFF_INSERT, 'ins');
+  return estimateEditDistance(diffs);
 }
 
 function createCellRepairDiff(original: TextMapping, revised: TextMapping, granularity: DiffGranularity): DiffTuple[] {
