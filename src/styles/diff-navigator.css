@@ -331,6 +331,7 @@ button.summary-chip {
 
   .btn-action-nav {
     font-size: 0.65rem;
+    min-height: 36px;
   }
 }
 

@@ -57,7 +57,6 @@ describe('AppHeader', () => {
   it('closes settings on Escape with focus restoration and outside pointer without stealing focus', () => {
     const { host } = mountHeader();
     const trigger = host.querySelector<HTMLButtonElement>('.settings-trigger')!;
-    trigger.focus();
     act(() => trigger.click());
     act(() => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -135,6 +134,64 @@ describe('AppHeader', () => {
     act(() => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
     act(() => github.click());
     expect(host.querySelector('.settings-popover')).toBeNull();
+  });
+
+  it('selects settings with arrow keys and gives each radio group one tab stop', () => {
+    const events: string[] = [];
+    const { host } = mountHeader({ enableDiffIgnore: true }, events);
+    act(() => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
+    const groups = Array.from(host.querySelectorAll<HTMLElement>('[role="radiogroup"]'));
+    expect(groups).toHaveLength(3);
+    for (const group of groups) {
+      const options = Array.from(group.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
+      expect(options.filter((option) => option.tabIndex === 0)).toHaveLength(1);
+      expect(options.find((option) => option.tabIndex === 0)?.getAttribute('aria-checked')).toBe('true');
+    }
+
+    for (const [group, key, expectedName] of [
+      [groups[0]!, 'ArrowRight', '语义'],
+      [groups[1]!, 'ArrowLeft', '琥珀'],
+      [groups[2]!, 'End', '宽松']
+    ] as const) {
+      const selected = group.querySelector<HTMLButtonElement>('[aria-checked="true"]')!;
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      act(() => {
+        selected.focus();
+        selected.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(true);
+      const focused = document.activeElement;
+      expect(focused?.getAttribute('aria-label') || focused?.textContent?.trim()).toBe(expectedName);
+    }
+    expect(events.filter((event) => !event.startsWith('settingsOpen'))).toEqual([
+      'diffGranularity:semantic',
+      'themeColor:amber',
+      'similarDiffLevel:loose'
+    ]);
+  });
+
+  it('leaves modified navigation keys and the current boundary selection alone', () => {
+    const { host, settingsChanges } = mountHeader();
+    act(() => host.querySelector<HTMLButtonElement>('.settings-trigger')?.click());
+    const selected = host.querySelector<HTMLButtonElement>('.granularity-segmented [aria-checked="true"]')!;
+    for (const modifier of ['altKey', 'ctrlKey', 'metaKey'] as const) {
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        [modifier]: true,
+        bubbles: true,
+        cancelable: true
+      });
+      act(() => {
+        selected.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+    }
+    const end = new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true });
+    act(() => {
+      selected.dispatchEvent(end);
+    });
+    expect(end.defaultPrevented).toBe(true);
+    expect(settingsChanges).toEqual([]);
   });
 });
 

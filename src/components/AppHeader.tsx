@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_USER_SETTINGS, type UserSettings } from '@/config/userSettings';
 import { useI18n } from '@/i18n';
 import { createFocusTrap } from '@/utils/focusTrap';
+import { handleRadioGroupKeyDown } from '@/utils/radioGroup';
 import { getThemeSwatchStyle, THEME_COLORS } from '@/utils/themeColor';
 
 export type HeaderSettings = UserSettings;
@@ -18,7 +19,7 @@ type AppHeaderProps = {
   onSettingsOpenChange: (open: boolean) => void;
 };
 
-const GITHUB_REPOSITORY_URL = 'https://github.com/721806280/doc-diff-vision';
+const GITHUB_REPOSITORY_URL = 'https://github.com/721806280/doc-diff-pro';
 type SimilarOption = UserSettings['similarDiffLevel'] | 'off';
 const SIMILAR_OPTIONS: SimilarOption[] = ['off', 'strict', 'balanced', 'loose'];
 
@@ -221,7 +222,15 @@ export default function AppHeader({
             aria-expanded={open}
             aria-haspopup="dialog"
             title={i18n.header.compareSettingsAria}
-            onClick={() => (open ? closeSettings() : setOpen(true))}
+            onClick={(event) => {
+              if (open) closeSettings();
+              else {
+                // Safari does not focus buttons on a pointer click. Save the
+                // trigger as the return target before the dialog takes focus.
+                event.currentTarget.focus({ preventScroll: true });
+                setOpen(true);
+              }
+            }}
           >
             <svg
               className="settings-sliders-icon"
@@ -271,7 +280,13 @@ export default function AppHeader({
 
               <fieldset className="settings-section settings-section--framed">
                 <legend className="settings-section__title">{i18n.header.diffGranularityLabel}</legend>
-                <div className="granularity-segmented" role="radiogroup" aria-label={i18n.header.diffGranularityLabel}>
+                <div
+                  className="granularity-segmented"
+                  role="radiogroup"
+                  tabIndex={-1}
+                  aria-label={i18n.header.diffGranularityLabel}
+                  onKeyDown={handleRadioGroupKeyDown}
+                >
                   {(['semantic', 'word', 'char'] as const).map((value) => (
                     <button
                       key={value}
@@ -279,6 +294,7 @@ export default function AppHeader({
                       role="radio"
                       className={`granularity-segmented__option ${settings.diffGranularity === value ? 'active' : ''}`}
                       aria-checked={settings.diffGranularity === value}
+                      tabIndex={settings.diffGranularity === value ? 0 : -1}
                       title={i18n.header.granularityOptions[value]}
                       onClick={() => updateSetting('diffGranularity', value)}
                     >
@@ -317,7 +333,13 @@ export default function AppHeader({
 
               <fieldset className="settings-section settings-section--framed settings-section--view">
                 <legend className="settings-section__title">{i18n.header.viewOptionsLabel}</legend>
-                <div className="theme-color-control" role="radiogroup" aria-label={i18n.header.themeColorLabel}>
+                <div
+                  className="theme-color-control"
+                  role="radiogroup"
+                  tabIndex={-1}
+                  aria-label={i18n.header.themeColorLabel}
+                  onKeyDown={handleRadioGroupKeyDown}
+                >
                   <span>{i18n.header.themeColorLabel}</span>
                   <div className="theme-color-swatches">
                     {THEME_COLORS.map((option) => (
@@ -328,6 +350,7 @@ export default function AppHeader({
                         className={`theme-color-swatch ${settings.themeColor === option ? 'active' : ''}`}
                         style={getThemeSwatchStyle(option)}
                         aria-checked={settings.themeColor === option}
+                        tabIndex={settings.themeColor === option ? 0 : -1}
                         aria-label={i18n.header.themeColorOptions[option]}
                         title={i18n.header.themeColorOptions[option]}
                         onClick={() => updateSetting('themeColor', option)}
@@ -370,7 +393,9 @@ export default function AppHeader({
                       <div
                         className="similar-level-control"
                         role="radiogroup"
+                        tabIndex={-1}
                         aria-label={i18n.header.enableSimilarDiffs}
+                        onKeyDown={handleRadioGroupKeyDown}
                       >
                         <span>{i18n.header.enableSimilarDiffs}</span>
                         <div className="similar-level-segmented">
@@ -385,6 +410,7 @@ export default function AppHeader({
                                 type="button"
                                 role="radio"
                                 aria-checked={active}
+                                tabIndex={active ? 0 : -1}
                                 className={active ? 'active' : ''}
                                 title={
                                   option === 'off'

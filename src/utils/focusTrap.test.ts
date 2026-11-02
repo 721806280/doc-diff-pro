@@ -108,6 +108,53 @@ describe('focusTrap', () => {
     trap.handleKeydown(event);
     expect(event.defaultPrevented).toBe(false);
   });
+
+  it('excludes negative tab stops and controls in hidden or disabled ancestors', () => {
+    const container = document.createElement('section');
+    container.innerHTML = `
+      <button tabindex="-1">Unselected option</button>
+      <fieldset disabled><button>Disabled by fieldset</button></fieldset>
+      <div hidden><button>Hidden ancestor</button></div>
+      <div style="display: none"><button>Hidden by CSS</button></div>
+      <div inert><button>Inert ancestor</button></div>
+      <div aria-hidden="true"><button>Hidden from assistive technology</button></div>
+      <button id="first">First</button>
+      <button id="last">Last selected option</button>
+      <button tabindex="-1">Last unselected option</button>
+    `;
+    document.body.append(container);
+    const trap = createFocusTrap();
+    trap.activate(container);
+    const first = container.querySelector<HTMLButtonElement>('#first')!;
+    const last = container.querySelector<HTMLButtonElement>('#last')!;
+    expect(document.activeElement).toBe(first);
+
+    last.focus();
+    const forward = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+    trap.handleKeydown(forward);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+
+    const backward = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true });
+    trap.handleKeydown(backward);
+    expect(backward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(last);
+  });
+
+  it('brings forward tab navigation back from outside or the container itself', () => {
+    const container = createContainer();
+    const outside = document.createElement('button');
+    document.body.append(container, outside);
+    const trap = createFocusTrap();
+    trap.activate(container);
+    for (const target of [outside, container]) {
+      target.focus();
+      const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+      trap.handleKeydown(event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(container.querySelector('#first'));
+    }
+  });
 });
 
 function createContainer(): HTMLElement {

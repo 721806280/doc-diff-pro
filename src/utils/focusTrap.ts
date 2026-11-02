@@ -57,7 +57,10 @@ export function createFocusTrap(): FocusTrap {
       return;
     }
 
-    if (!event.shiftKey && activeElement === last) {
+    if (
+      !event.shiftKey &&
+      (activeElement === last || activeElement === container || !container.contains(activeElement))
+    ) {
       event.preventDefault();
       first.focus({ preventScroll: true });
     }
@@ -81,8 +84,19 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
 }
 
 function isVisibleFocusableElement(element: HTMLElement): boolean {
-  if (element.getAttribute('aria-hidden') === 'true') return false;
+  if (
+    element.tabIndex < 0 ||
+    element.matches(':disabled') ||
+    element.closest('[hidden], [inert], [aria-hidden="true"]')
+  )
+    return false;
 
   const style = window.getComputedStyle(element);
-  return style.display !== 'none' && style.visibility !== 'hidden';
+  if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  // A child of display:none still reports its own display value. Such controls
+  // must not become the trap's first or last stop when a pane is hidden.
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    if (window.getComputedStyle(parent).display === 'none') return false;
+  }
+  return true;
 }

@@ -322,6 +322,7 @@
   z-index: var(--z-settings-popover);
   width: min(286px, calc(100vw - 24px));
   max-height: calc(100vh - 76px);
+  max-height: calc(100dvh - 76px);
   overflow-y: auto;
   overscroll-behavior: contain;
   display: grid;
@@ -691,12 +692,11 @@
 }
 
 .similar-level-control {
-  min-height: 34px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 6px 0 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px 8px 8px;
   border-radius: 6px;
   color: var(--text-secondary);
 }
@@ -719,7 +719,7 @@
 }
 
 .similar-level-segmented {
-  flex: 0 0 180px;
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
@@ -767,11 +767,51 @@
   .header-actions {
     order: 2;
     margin-left: auto;
+    position: static;
+  }
+
+  .settings-control {
+    position: static;
+  }
+
+  .brand-zone {
+    min-height: 36px;
+  }
+
+  .toolbar-icon-button {
+    width: 36px;
+    height: 36px;
   }
 
   .settings-popover {
-    right: 0;
-    width: min(286px, calc(100vw - 16px));
+    top: calc(100% + 6px);
+    right: 8px;
+    width: min(320px, calc(100vw - 24px));
+    max-height: calc(100vh - 84px);
+    max-height: calc(100dvh - 84px);
+  }
+
+  .settings-toggle,
+  .theme-color-control {
+    min-height: 40px;
+  }
+
+  .granularity-segmented__option,
+  .similar-level-segmented button {
+    min-height: 36px;
+  }
+
+  .theme-color-control {
+    gap: 8px;
+  }
+
+  .theme-color-swatch {
+    width: 28px;
+    height: 28px;
+  }
+
+  .settings-reset-button {
+    min-height: 28px;
   }
 }
 
