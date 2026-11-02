@@ -1,6 +1,6 @@
 .compare-toast {
   position: absolute;
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  top: 116px;
   left: 50%;
   z-index: 30;
   display: inline-flex;
@@ -68,13 +68,7 @@
 .compare-toast-enter-from,
 .compare-toast-leave-to {
   opacity: 0;
-  transform: translate(-50%, 12px);
-}
-
-@media (max-width: 820px) {
-  .compare-toast {
-    width: calc(100% - 24px);
-  }
+  transform: translate(-50%, -12px);
 }
 
 @media (prefers-reduced-motion: reduce) {
