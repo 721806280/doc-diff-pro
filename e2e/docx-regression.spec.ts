@@ -349,7 +349,7 @@ for (const fixture of ['native-chart', 'native-chart-aliased']) {
   });
 }
 
-test('releases images after a partial allocation failure and allows a fresh import', async ({ page }) => {
+test('releases images after a partial allocation failure and allows a fresh import', async ({ page, isMobile }) => {
   await page.addInitScript(() => {
     const probe: ImageAllocationProbe = { attempts: 0, created: [], revoked: [] };
     Reflect.set(window, '__imageAllocationProbe', probe);
@@ -382,16 +382,29 @@ test('releases images after a partial allocation failure and allows a fresh impo
   await originalInput.setInputFiles('e2e/fixtures/structure-images-original.docx');
   await page.locator('input[type="file"]').last().setInputFiles('e2e/fixtures/structure-images-revised.docx');
   await expect(page.locator('.floating-navigator')).toBeVisible();
-  await expect(page.locator('.docx-render-content img')).toHaveCount(6);
-  await expect
-    .poll(() =>
-      page
-        .locator('.docx-render-content img')
-        .evaluateAll((images) =>
-          images.every((image) => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)
-        )
-    )
-    .toBe(true);
+  // WebKit leaves lazy images in the inactive mobile pane unloaded. Visit each
+  // pane and bring every figure into view before checking the recovered sources.
+  for (const [side, selector] of [
+    ['A', '.side-original'],
+    ['B', '.side-revision']
+  ] as const) {
+    const pane = page.locator(selector);
+    if (isMobile) {
+      const option = page.locator(`.mobile-pane-switch__option[data-pane="${side}"]`);
+      await option.click();
+      await expect(option).toHaveAttribute('aria-checked', 'true');
+      await expect(pane).toHaveClass(/mobile-pane-active/);
+    }
+    const images = pane.locator('.docx-render-content img');
+    await expect(images).toHaveCount(3);
+    for (const image of await images.all()) {
+      await image.scrollIntoViewIfNeeded();
+      await expect(image).toBeInViewport();
+      await expect
+        .poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0))
+        .toBe(true);
+    }
+  }
 });
 
 test('keeps conversion warnings beside the document when parsed content is identical', async ({ page }) => {
